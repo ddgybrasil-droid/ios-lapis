@@ -42,23 +42,37 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
 
-      - name: Download latest green xnu-kernel-lapis artifact
+      - name: Download latest xnu-kernel-lapis artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           BRANCH="${{ github.head_ref || github.ref_name }}"
-          echo "Looking for successful xnu.yml runs on branch=$BRANCH"
-          RID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
-            --branch "$BRANCH" --limit 30 \
-            --json databaseId,conclusion,status,headSha \
-            --jq 'map(select(.conclusion=="success" and .status=="completed")) | .[0].databaseId // empty')
+          echo "Looking for xnu.yml runs with a kernel artifact on branch=$BRANCH"
+          # Prefer fully green runs; also accept completed runs that uploaded
+          # xnu-kernel-lapis even if a nested package job flaked (overall failure).
+          pick_run() {
+            local branch_args=("$@")
+            local ids
+            ids=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
+              "${branch_args[@]}" --limit 40 \
+              --json databaseId,conclusion,status \
+              --jq 'map(select(.status=="completed")) | .[].databaseId')
+            local rid
+            for rid in $ids; do
+              if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$rid/artifacts" \
+                --jq '.artifacts[] | select(.name=="xnu-kernel-lapis" and .expired==false) | .name' \
+                | grep -qx xnu-kernel-lapis; then
+                echo "$rid"
+                return 0
+              fi
+            done
+            return 1
+          }
+          RID=$(pick_run --branch "$BRANCH" || true)
           if [ -z "${RID}" ]; then
-            echo "No success on $BRANCH; falling back to any successful xnu.yml run"
-            RID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
-              --limit 50 \
-              --json databaseId,conclusion,status,headBranch \
-              --jq 'map(select(.conclusion=="success" and .status=="completed")) | .[0].databaseId // empty')
+            echo "No kernel artifact on $BRANCH; falling back to any branch"
+            RID=$(pick_run || true)
           fi
           test -n "${RID}"
           echo "Downloading xnu-kernel-lapis from run $RID"

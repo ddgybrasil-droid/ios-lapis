@@ -74,13 +74,41 @@ reboot) — **not** proof of XNU entry. Patch `0012` adds XNU splash
 breadcrumbs (asm bands + `LAPIS EARLY N:`), exception-slot paint, and
 skips `msr OSLAR_EL1` under LAPIS.
 
-## Final XNU CI — **green**
+Payload fields re-checked from
+`/opt/cursor/artifacts/lapis-xnu-entry-debug.img` (embedded `LAPISXNU`):
+same PHYS/MEMSZ/KEND/ADT/BA/TOPKD/JUMP as above; VIRT/ENTRY match
+`0xFFFFFE00…` (photo OCR’s extra `F` is wrong). `MEMSZ` is ADT
+`dram-size` after the 1 MiB panic carve (`0x22FA60000 - 0x100000`).
+
+### Entry-debug boot image
+
+Path: `/opt/cursor/artifacts/lapis-xnu-entry-debug.img`  
+Kernel: run `42526187192` build job (patches through `0012`, MOV64 fix).  
+Verified in image: `arm_init entered`, `leaving bootstrap TTBR0`,
+`_lapis_early_*` symbols; prefix text is per-char `putc` (no contiguous
+`LAPIS EARLY` cstring).
+
+Screen meaning after this image:
+
+| Observation | Meaning |
+|-------------|---------|
+| Stuck solid red, no top band | No confirmed XNU entry (or hang before stage0 paint) |
+| White top band | Asm stage0 ran (entry) |
+| Lime / cyan / magenta bands | Stages 1–3 (pagetables / pre-MMU / post-MMU) |
+| Bottom colour tiles + text | C `arm_init` marks |
+| Blue top + exception tiles | Early vector / ESR path |
+
+## Final XNU CI — **green** (pre-0012 baseline)
 
 Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517908527
 
 - `MACOS_VERSION=26.5`, `MACHINE_CONFIG=LAPIS`, KDK 26.5 / Xcode 26.3
 - Artifact: `kernel.development.lapis` (+ unstripped)
 - Patches `0001`–`0011`
+
+0012 kernel build job succeeded in run `42526187192`; nested
+`package-bootimg` flaked empty-steps (Actions capacity). Workflow now
+`continue-on-error` on that nested job so overall xnu can stay green.
 
 ## Earlier XNU CI history (failures → green)
 

@@ -133,9 +133,13 @@ jobs:
         run: |
           test "${BUILD_EXIT:-1}" = "0"
 
+  # Optional packaging; runner capacity flakes must not fail the xnu workflow
+  # when kernel.development.lapis already built (standalone package-bootimg.yml
+  # can consume xnu-kernel-binary / xnu-kernel-lapis independently).
   package-bootimg:
     needs: build
     if: needs.build.result == 'success'
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
