@@ -150,7 +150,7 @@ jobs:
           ./scripts/build-bootimg.sh "$K"
           test -f out/lapis-fastboot-boot.img
           sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
-          cat out/DRAM.txt
+          cat out/DRAM.txt out/VERIFY.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -161,6 +161,7 @@ jobs:
             out/payload.bin
             out/lapis.adt
             out/DRAM.txt
+            out/VERIFY.txt
             out/SHA256SUMS
             out/kernel.development.lapis
           if-no-files-found: error

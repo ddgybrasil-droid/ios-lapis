@@ -46,9 +46,12 @@ fastboot boot out/lapis-fastboot-boot.img
 
 Do **not** `fastboot flash` boot / init_boot / vendor_boot.
 
-Without a `LAPISXNU` payload the shim paints a red diagnostic screen and waits.
-With a payload it paints STEP 0–7 on the splash FB, sets up ADT + `boot_args`
-(`physBase=0x8C0000000`), and jumps to XNU at EL1 (MMU off).
+TB520FU is Android 13+ GKI: stock `boot.img` is kernel-only (ramdisk in
+`init_boot`). The packer therefore **embeds** `LAPISXNU` in the Linux Image
+(after `_end`) and keeps a tiny empty boot.img ramdisk. Without a payload the
+shim paints a red diagnostic screen; with a payload it paints STEP progress on
+the splash FB, sets up ADT + `boot_args` (`physBase=0x8C0000000`), and jumps to
+XNU at EL1 (MMU off).
 
 ## Build XNU (macOS / CI)
 

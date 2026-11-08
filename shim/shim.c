@@ -1,6 +1,6 @@
 /*
  * lapis M1 shim: paint staged progress on the splash FB, then hand off to
- * the LAPISXNU payload in the ABL ramdisk (MMU stays off for the jump).
+ * the LAPISXNU payload embedded in the Linux Image (GKI-safe).
  */
 #include <stdint.h>
 #include "console.h"
@@ -47,7 +47,8 @@ void shim_main(uint64_t dtb)
 	con_clear(BLUE);
 	con_str("STOP", "loader returned");
 	con_str("WHY", why);
-	con_str("HINT", "need LAPISXNU payload as ramdisk");
+	con_str("HINT", "payload must be in Image after _end");
+	con_str("NOTE", "GKI: boot.img ramdisk not used by ABL");
 	for (;;)
 		__asm__ volatile("wfe");
 }

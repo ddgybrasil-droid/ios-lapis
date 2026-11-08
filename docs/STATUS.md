@@ -39,19 +39,27 @@ the diagnostic (no-payload) boot.img.
 
 ## Flashable `fastboot boot` image
 
-`package-bootimg` workflow (and the `package-bootimg` job on green `xnu`
-runs) packs shim + `LAPISXNU` payload and uploads artifact
-**`lapis-fastboot-boot`** (`lapis-fastboot-boot.img`).
+### On-device failure (19746816-byte image from run 42519261116)
 
-HEAD packaging (shim + xnu + package all green):
-https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42519261116
-Artifact: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42519261116/artifacts/13633301014
+Screen: `STOP loader returned` / `WHY no LAPISXNU payload`.
+
+**Verified cause (packaging vs ABL handoff, not missing bytes):** the boot.img
+bytes contained `LAPISXNU` in the **ramdisk slot** with correct v4 sizes, but
+TB520FU is Android 13+ GKI — stock `boot.img` is kernel-only and the generic
+ramdisk lives in **`init_boot`**. Qualcomm ABL `fastboot boot` loads our shim
+(kernel) and leaves `linux,initrd-*` on the flashed init_boot (gzip/cpio), so
+the shim saw an initrd that was not `LAPISXNU`.
+
+**Fix:** append `LAPISXNU` to the Linux Image after `_end`, patch `image_size`,
+ship a tiny empty boot.img ramdisk, prefer embedded discovery (FDT initrd only
+if it already starts with `LAPISXNU`). `tools/verify_bootimg.py` enforces this.
 
 ```sh
 fastboot boot lapis-fastboot-boot.img
 ```
 
-Shim paints staged FB progress (STEP 0–7) before the XNU jump.
+Shim paints staged FB progress + peek diagnostics before the XNU jump.
+Green CI does **not** prove on-device success.
 
 ## Final XNU CI — **green**
 

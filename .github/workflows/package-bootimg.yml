@@ -82,21 +82,16 @@ jobs:
           sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
           cat out/DRAM.txt
 
-      - name: Static checks
+      - name: Static checks (GKI embed invariants)
         run: |
+          python3 tools/verify_bootimg.py out/lapis-fastboot-boot.img \
+            --expect-payload out/payload.bin | tee -a out/SHA256SUMS
           python3 - <<'PY'
-          import struct, pathlib, json
-          img = pathlib.Path('out/lapis-fastboot-boot.img').read_bytes()
-          assert img[:8] == b'ANDROID!', img[:8]
-          assert struct.unpack_from('<I', img, 40)[0] == 4
+          import json
           p = json.load(open('hw/lapis-profile.json'))
-          phys = int(p['memory']['phys_base'], 16)
-          assert phys == 0x8C0000000, hex(phys)
-          size = int(p['memory']['mem_size'], 16)
-          assert size == 0x22FA60000, hex(size)
-          pay = pathlib.Path('out/payload.bin').read_bytes()
-          assert pay[:8] == b'LAPISXNU', pay[:8]
-          print('package ok: boot.img v4 + LAPISXNU + DRAM', hex(phys), hex(size))
+          assert int(p['memory']['phys_base'], 16) == 0x8C0000000
+          assert int(p['memory']['mem_size'], 16) == 0x22FA60000
+          print('DRAM profile ok')
           PY
 
       - uses: actions/upload-artifact@v4
@@ -108,6 +103,7 @@ jobs:
             out/payload.bin
             out/lapis.adt
             out/DRAM.txt
+            out/VERIFY.txt
             out/SHA256SUMS
             out/kernel.development.lapis
           if-no-files-found: error

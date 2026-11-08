@@ -42,6 +42,10 @@ jobs:
           assert phys == 0x8C0000000 and size == 0x22FA60000, (hex(phys), hex(size))
           print('boot.img v4 ok, size', len(img), 'DRAM', hex(phys), hex(size))
           print(pathlib.Path('out/DRAM.txt').read_text())
+          # Diagnostic image: tiny ramdisk, no LAPISXNU required
+          ks, rs = __import__('struct').unpack_from('<II', img, 8)
+          assert rs < 65536, rs
+          print('diagnostic ramdisk_size', rs, 'kernel_size', ks)
           PY
           aarch64-linux-gnu-gcc -c -x c -o /tmp/ba.o - <<'C'
           #include <stdint.h>
