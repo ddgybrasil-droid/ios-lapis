@@ -13,3 +13,5 @@ dtb/
 research/
 *.ipsw
 *.im4p
+__pycache__/
+*.pyc
