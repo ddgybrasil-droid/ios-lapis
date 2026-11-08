@@ -61,6 +61,19 @@ fastboot boot lapis-fastboot-boot.img
 Shim paints staged FB progress + peek diagnostics before the XNU jump.
 Green CI does **not** prove on-device success.
 
+## On-device after GKI embed fix (STEP7 reached)
+
+Photo transcription verified against payload math (VIRT/ENTRY OCR had an
+extra `F`): PHYS `0x8C0000000`, MEMSZ `0x22F960000`, VIRT
+`0xFFFFFE0006000000`, ENTRY `0xFFFFFE000756D488`, JUMP `0x8C156D488`,
+KEND/ADT_PA `0x8C23D0000`, ADT_SZ `0x26D8`, BA_PA `0x8C23D4000`, TOPKD
+`0x8C23D8000`.
+
+Last shim line `XNU handoff (MMU off)`, then solid red indefinitely (no
+reboot) — **not** proof of XNU entry. Patch `0012` adds XNU splash
+breadcrumbs (asm bands + `LAPIS EARLY N:`), exception-slot paint, and
+skips `msr OSLAR_EL1` under LAPIS.
+
 ## Final XNU CI — **green**
 
 Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517908527
