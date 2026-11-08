@@ -12,12 +12,13 @@
     "gicr_base": "0x17180000",
     "gicr_size": "0x200000",
     "gicr_stride": "0x40000",
-    "source": "upstream arch/arm64/boot/dts/qcom/sm8650.dtsi; reconcile with device HW.md"
+    "source": "hw/HW.md + live /proc/iomem"
   },
   "timer": {
     "compatible": "arm,armv8-timer",
+    "frequency_hz": 19200000,
     "vtimer_intid": 27,
-    "note": "SM8650 DT uses standard PPIs 13/14/11/10 => virt timer INTID 27 (unlike sweet's remapped INTID 19)"
+    "note": "PPIs 13/14/11/12 => INTIDs 29/30/27/26; virt timer INTID 27"
   },
   "psci": {
     "compatible": "arm,psci-1.0",
@@ -31,13 +32,16 @@
     "format": "XRGB8888",
     "rotation": 0,
     "orientation": "landscape",
-    "source": "task description / M0 verification"
+    "reserved_end": "0xD7C00000",
+    "source": "M0 verification + cont_splash_region / iomem d5100000-d7bfffff"
   },
   "memory": {
-    "phys_base": "0x100000000",
-    "mem_size": "0x80000000",
+    "phys_base": "0x8C0000000",
+    "mem_size": "0x22FA60000",
     "panic_log_size": "0x100000",
-    "note": "Placeholder high-bank range (above 4GiB) chosen to avoid FB at 0xD5100000. REPLACE with verified free RAM from HW.md before trusting on-device boots."
+    "iomem_range": "8c0000000-affffefff System RAM",
+    "free_until": "0xAEFA60000",
+    "note": "High bank free span [0x8C0000000, 0xAEFA60000) from live iomem (before aefa60000 reserved). Avoids Gunyah@0x80000000, low-bank carveouts, splash FB@0xD5100000, and TZ/VM regions. Analogous to ios-sweet upper-bank placement."
   },
   "xnu": {
     "tag": "xnu-12377.121.6",
@@ -46,7 +50,7 @@
     "machine_config": "LAPIS"
   },
   "provenance": {
-    "uploads_mounted": false,
-    "note": "Agent environment did not receive uploads/ (PLAN.md, HW.md, iomem.txt, VERIFICATION.md, IMPLEMENTATION-HANDOFF.md). Values above combine the user query with public SM8650 DT and verified xnu-12377.121.6 boot.h."
+    "uploads_mounted": true,
+    "sources": ["hw/HW.md", "hw/iomem.txt", "hw/VERIFICATION.md"]
   }
 }

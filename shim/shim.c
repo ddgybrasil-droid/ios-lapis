@@ -1,6 +1,6 @@
 /*
- * lapis M1 shim: paint a banner, then hand off to the LAPISXNU payload
- * in the ABL ramdisk (MMU stays off for the jump).
+ * lapis M1 shim: paint staged progress on the splash FB, then hand off to
+ * the LAPISXNU payload in the ABL ramdisk (MMU stays off for the jump).
  */
 #include <stdint.h>
 #include "console.h"
@@ -33,16 +33,21 @@ void secondary_main(uint64_t idx)
 void shim_main(uint64_t dtb)
 {
 	con_clear(RED);
-	con_str("SHIM", "ios-lapis M1 loader (xnu-12377)");
-	con_hex2("DTB", "at=", (uint32_t)dtb, "magic=",
-		 dtb ? __builtin_bswap32(rd32(dtb)) : 0);
-	con_hex2("FB", "base=", (uint32_t)FB_BASE, "str=", FB_STRIDE);
+	con_str("SHIM", "ios-lapis M1 (xnu-12377)");
+	con_str("STEP", "0 entry EL1");
+	con_hex("DTB", dtb);
+	if (dtb)
+		con_hex("MAGIC", __builtin_bswap32(rd32(dtb)));
+	con_hex("FB", FB_BASE);
 	con_hex2("RES", "w=", FB_W, "h=", FB_H);
+	con_hex2("STR", "b=", FB_STRIDE, "bpp=", 32);
 	con_skip();
 
 	const char *why = loader_boot((uintptr_t)dtb);
-	con_str("LOADER", why);
-	con_str("HINT", "pack a LAPISXNU payload as the ramdisk");
+	con_clear(BLUE);
+	con_str("STOP", "loader returned");
+	con_str("WHY", why);
+	con_str("HINT", "need LAPISXNU payload as ramdisk");
 	for (;;)
 		__asm__ volatile("wfe");
 }

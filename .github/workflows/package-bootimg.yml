@@ -1,0 +1,99 @@
+name: package-bootimg
+
+# Package shim + latest green kernel.development.lapis into a downloadable
+# fastboot boot image. Runs on DRAM/shim/tooling changes without rebuilding XNU.
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/package-bootimg.yml'
+  pull_request:
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/package-bootimg.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: package-bootimg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Download latest green xnu-kernel-lapis artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: xnu.yml
+          name: xnu-kernel-lapis
+          branch: ${{ github.head_ref || github.ref_name }}
+          workflow_conclusion: success
+          path: kernel-art
+          search_artifacts: true
+          if_no_artifact_found: fail
+
+      - name: Locate kernel.development.lapis
+        id: kern
+        run: |
+          K=$(find kernel-art -type f -name 'kernel.development.lapis' ! -name '*.unstripped' | head -n1)
+          test -n "$K"
+          ls -la "$K"
+          file "$K" || true
+          echo "path=$K" >> "$GITHUB_OUTPUT"
+
+      - name: Build flashable boot.img (shim + payload)
+        run: |
+          ./scripts/build-bootimg.sh "${{ steps.kern.outputs.path }}"
+          test -f out/lapis-fastboot-boot.img
+          sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
+          cat out/DRAM.txt
+
+      - name: Static checks
+        run: |
+          python3 - <<'PY'
+          import struct, pathlib, json
+          img = pathlib.Path('out/lapis-fastboot-boot.img').read_bytes()
+          assert img[:8] == b'ANDROID!', img[:8]
+          assert struct.unpack_from('<I', img, 40)[0] == 4
+          p = json.load(open('hw/lapis-profile.json'))
+          phys = int(p['memory']['phys_base'], 16)
+          assert phys == 0x8C0000000, hex(phys)
+          size = int(p['memory']['mem_size'], 16)
+          assert size == 0x22FA60000, hex(size)
+          # Payload magic in the ramdisk region of the boot image is not
+          # trivially carved here; ensure payload.bin itself is LAPISXNU.
+          pay = pathlib.Path('out/payload.bin').read_bytes()
+          assert pay[:8] == b'LAPISXNU', pay[:8]
+          print('package ok: boot.img v4 + LAPISXNU + DRAM', hex(phys), hex(size))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-fastboot-boot
+          path: |
+            out/lapis-fastboot-boot.img
+            out/shim-boot.img
+            out/payload.bin
+            out/lapis.adt
+            out/DRAM.txt
+            out/SHA256SUMS
+            out/kernel.development.lapis
+          if-no-files-found: error

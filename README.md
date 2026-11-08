@@ -13,25 +13,27 @@ an XNU Mach-O plus a generated Apple Device Tree (ADT).
 
 | Piece | State |
 |-------|-------|
-| Hardware profile / FB params | Present (`hw/`) — GIC/timer from SM8650 DT + task; **RAM map still a placeholder** |
-| aarch64 shim + boot.img v4 | Builds on Linux (`scripts/build-bootimg.sh`) |
+| Hardware profile / FB / DRAM | `hw/lapis-profile.json` — FB M0-verified; DRAM `0x8C0000000` + `0x22FA60000` from live iomem |
+| aarch64 shim + boot.img v4 | Builds on Linux; paints STEP progress on FB before XNU jump |
 | `boot_args` for xnu-12377 | **Verified**: `BOOT_LINE_LENGTH=1024`, `sizeof=1152` |
-| XNU patches for LAPIS | Bring-up set `0001`–`0005`; full sweet rebase documented, not finished |
+| XNU patches for LAPIS | `0001`–`0011` on `xnu-12377.121.6` |
 | macOS XNU CI | **Green** — `kernel.development.lapis` ([run 42517908527](https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517908527)) |
-| On-device XNU boot | **Not claimed** — needs kernel artifact + verified free RAM |
+| Flashable boot artifact | CI artifact **`lapis-fastboot-boot`** → `lapis-fastboot-boot.img` |
+| On-device XNU boot | **Not claimed** — image is ready to try; early bring-up TBD |
 
 ## Build the shim (Linux)
 
 ```sh
 sudo apt-get install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 ./scripts/build-bootimg.sh
-# => out/shim-boot.img
+# => out/shim-boot.img  (diagnostic, no XNU payload)
 ```
 
 With a kernel Mach-O from CI:
 
 ```sh
 ./scripts/build-bootimg.sh path/to/kernel.development.lapis
+# => out/lapis-fastboot-boot.img
 ```
 
 ## Boot on the tablet
@@ -39,14 +41,14 @@ With a kernel Mach-O from CI:
 Unlocked bootloader. **Temporary boot only:**
 
 ```sh
-fastboot boot out/shim-boot.img
+fastboot boot out/lapis-fastboot-boot.img
 ```
 
 Do **not** `fastboot flash` boot / init_boot / vendor_boot.
 
-Without a `LAPISXNU` payload in the ramdisk the shim paints a red diagnostic
-screen and waits. With a payload it sets up ADT + `boot_args` and jumps to XNU
-at EL1 (MMU off).
+Without a `LAPISXNU` payload the shim paints a red diagnostic screen and waits.
+With a payload it paints STEP 0–7 on the splash FB, sets up ADT + `boot_args`
+(`physBase=0x8C0000000`), and jumps to XNU at EL1 (MMU off).
 
 ## Build XNU (macOS / CI)
 

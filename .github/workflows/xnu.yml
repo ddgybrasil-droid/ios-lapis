@@ -123,3 +123,44 @@ jobs:
         if: always()
         run: |
           test "${BUILD_EXIT:-1}" = "0"
+
+  package-bootimg:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Download kernel artifact from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: xnu-kernel-lapis
+          path: kernel-art
+
+      - name: Package flashable boot.img
+        run: |
+          K=$(find kernel-art -type f -name 'kernel.development.lapis' ! -name '*.unstripped' | head -n1)
+          test -n "$K"
+          ./scripts/build-bootimg.sh "$K"
+          test -f out/lapis-fastboot-boot.img
+          sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
+          cat out/DRAM.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-fastboot-boot
+          path: |
+            out/lapis-fastboot-boot.img
+            out/shim-boot.img
+            out/payload.bin
+            out/lapis.adt
+            out/DRAM.txt
+            out/SHA256SUMS
+            out/kernel.development.lapis
+          if-no-files-found: error
