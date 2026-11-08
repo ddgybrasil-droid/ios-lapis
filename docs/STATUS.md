@@ -80,23 +80,32 @@ same PHYS/MEMSZ/KEND/ADT/BA/TOPKD/JUMP as above; VIRT/ENTRY match
 `0xFFFFFE00…` (photo OCR’s extra `F` is wrong). `MEMSZ` is ADT
 `dram-size` after the 1 MiB panic carve (`0x22FA60000 - 0x100000`).
 
-### Entry-debug boot image
+### Entry-debug boot image (0012)
 
 Path: `/opt/cursor/artifacts/lapis-xnu-entry-debug.img`  
-Kernel: run `42526187192` build job (patches through `0012`, MOV64 fix).  
-Verified in image: `arm_init entered`, `leaving bootstrap TTBR0`,
-`_lapis_early_*` symbols; prefix text is per-char `putc` (no contiguous
-`LAPIS EARLY` cstring).
+Kernel: run `42526187192` build job (patches through `0012`, MOV64 fix).
 
-Screen meaning after this image:
+Hardware (>1 min): stages 0–3 bands + shim green bar + STEP7 text
+persist; no dark-blue exception flood; no C tiles/text. Proves asm
+through MMU-on paint; does **not** prove C `arm_init`. Post-stage3 path
+switched VBAR to `ExceptionVectorsBase` (no FB paint) before `ret`.
+
+### Post-stage3 diagnostic (0013)
+
+Patch `0013`: defer VBAR to LowException until C beacon; asm stage4
+(orange @208 after CPACR) + stage5 (spring @256 pre-`ret`); BSS-free
+yellow C beacon then mark(1) then install kernel VBAR.
+
+Artifact: `/opt/cursor/artifacts/lapis-xnu-post-s3-debug.img` (when packaged).
 
 | Observation | Meaning |
 |-------------|---------|
-| Stuck solid red, no top band | No confirmed XNU entry (or hang before stage0 paint) |
-| White top band | Asm stage0 ran (entry) |
-| Lime / cyan / magenta bands | Stages 1–3 (pagetables / pre-MMU / post-MMU) |
-| Bottom colour tiles + text | C `arm_init` marks |
-| Blue top + exception tiles | Early vector / ESR path |
+| Stuck after magenta only | Hang/trap before stage4 (e.g. CPACR) |
+| + orange stage4, no spring | Hang between stage4 and pre-ret |
+| + spring stage5, no yellow | `ret`/arm_init entry failed (or C FB silent) |
+| Yellow bar above green | C `arm_init` reached (BSS-free beacon) |
+| Dark-blue flood | LowException path (ESR tiles) |
+| Bottom tiles + text | C marks after beacon |
 
 ## Final XNU CI — **green** (pre-0012 baseline)
 
