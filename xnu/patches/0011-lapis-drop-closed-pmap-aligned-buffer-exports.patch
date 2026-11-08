@@ -1,0 +1,25 @@
+From 06dd35bbd3845d592bb1f3ba630ae91d87e1991d Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 20:00:49 +0000
+Subject: [PATCH] 0011 drop closed pmap aligned-buffer exports
+
+---
+ config/Private.arm64.exports | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/config/Private.arm64.exports b/config/Private.arm64.exports
+index 5b98601..2eef47d 100644
+--- a/config/Private.arm64.exports
++++ b/config/Private.arm64.exports
+@@ -90,8 +90,6 @@ _mach_bridge_recv_timestamps
+ _mach_bridge_init_timestamp
+ _mach_bridge_set_params
+ _vfs_resolver_result
+-_pmap_create_aligned_buffer
+-_pmap_destroy_aligned_buffer
+ _pmap_cache_attributes
+ _ml_amcc_error_inject_register
+ _ml_dcs_error_inject_register
+-- 
+2.43.0
+

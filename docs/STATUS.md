@@ -89,3 +89,12 @@ building `Private.symbolset` (~276 "exported name not in import list", mostly
 
 Patch `0010` skips Tightbeam force_load for LAPIS and drops Apple-only IOMMU
 exports from `Private.arm64.exports` (ios-sweet 0009 approach).
+
+## Sixth XNU CI (after 0010 — kernel artifact yes, 2 export mismatches)
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517180385
+
+- Tightbeam gone; `out/kernel.development.lapis` (~20 MiB) produced
+- Remaining `kextsymboltool` errors: `_pmap_create_aligned_buffer` /
+  `_pmap_destroy_aligned_buffer` listed in `Private.arm64.exports` but absent
+  from open-source `nos_arm_pmap` → drop in `0011`
