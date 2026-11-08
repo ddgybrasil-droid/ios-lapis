@@ -2,6 +2,7 @@
 # Produce out/shim-boot.img for `fastboot boot`.
 # With a kernel Mach-O arg, embed LAPISXNU in the Linux Image and emit
 # out/lapis-fastboot-boot.img (GKI-safe: tiny boot.img ramdisk).
+# Entry-debug builds use the same path (XNU patch 0012 breadcrumbs).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
