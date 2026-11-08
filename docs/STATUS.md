@@ -96,7 +96,11 @@ Patch `0013`: defer VBAR to LowException until C beacon; asm stage4
 (orange @208 after CPACR) + stage5 (spring @256 pre-`ret`); BSS-free
 yellow C beacon then mark(1) then install kernel VBAR.
 
-Artifact: `/opt/cursor/artifacts/lapis-xnu-post-s3-debug.img` (when packaged).
+Artifact: `/opt/cursor/artifacts/lapis-xnu-post-s3-debug.img`
+(sha256 `e8ce455872f2f76385bd810b9adef26e63b8700ca0773dc03c9c870a7b88ad9c`).
+Interim image = 0012 kernel binary-patched (VBAR defer + yellow C beacon
+trampoline + early_disabled bypass); source patch `0013` adds asm stage4/5
+for the next CI-built kernel.
 
 | Observation | Meaning |
 |-------------|---------|
