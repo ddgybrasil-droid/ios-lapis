@@ -245,7 +245,24 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	con_hex("JUMP", entry_pa);
 	con_str("XNU", "handoff (MMU off)");
 
+	/*
+	 * Ensure XNU's copied pages are visible to instruction fetch and that
+	 * any speculative D-cache lines covering the destination are cleaned.
+	 * ABL may have left caches enabled; we run with MMU off.
+	 */
+	for (uintptr_t pa = p->phys_base; pa < top; pa += 64)
+		__asm__ volatile("dc civac, %0" :: "r"(pa) : "memory");
 	__asm__ volatile("dsb sy; ic iallu; dsb sy; isb" ::: "memory");
+
+	/* Green handoff bar: if XNU stage0 white band appears, entry worked. */
+	{
+		volatile uint32_t *fb = (volatile uint32_t *)FB_BASE;
+		for (int y = FB_H - 64; y < FB_H; y++)
+			for (int x = 0; x < 256; x++)
+				fb[y * (FB_STRIDE / 4) + x] = 0xff00ff00U;
+	}
+	__asm__ volatile("dsb sy" ::: "memory");
+
 	((xnu_entry_t)entry_pa)(ba_pa);
 	return "xnu returned";
 }

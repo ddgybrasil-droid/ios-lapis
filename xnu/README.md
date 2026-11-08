@@ -21,6 +21,7 @@ Patches in `patches/` are adapted from the ios-sweet approach
 | `0009-lapis-closed-lib-link-stubs` | Cache/monitor/Tightbeam link stubs |
 | `0010-lapis-skip-tightbeam-and-apple-only-exports` | No libTightbeam; drop Apple IOMMU KPI exports |
 | `0011-lapis-drop-closed-pmap-aligned-buffer-exports` | Drop PPL-only aligned-buffer KPI exports |
+| `0012-lapis-early-framebuffer-entry-debug` | Earliest splash-FB breadcrumbs + exception paint; skip OSLAR on LAPIS |
 
 ## Not yet ported (see `docs/PATCH-PORTING.md`)
 
