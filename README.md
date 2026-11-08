@@ -77,3 +77,7 @@ docs/           handoff, porting plan, CI, status
 
 MIT. Shim/ADT tooling adapted from ios-sweet (MIT). XNU patches are modifications
 of Apple Public Source License code — see Apple's headers in the xnu tree.
+
+## Entry debug image
+
+After STEP7 solid-red: use `/opt/cursor/artifacts/lapis-xnu-entry-debug.img` (patch 0012 breadcrumbs).
