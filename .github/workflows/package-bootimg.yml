@@ -25,6 +25,10 @@ concurrency:
   group: package-bootimg-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -39,16 +43,28 @@ jobs:
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
 
       - name: Download latest green xnu-kernel-lapis artifact
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: xnu.yml
-          name: xnu-kernel-lapis
-          branch: ${{ github.head_ref || github.ref_name }}
-          workflow_conclusion: success
-          path: kernel-art
-          search_artifacts: true
-          if_no_artifact_found: fail
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          echo "Looking for successful xnu.yml runs on branch=$BRANCH"
+          RID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
+            --branch "$BRANCH" --limit 30 \
+            --json databaseId,conclusion,status,headSha \
+            --jq 'map(select(.conclusion=="success" and .status=="completed")) | .[0].databaseId // empty')
+          if [ -z "${RID}" ]; then
+            echo "No success on $BRANCH; falling back to any successful xnu.yml run"
+            RID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
+              --limit 50 \
+              --json databaseId,conclusion,status,headBranch \
+              --jq 'map(select(.conclusion=="success" and .status=="completed")) | .[0].databaseId // empty')
+          fi
+          test -n "${RID}"
+          echo "Downloading xnu-kernel-lapis from run $RID"
+          mkdir -p kernel-art
+          gh run download "$RID" --repo "$GITHUB_REPOSITORY" -n xnu-kernel-lapis -D kernel-art
+          find kernel-art -type f | head -40
 
       - name: Locate kernel.development.lapis
         id: kern
@@ -78,8 +94,6 @@ jobs:
           assert phys == 0x8C0000000, hex(phys)
           size = int(p['memory']['mem_size'], 16)
           assert size == 0x22FA60000, hex(size)
-          # Payload magic in the ramdisk region of the boot image is not
-          # trivially carved here; ensure payload.bin itself is LAPISXNU.
           pay = pathlib.Path('out/payload.bin').read_bytes()
           assert pay[:8] == b'LAPISXNU', pay[:8]
           print('package ok: boot.img v4 + LAPISXNU + DRAM', hex(phys), hex(size))
