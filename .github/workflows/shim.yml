@@ -1,4 +1,5 @@
 name: shim
+# Re-trigger after Actions empty-step/capacity failures on HEAD.
 
 on:
   push:
