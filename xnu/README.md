@@ -17,6 +17,7 @@ Patches in `patches/` are adapted from the ios-sweet approach
 | `0005-lapis-device-tree-platform-expert` | Minimal `LapisPlatformExpert` |
 | `0006-lapis-apple-arm64-cpu-mpidr-fallbacks` | Non-Apple `MPIDR_CORETYPE_*` fallbacks |
 | `0007-lapis-pmap-without-closed-ppl` | Avoid closed `ptep_get_iommu` / `pmap_ppl_*` |
+| `0008-lapis-amcc-rorgn-stubs` | Empty AMCC/CTRR TUs required by `nos_arm_asm` |
 
 ## Not yet ported (see `docs/PATCH-PORTING.md`)
 

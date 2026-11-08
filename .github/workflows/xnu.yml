@@ -90,7 +90,7 @@ jobs:
           # Capture trailing errors for the PR summary
           if [ -f xnu-build.log ]; then
             tail -n 200 xnu-build.log | tee out/build-tail.txt
-            rg -n "error:|fatal error:|ld:|Undefined symbols" xnu-build.log | tail -n 80 | tee out/errors.txt || true
+            rg -a -n "No rule to make target|error:|fatal error:|Undefined symbols|ld: symbol" xnu-build.log | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | sort -u | tail -n 120 | tee out/errors.txt || true
           fi
           cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
           ls -la out || true

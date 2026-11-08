@@ -39,3 +39,20 @@ Exact compile failures (before follow-up patches `0006`/`0007`):
 
 Follow-up patches add MPIDR fallbacks, restore `kperf` (without Apple `kpc`/CPMU),
 and avoid closed-PPL helpers. Re-run recorded below after push.
+
+## Second XNU CI (after 0006/0007 — failed)
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42513744253
+
+`BUILD_EXIT=2`. Previous MPIDR/kperf/pmap errors cleared. New hard stop:
+
+```
+No rule to make target .../osfmk/arm64/amcc_rorgn_ppl.c
+No rule to make target .../osfmk/arm64/amcc_rorgn_ppl_amcc.c
+No rule to make target .../osfmk/arm64/amcc_rorgn_common.c
+No rule to make target .../osfmk/arm64/amcc_rorgn_pv_ctrr.c
+```
+
+These are closed-lib-only AMCC/CTRR sources listed under `nos_arm_asm` in
+`osfmk/conf/files.arm64`. Patch `0008` adds empty translation units (same
+approach as ios-sweet). Re-run after that push.
