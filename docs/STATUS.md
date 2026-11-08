@@ -40,12 +40,15 @@ the diagnostic (no-payload) boot.img.
 ## Flashable `fastboot boot` image
 
 `package-bootimg` workflow (and the `package-bootimg` job on green `xnu`
-runs) downloads `kernel.development.lapis`, packs shim + `LAPISXNU` payload,
-and uploads artifact **`lapis-fastboot-boot`** containing
-`out/lapis-fastboot-boot.img`.
+runs) packs shim + `LAPISXNU` payload and uploads artifact
+**`lapis-fastboot-boot`** (`lapis-fastboot-boot.img`).
+
+HEAD packaging (shim + xnu + package all green):
+https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42519261116
+Artifact: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42519261116/artifacts/13633301014
 
 ```sh
-fastboot boot out/lapis-fastboot-boot.img
+fastboot boot lapis-fastboot-boot.img
 ```
 
 Shim paints staged FB progress (STEP 0–7) before the XNU jump.
