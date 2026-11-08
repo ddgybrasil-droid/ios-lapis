@@ -56,3 +56,17 @@ No rule to make target .../osfmk/arm64/amcc_rorgn_pv_ctrr.c
 These are closed-lib-only AMCC/CTRR sources listed under `nos_arm_asm` in
 `osfmk/conf/files.arm64`. Patch `0008` adds empty translation units (same
 approach as ios-sweet). Re-run after that push.
+
+## Third XNU CI (after 0008 — failed at link)
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42514760316
+
+Reached the link stage. Undefined symbols:
+
+- `CleanPoC_DcacheRegion_Force_nopreempt_nohid`
+- `ml_enable_monitor`
+- `ml_device_is_prod_fused`
+- `pmap_pending_preemption`
+- `tb_transport_startup`
+
+Patch `0009` provides stubs / asm aliases. Re-run after push.

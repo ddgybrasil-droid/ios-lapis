@@ -18,6 +18,7 @@ Patches in `patches/` are adapted from the ios-sweet approach
 | `0006-lapis-apple-arm64-cpu-mpidr-fallbacks` | Non-Apple `MPIDR_CORETYPE_*` fallbacks |
 | `0007-lapis-pmap-without-closed-ppl` | Avoid closed `ptep_get_iommu` / `pmap_ppl_*` |
 | `0008-lapis-amcc-rorgn-stubs` | Empty AMCC/CTRR TUs required by `nos_arm_asm` |
+| `0009-lapis-closed-lib-link-stubs` | Cache/monitor/Tightbeam link stubs |
 
 ## Not yet ported (see `docs/PATCH-PORTING.md`)
 
