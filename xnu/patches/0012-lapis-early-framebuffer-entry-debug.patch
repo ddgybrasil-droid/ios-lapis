@@ -1,6 +1,6 @@
-From a1b1abbabaf6a71b365673068a3b5107e62606b7 Mon Sep 17 00:00:00 2001
+From 1b19dd9808bc1abb45ab95600764ac30243e8e2e Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
-Date: Sun, 8 Nov 2026 21:29:04 +0000
+Date: Sun, 8 Nov 2026 21:37:54 +0000
 Subject: [PATCH] 0012 lapis early framebuffer entry debug
 
 ---
@@ -272,7 +272,7 @@ index 0000000..c14daee
 +
 +#endif /* _ARM64_LAPIS_EARLY_H_ */
 diff --git a/osfmk/arm64/start.s b/osfmk/arm64/start.s
-index ca003c8..bf03c9b 100644
+index ca003c8..72f634b 100644
 --- a/osfmk/arm64/start.s
 +++ b/osfmk/arm64/start.s
 @@ -126,8 +126,9 @@ LEXT(LowResetVectorBase)
@@ -341,8 +341,8 @@ index ca003c8..bf03c9b 100644
 +	.align	2
 +lapis_low_exc:
 +	MOV64	x0, 0xD5100000
-+	mov		w1, #0xff0000a0
-+	mov		x2, #(2944 * 128)
++MOV64	x1, 0xff0000a0
++	MOV64	x2, (2944 * 128)
 +1:	str		w1, [x0], #4
 +	subs	x2, x2, #1
 +	b.ne	1b
@@ -350,26 +350,26 @@ index ca003c8..bf03c9b 100644
 +	mrs		x4, ELR_EL1
 +	mrs		x5, FAR_EL1
 +	MOV64	x0, (0xD5100000 + 200 * 11776)
-+	mov		w1, #0xffffff00
++MOV64	x1, 0xffffff00
 +	add		x2, x0, x9, lsl #6
 +	str		w1, [x2]
-+	mov		w1, #0xff00ff00
++MOV64	x1, 0xff00ff00
 +	and		x2, x3, #0xff
 +	add		x2, x0, x2, lsl #2
 +	add		x2, x2, #1024
 +	str		w1, [x2]
-+	mov		w1, #0xffff00ff
++MOV64	x1, 0xffff00ff
 +	lsr		x2, x3, #26
 +	and		x2, x2, #0x3f
 +	add		x2, x0, x2, lsl #3
 +	add		x2, x2, #2048
 +	str		w1, [x2]
 +	MOV64	x0, (0xD5100000 + 220 * 11776)
-+	mov		w1, #0xff00ffff
++MOV64	x1, 0xff00ffff
 +	and		x2, x4, #0xff
 +	add		x2, x0, x2, lsl #2
 +	str		w1, [x2]
-+	mov		w1, #0xffff8000
++MOV64	x1, 0xffff8000
 +	and		x2, x5, #0xff
 +	add		x2, x0, x2, lsl #2
 +	add		x2, x2, #1024
@@ -439,7 +439,7 @@ index ca003c8..bf03c9b 100644
 +	add		x13, x25, #(2 * PGBYTES)
 +	str		x11, [x13, x12, lsl #TTE_SHIFT]
 +	MOV64	x0, (0xD5100000 + 64 * 11776)
-+	mov		w1, #0xff80ff00
++MOV64	x1, 0xff80ff00
 +	mov		x2, #32
 +Llapis_s1_row:
 +	mov		x3, #160
@@ -463,7 +463,7 @@ index ca003c8..bf03c9b 100644
  
 +#if defined(LAPIS)
 +	MOV64	x0, (0xD5100000 + 112 * 11776)
-+	mov		w1, #0xff00ffff
++MOV64	x1, 0xff00ffff
 +	mov		x2, #32
 +Llapis_s2_row:
 +	mov		x3, #160
@@ -486,7 +486,7 @@ index ca003c8..bf03c9b 100644
  
 +#if defined(LAPIS)
 +	MOV64	x0, (0xD5100000 + 160 * 11776)
-+	mov		w1, #0xffff00ff
++MOV64	x1, 0xffff00ff
 +	mov		x2, #32
 +Llapis_s3_row:
 +	mov		x3, #160
