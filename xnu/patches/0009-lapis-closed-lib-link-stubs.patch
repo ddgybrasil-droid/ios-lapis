@@ -1,15 +1,15 @@
-From 2fef20407d1dd8e8bbb444a644dfc9d1189e178c Mon Sep 17 00:00:00 2001
+From 18f4bbd1ddcbe112d4e46cd87b278b9f6a236419 Mon Sep 17 00:00:00 2001
 From: Cursor Agent <cursoragent@cursor.com>
-Date: Sun, 8 Nov 2026 19:32:14 +0000
+Date: Sun, 8 Nov 2026 19:41:25 +0000
 Subject: [PATCH] 0009 closed-lib link stubs
 
 ---
  osfmk/arm/pmap/pmap_misc.c           |  8 ++++++++
- osfmk/arm64/caches_asm.s             | 14 ++++++++++++++
- osfmk/arm64/lapis_closed_lib_stubs.c | 16 ++++++++++++++++
+ osfmk/arm64/caches_asm.s             | 10 ++++++++++
+ osfmk/arm64/lapis_closed_lib_stubs.c | 11 +++++++++++
  osfmk/arm64/machine_routines.c       | 13 +++++++++++++
  osfmk/conf/files.arm64               |  3 +++
- 5 files changed, 54 insertions(+)
+ 5 files changed, 45 insertions(+)
  create mode 100644 osfmk/arm64/lapis_closed_lib_stubs.c
 
 diff --git a/osfmk/arm/pmap/pmap_misc.c b/osfmk/arm/pmap/pmap_misc.c
@@ -32,18 +32,14 @@ index dacf3b5..1d8b17e 100644
  pmap_abandon_measurement(void)
  {
 diff --git a/osfmk/arm64/caches_asm.s b/osfmk/arm64/caches_asm.s
-index 1588830..a68b245 100644
+index 1588830..c3c2bce 100644
 --- a/osfmk/arm64/caches_asm.s
 +++ b/osfmk/arm64/caches_asm.s
-@@ -354,6 +354,20 @@ LEXT(CleanPoC_DcacheRegion_Force)
+@@ -354,6 +354,16 @@ LEXT(CleanPoC_DcacheRegion_Force)
  	b		EXT(CleanPoC_DcacheRegion_internal)
  #endif /* APPLE_ARM64_ARCH_FAMILY */
  
 +#if !defined(APPLE_ARM64_ARCH_FAMILY)
-+/*
-+ *	Generic ARMv8: Apple's HID-toggling nopreempt variants collapse to the
-+ *	plain region clean used by CleanPoC_DcacheRegion_Force above.
-+ */
 +	.text
 +	.align 2
 +	.globl EXT(CleanPoC_DcacheRegion_Force_nopreempt)
@@ -58,26 +54,21 @@ index 1588830..a68b245 100644
   *
 diff --git a/osfmk/arm64/lapis_closed_lib_stubs.c b/osfmk/arm64/lapis_closed_lib_stubs.c
 new file mode 100644
-index 0000000..0f5dc20
+index 0000000..e467b44
 --- /dev/null
 +++ b/osfmk/arm64/lapis_closed_lib_stubs.c
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,11 @@
 +/*
 + * Symbols Apple ships only in the closed per-SoC / Tightbeam stack.
-+ * Empty/no-op bodies so MACHINE_CONFIG=LAPIS can link.
++ * Emit unconditionally: this TU does not include board_config.h, so LAPIS
++ * is not defined here even for MACHINE_CONFIG=LAPIS builds.
 + */
-+#include <mach/boolean.h>
-+
-+#if defined(LAPIS)
-+
 +void tb_transport_startup(void);
 +
 +void
 +tb_transport_startup(void)
 +{
 +}
-+
-+#endif /* LAPIS */
 diff --git a/osfmk/arm64/machine_routines.c b/osfmk/arm64/machine_routines.c
 index 07143d5..e9d9712 100644
 --- a/osfmk/arm64/machine_routines.c
@@ -103,7 +94,7 @@ index 07143d5..e9d9712 100644
  ml_get_timer_pending(void)
  {
 diff --git a/osfmk/conf/files.arm64 b/osfmk/conf/files.arm64
-index 878b515..96a1929 100644
+index 878b515..645aee1 100644
 --- a/osfmk/conf/files.arm64
 +++ b/osfmk/conf/files.arm64
 @@ -129,3 +129,6 @@ osfmk/kern/ecc_init.c		standard
@@ -111,7 +102,7 @@ index 878b515..96a1929 100644
  
  osfmk/kern/memory_error_logging.c	standard
 +
-+# LAPIS closed-lib / Tightbeam stubs (empty TU without LAPIS)
++# LAPIS / Tightbeam closed-lib stubs
 +osfmk/arm64/lapis_closed_lib_stubs.c		standard
 -- 
 2.43.0

@@ -70,3 +70,11 @@ Reached the link stage. Undefined symbols:
 - `tb_transport_startup`
 
 Patch `0009` provides stubs / asm aliases. Re-run after push.
+
+## Fourth XNU CI (after 0009 v1 — failed at link)
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42515561940
+
+Only remaining undefined symbol: `_tb_transport_startup`. The stub TU was
+gated on `#if defined(LAPIS)` without including `board_config.h`, so the
+symbol was never emitted. `0009` rewritten to define it unconditionally.
