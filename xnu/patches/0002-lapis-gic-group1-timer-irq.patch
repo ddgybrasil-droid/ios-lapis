@@ -1,3 +1,14 @@
+From 05a17b21f05337beef3f1ab09eeee9f576f005ca Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0002 gic
+
+---
+ osfmk/arm64/sleh.c           | 38 ++++++++++++++++++++++++++++++++++++
+ pexpert/arm/pe_fiq.c         | 33 +++++++++++++++++++++++++++++++
+ pexpert/pexpert/arm/protos.h |  3 +++
+ 3 files changed, 74 insertions(+)
+
 diff --git a/osfmk/arm64/sleh.c b/osfmk/arm64/sleh.c
 index 0554aa8..f1a9899 100644
 --- a/osfmk/arm64/sleh.c
@@ -161,3 +172,6 @@ index f8fcbc2..0749efc 100644
  
  #ifdef PRIVATE
  /**
+-- 
+2.43.0
+

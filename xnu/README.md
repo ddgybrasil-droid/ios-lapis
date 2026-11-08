@@ -15,6 +15,8 @@ Patches in `patches/` are adapted from the ios-sweet approach
 | `0003-lapis-master-open-source-asm-pmap` | `MASTER.arm64.lapis` with `nos_arm_asm` / `nos_arm_pmap` |
 | `0004-lapis-stub-apple-internal-headers` | No-op SART/UAT/tunables stubs |
 | `0005-lapis-device-tree-platform-expert` | Minimal `LapisPlatformExpert` |
+| `0006-lapis-apple-arm64-cpu-mpidr-fallbacks` | Non-Apple `MPIDR_CORETYPE_*` fallbacks |
+| `0007-lapis-pmap-without-closed-ppl` | Avoid closed `ptep_get_iommu` / `pmap_ppl_*` |
 
 ## Not yet ported (see `docs/PATCH-PORTING.md`)
 

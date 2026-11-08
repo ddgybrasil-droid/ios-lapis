@@ -1,3 +1,18 @@
+From fc9ff41c7afdccbe667d6a6434f32a44c497fae4 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0001 lapis machine config
+
+---
+ makedefs/MakeInc.def                 |  7 ++-
+ osfmk/arm64/proc_reg.h               |  9 ++++
+ osfmk/arm64/start.s                  |  4 +-
+ pexpert/pexpert/arm64/LAPIS.h        | 68 ++++++++++++++++++++++++++++
+ pexpert/pexpert/arm64/Makefile       |  3 +-
+ pexpert/pexpert/arm64/board_config.h | 13 ++++++
+ 6 files changed, 100 insertions(+), 4 deletions(-)
+ create mode 100644 pexpert/pexpert/arm64/LAPIS.h
+
 diff --git a/makedefs/MakeInc.def b/makedefs/MakeInc.def
 index e37762b..2538294 100644
 --- a/makedefs/MakeInc.def
@@ -191,3 +206,6 @@ index 5a6cd33..c99ced0 100644
  #ifdef ARM64_BOARD_CONFIG_VMAPPLE
  #include <pexpert/arm64/VMAPPLE.h>
  
+-- 
+2.43.0
+

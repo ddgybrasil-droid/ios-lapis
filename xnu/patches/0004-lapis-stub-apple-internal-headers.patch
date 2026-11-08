@@ -1,3 +1,17 @@
+From c0112df4475dcfee209cd16cd5bf20161366d075 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0004 stubs
+
+---
+ osfmk/arm64/ppl/sart.h          | 4 ++++
+ osfmk/arm64/ppl/uat.h           | 4 ++++
+ osfmk/arm64/tunables/tunables.s | 2 ++
+ 3 files changed, 10 insertions(+)
+ create mode 100644 osfmk/arm64/ppl/sart.h
+ create mode 100644 osfmk/arm64/ppl/uat.h
+ create mode 100644 osfmk/arm64/tunables/tunables.s
+
 diff --git a/osfmk/arm64/ppl/sart.h b/osfmk/arm64/ppl/sart.h
 new file mode 100644
 index 0000000..3e4a0a8
@@ -26,3 +40,6 @@ index 0000000..45c461b
 @@ -0,0 +1,2 @@
 +.macro APPLY_TUNABLES midr, tmp1, tmp2
 +.endmacro
+-- 
+2.43.0
+

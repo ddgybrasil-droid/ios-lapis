@@ -75,9 +75,12 @@ jobs:
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
           CODEQL: "0"
         run: |
+          set +e
           set -o pipefail
           bash build.sh 2>&1 | tee "$GITHUB_WORKSPACE/xnu-build.log"
-          echo "BUILD_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+          ec=${PIPESTATUS[0]}
+          echo "BUILD_EXIT=$ec" >> "$GITHUB_ENV"
+          exit 0
 
       - name: Summarize result
         if: always()

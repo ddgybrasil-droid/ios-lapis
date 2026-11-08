@@ -13,22 +13,29 @@ ios-sweet's loader (`608` / `736`) is **wrong** for this kernel; lapis uses
 
 ## Agent environment notes
 
-- `uploads/` (PLAN.md, HW.md, iomem.txt, handoff, …) were **not mounted** into
-  the cloud agent VM. Hardware numbers combine the task text with public
-  `sm8650.dtsi`. Replace placeholder RAM with the real free ranges before
-  trusting on-device jumps.
+- `uploads/` were **not mounted** into the cloud agent VM. Hardware numbers
+  combine the task text with public `sm8650.dtsi`. Placeholder RAM:
+  `phys_base=0x100000000` / `mem_size=0x80000000` until real free ranges are wired in.
 
-## Local shim build
+## Local / Linux CI (shim)
 
-`./scripts/build-bootimg.sh` succeeds on Ubuntu with `aarch64-linux-gnu-gcc`:
+`./scripts/build-bootimg.sh` succeeds. GitHub Actions `shim` workflow: **green**.
 
-- `out/Image` (Linux Image header) ≈ 77824 bytes
-- `out/shim-boot.img` Android boot **v4**
-- `out/lapis.adt` generated
-- Patches `0001`–`0005` `git apply --check` clean on tag `xnu-12377.121.6`
+## macOS XNU CI (first run — failed)
 
-## macOS XNU workflow
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42512699572
 
-See the Actions run linked from the PR. Expected early failures without a full
-KDK/Xcode matrix are documented in `docs/CI-REQUIREMENTS.md`. Update this
-section with the exact compiler/linker error once the first run finishes.
+What worked:
+
+- Fetched KDK **26.5 build 25F71**
+- Applied LAPIS patches `0001`–`0005`
+- Started `make install` with `TARGET_CONFIGS=DEVELOPMENT ARM64 LAPIS`
+
+Exact compile failures (before follow-up patches `0006`/`0007`):
+
+1. `pexpert/arm64/apple_arm64_cpu.h`: undeclared `MPIDR_CORETYPE_*` (Apple ACC encoding)
+2. `osfmk/kern/{ast,processor}.c`: `kperf_ast` / `RUNNING_TIMER_KPERF` — MASTER had dropped `kperf`
+3. `osfmk/arm/pmap/pmap.c`: `ptep_get_iommu` / `pmap_ppl_*` / `pmap_phys_write_disable` (closed PPL)
+
+Follow-up patches add MPIDR fallbacks, restore `kperf` (without Apple `kpc`/CPMU),
+and avoid closed-PPL helpers. Re-run recorded below after push.

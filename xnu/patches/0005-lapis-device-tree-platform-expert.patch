@@ -1,3 +1,15 @@
+From 67a5c932879816b2fd2525314959dfaf85ab1398 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0005 pe
+
+---
+ iokit/Kernel/arm/LapisPlatformExpert.cpp | 69 ++++++++++++++++++++++++
+ iokit/KernelConfigTables.cpp             |  8 +++
+ iokit/conf/files.arm64                   |  3 ++
+ 3 files changed, 80 insertions(+)
+ create mode 100644 iokit/Kernel/arm/LapisPlatformExpert.cpp
+
 diff --git a/iokit/Kernel/arm/LapisPlatformExpert.cpp b/iokit/Kernel/arm/LapisPlatformExpert.cpp
 new file mode 100644
 index 0000000..b7c03b6
@@ -103,3 +115,6 @@ index f2aa835..a656c4e 100644
 +
 +# LAPIS device-tree platform (empty translation unit on other boards)
 +iokit/Kernel/arm/LapisPlatformExpert.cpp                         optional iokitcpp
+-- 
+2.43.0
+
