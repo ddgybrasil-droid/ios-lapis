@@ -1,0 +1,36 @@
+From 1e73d38cd5c031bfccf6cfcfdcc4a60513a5830c Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0006 mpidr fallbacks
+
+---
+ pexpert/pexpert/arm64/apple_arm64_cpu.h | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/pexpert/pexpert/arm64/apple_arm64_cpu.h b/pexpert/pexpert/arm64/apple_arm64_cpu.h
+index e462ede..c436c1a 100644
+--- a/pexpert/pexpert/arm64/apple_arm64_cpu.h
++++ b/pexpert/pexpert/arm64/apple_arm64_cpu.h
+@@ -33,6 +33,19 @@
+ #include <stdbool.h>
+ #include <sys/cdefs.h>
+ 
++/*
++ * Non-Apple SoCs (LAPIS et al.) do not include apple_arm64_regs.h's ACC
++ * core-type encoding. Provide harmless fallbacks so this header still
++ * compiles; arm64_core_type() will just classify every core as P_CORE.
++ */
++#ifndef MPIDR_CORETYPE_ACC_E
++#define MPIDR_CORETYPE_ACC_E  0ULL
++#define MPIDR_CORETYPE_ACC_P  1ULL
++#define MPIDR_CORETYPE_ACC_M  4ULL
++#define MPIDR_CORETYPE_SHIFT  0
++#define MPIDR_CORETYPE_MASK   0x7ULL
++#endif
++
+ /**
+  * Defines the core type of the executing CPU.
+  */
+-- 
+2.43.0
+

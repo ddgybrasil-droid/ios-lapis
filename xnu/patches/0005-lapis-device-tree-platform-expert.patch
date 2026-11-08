@@ -1,0 +1,120 @@
+From 67a5c932879816b2fd2525314959dfaf85ab1398 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:10:27 +0000
+Subject: [PATCH] 0005 pe
+
+---
+ iokit/Kernel/arm/LapisPlatformExpert.cpp | 69 ++++++++++++++++++++++++
+ iokit/KernelConfigTables.cpp             |  8 +++
+ iokit/conf/files.arm64                   |  3 ++
+ 3 files changed, 80 insertions(+)
+ create mode 100644 iokit/Kernel/arm/LapisPlatformExpert.cpp
+
+diff --git a/iokit/Kernel/arm/LapisPlatformExpert.cpp b/iokit/Kernel/arm/LapisPlatformExpert.cpp
+new file mode 100644
+index 0000000..b7c03b6
+--- /dev/null
++++ b/iokit/Kernel/arm/LapisPlatformExpert.cpp
+@@ -0,0 +1,69 @@
++/*
++ * Minimal device-tree platform expert for Lenovo Yoga Pad Pro 12.7 (lapis).
++ */
++#include <pexpert/arm64/board_config.h>
++
++#if defined(LAPIS)
++#include <IOKit/IOPlatformExpert.h>
++#include <IOKit/IODeviceTreeSupport.h>
++#include <IOKit/IOLib.h>
++
++class LapisPlatformExpert : public IODTPlatformExpert {
++	OSDeclareDefaultStructors(LapisPlatformExpert);
++
++public:
++	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
++	void processTopLevel(IORegistryEntry *root) APPLE_KEXT_OVERRIDE;
++	const char *deleteList(void) APPLE_KEXT_OVERRIDE;
++	const char *excludeList(void) APPLE_KEXT_OVERRIDE;
++	bool getTargetName(char *name, int maxLength) APPLE_KEXT_OVERRIDE;
++	bool getProductName(char *name, int maxLength) APPLE_KEXT_OVERRIDE;
++};
++
++OSDefineMetaClassAndStructors(LapisPlatformExpert, IODTPlatformExpert);
++
++bool
++LapisPlatformExpert::start(IOService *provider)
++{
++	IOLog("LAPIS: starting device-tree platform expert\n");
++	if (!IODTPlatformExpert::start(provider)) {
++		return false;
++	}
++	registerService();
++	IOLog("LAPIS: platform expert registered\n");
++	return true;
++}
++
++const char *
++LapisPlatformExpert::deleteList(void)
++{
++	return "()";
++}
++
++const char *
++LapisPlatformExpert::excludeList(void)
++{
++	return "()";
++}
++
++void
++LapisPlatformExpert::processTopLevel(IORegistryEntry *root)
++{
++	IODTPlatformExpert::processTopLevel(root);
++}
++
++bool
++LapisPlatformExpert::getTargetName(char *name, int maxLength)
++{
++	strlcpy(name, "lapis", maxLength);
++	return true;
++}
++
++bool
++LapisPlatformExpert::getProductName(char *name, int maxLength)
++{
++	strlcpy(name, "Lenovo Yoga Pad Pro 12.7", maxLength);
++	return true;
++}
++
++#endif /* LAPIS */
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+index 559a9db..a5d6d1d 100644
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -34,6 +34,14 @@
+ 
+ const char * gIOKernelConfigTables =
+     "("
++#if defined(ARM64_BOARD_CONFIG_LAPIS)
++    "   {"
++    "     'IOClass'         = LapisPlatformExpert;"
++    "     'IOProviderClass' = IOPlatformExpertDevice;"
++    "     'IONameMatch'     = 'lenovo,tb520fu';"
++    "     'IOProbeScore'    = 10000:32;"
++    "   },"
++#endif
+     "   {"
+     "     'IOClass'         = IOPanicPlatform;"
+     "     'IOProviderClass' = IOPlatformExpertDevice;"
+diff --git a/iokit/conf/files.arm64 b/iokit/conf/files.arm64
+index f2aa835..a656c4e 100644
+--- a/iokit/conf/files.arm64
++++ b/iokit/conf/files.arm64
+@@ -6,3 +6,6 @@ iokit/Kernel/IOPMrootDomain.cpp    					optional iokitcpp
+ # SMP
+ iokit/Kernel/arm/AppleARMSMP.cpp    					optional iokitcpp
+ 
++
++# LAPIS device-tree platform (empty translation unit on other boards)
++iokit/Kernel/arm/LapisPlatformExpert.cpp                         optional iokitcpp
+-- 
+2.43.0
+

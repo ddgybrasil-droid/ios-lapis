@@ -1,0 +1,186 @@
+name: xnu
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos_version:
+        description: macOS release whose xnu to build (26.5 => xnu-12377.x)
+        default: "26.5"
+      kernel_config:
+        description: RELEASE / DEVELOPMENT / DEBUG
+        default: DEVELOPMENT
+      keep_going:
+        description: make -k (collect compile errors)
+        default: "true"
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'xnu/patches/**'
+      - '.github/workflows/xnu.yml'
+  pull_request:
+    paths:
+      - 'xnu/patches/**'
+      - '.github/workflows/xnu.yml'
+
+concurrency:
+  group: xnu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DXB_REPO: https://github.com/blacktop/darwin-xnu-build
+  # Recent main with MACOS_VERSION 26.5 support; pin for reproducibility.
+  DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
+  MACOS_VERSION: ${{ inputs.macos_version || '26.5' }}
+  KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
+  MACHINE_CONFIG: LAPIS
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch darwin-xnu-build
+        run: |
+          git init -q dxb
+          git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
+          git -C dxb checkout -q FETCH_HEAD
+          # Layer blacktop 26.0 patches into 26.5 (script falls back, but be explicit)
+          mkdir -p "dxb/patches/${MACOS_VERSION}"
+          if [ -d dxb/patches/26.0 ]; then
+            cp -n dxb/patches/26.0/* "dxb/patches/${MACOS_VERSION}/" || true
+          fi
+          cp xnu/patches/*.patch "dxb/patches/${MACOS_VERSION}/"
+          # Plain arm64 for LAPIS (libfirehose / archives may be arm64e-only otherwise)
+          sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh || true
+          ls "dxb/patches/${MACOS_VERSION}"
+
+      - name: Deps
+        run: |
+          brew install jq gum bash cmake ninja || true
+          printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
+          sudo chmod +x /usr/local/bin/xcodes
+          sw_vers
+          ls -d /Applications/Xcode*.app || true
+          XC=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          xcrun --find iig || true
+
+      - name: Build
+        working-directory: dxb
+        env:
+          MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
+          CODEQL: "0"
+        run: |
+          set +e
+          set -o pipefail
+          bash build.sh 2>&1 | tee "$GITHUB_WORKSPACE/xnu-build.log"
+          ec=${PIPESTATUS[0]}
+          echo "BUILD_EXIT=$ec" >> "$GITHUB_ENV"
+          exit 0
+
+      - name: Summarize result
+        if: always()
+        run: |
+          mkdir -p out
+          echo "build_exit=${BUILD_EXIT:-unknown}" | tee out/RESULT.txt
+          # Capture trailing errors for the PR summary
+          if [ -f xnu-build.log ]; then
+            tail -n 200 xnu-build.log | tee out/build-tail.txt
+            rg -a -n "No rule to make target|error:|fatal error:|Undefined symbols|ld: symbol" xnu-build.log | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | sort -u | tail -n 120 | tee out/errors.txt || true
+          fi
+          # Prefer installed kernels; fall back to the objroot binary if
+          # install failed late (e.g. kextsymboltool) after a successful link.
+          cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
+          find dxb/build/xnu.obj -name 'kernel.development.lapis' -o -name 'kernel.development.lapis.unstripped' 2>/dev/null | while read -r f; do
+            cp -n "$f" "out/$(basename "$f")" 2>/dev/null || true
+          done
+          ls -la out || true
+          (cd out && shasum -a 256 kernel.* > SHA256SUMS) 2>/dev/null || true
+          if ls out/kernel.development.lapis* >/dev/null 2>&1; then
+            echo "KERNEL_ARTIFACT=yes" | tee -a out/RESULT.txt
+          else
+            echo "KERNEL_ARTIFACT=no" | tee -a out/RESULT.txt
+          fi
+          # Fail the job if build failed — after uploading artifacts
+          if [ "${BUILD_EXIT:-1}" != "0" ]; then
+            echo "XNU build failed with exit ${BUILD_EXIT}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xnu-kernel-lapis
+          path: |
+            out/
+            xnu-build.log
+          if-no-files-found: warn
+
+      # Small dedicated artifact for the packaging job (avoids pulling the
+      # multi-hundred-MB build log through download-artifact).
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: xnu-kernel-binary
+          path: out/kernel.development.lapis
+          if-no-files-found: error
+
+      - name: Fail if kernel build failed
+        if: always()
+        run: |
+          test "${BUILD_EXIT:-1}" = "0"
+
+  # Optional packaging; runner capacity flakes must not fail the xnu workflow
+  # when kernel.development.lapis already built (standalone package-bootimg.yml
+  # can consume xnu-kernel-binary / xnu-kernel-lapis independently).
+  package-bootimg:
+    needs: build
+    if: needs.build.result == 'success'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Download kernel binary from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: xnu-kernel-binary
+          path: kernel-art
+
+      - name: Package flashable boot.img
+        run: |
+          set -euo pipefail
+          find kernel-art -type f -ls
+          K=$(find kernel-art -type f -name 'kernel.development.lapis' ! -name '*.unstripped' | head -n1)
+          test -n "$K"
+          ./scripts/build-bootimg.sh "$K"
+          test -f out/lapis-fastboot-boot.img
+          sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
+          cat out/DRAM.txt out/VERIFY.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-fastboot-boot
+          path: |
+            out/lapis-fastboot-boot.img
+            out/shim-boot.img
+            out/payload.bin
+            out/lapis.adt
+            out/DRAM.txt
+            out/VERIFY.txt
+            out/SHA256SUMS
+            out/kernel.development.lapis
+          if-no-files-found: error

@@ -1,0 +1,123 @@
+name: package-bootimg
+
+# Package shim + latest green kernel.development.lapis into a downloadable
+# fastboot boot image. Runs on DRAM/shim/tooling changes without rebuilding XNU.
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/package-bootimg.yml'
+  pull_request:
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/package-bootimg.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: package-bootimg-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Download latest xnu-kernel-lapis artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          echo "Looking for xnu.yml runs with a kernel artifact on branch=$BRANCH"
+          # Prefer fully green runs; also accept completed runs that uploaded
+          # xnu-kernel-lapis even if a nested package job flaked (overall failure).
+          pick_run() {
+            local branch_args=("$@")
+            local ids
+            ids=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow xnu.yml \
+              "${branch_args[@]}" --limit 40 \
+              --json databaseId,conclusion,status \
+              --jq 'map(select(.status=="completed")) | .[].databaseId')
+            local rid
+            for rid in $ids; do
+              if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$rid/artifacts" \
+                --jq '.artifacts[] | select(.name=="xnu-kernel-lapis" and .expired==false) | .name' \
+                | grep -qx xnu-kernel-lapis; then
+                echo "$rid"
+                return 0
+              fi
+            done
+            return 1
+          }
+          RID=$(pick_run --branch "$BRANCH" || true)
+          if [ -z "${RID}" ]; then
+            echo "No kernel artifact on $BRANCH; falling back to any branch"
+            RID=$(pick_run || true)
+          fi
+          test -n "${RID}"
+          echo "Downloading xnu-kernel-lapis from run $RID"
+          mkdir -p kernel-art
+          gh run download "$RID" --repo "$GITHUB_REPOSITORY" -n xnu-kernel-lapis -D kernel-art
+          find kernel-art -type f | head -40
+
+      - name: Locate kernel.development.lapis
+        id: kern
+        run: |
+          K=$(find kernel-art -type f -name 'kernel.development.lapis' ! -name '*.unstripped' | head -n1)
+          test -n "$K"
+          ls -la "$K"
+          file "$K" || true
+          echo "path=$K" >> "$GITHUB_OUTPUT"
+
+      - name: Build flashable boot.img (shim + payload)
+        run: |
+          ./scripts/build-bootimg.sh "${{ steps.kern.outputs.path }}"
+          test -f out/lapis-fastboot-boot.img
+          sha256sum out/lapis-fastboot-boot.img out/payload.bin out/DRAM.txt | tee out/SHA256SUMS
+          cat out/DRAM.txt
+
+      - name: Static checks (GKI embed invariants)
+        run: |
+          python3 tools/verify_bootimg.py out/lapis-fastboot-boot.img \
+            --expect-payload out/payload.bin | tee -a out/SHA256SUMS
+          python3 - <<'PY'
+          import json
+          p = json.load(open('hw/lapis-profile.json'))
+          assert int(p['memory']['phys_base'], 16) == 0x8C0000000
+          assert int(p['memory']['mem_size'], 16) == 0x22FA60000
+          print('DRAM profile ok')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-fastboot-boot
+          path: |
+            out/lapis-fastboot-boot.img
+            out/shim-boot.img
+            out/payload.bin
+            out/lapis.adt
+            out/DRAM.txt
+            out/VERIFY.txt
+            out/SHA256SUMS
+            out/kernel.development.lapis
+          if-no-files-found: error

@@ -1,0 +1,548 @@
+From 1b19dd9808bc1abb45ab95600764ac30243e8e2e Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 21:37:54 +0000
+Subject: [PATCH] 0012 lapis early framebuffer entry debug
+
+---
+ osfmk/arm/arm_init.c      |   8 ++
+ osfmk/arm64/arm_vm_init.c |   3 +
+ osfmk/arm64/lapis_early.c | 135 ++++++++++++++++++++++++++++
+ osfmk/arm64/lapis_early.h |  22 +++++
+ osfmk/arm64/start.s       | 179 ++++++++++++++++++++++++++++++++++++--
+ osfmk/conf/files.arm64    |   1 +
+ osfmk/kern/debug.c        |   7 ++
+ 7 files changed, 350 insertions(+), 5 deletions(-)
+ create mode 100644 osfmk/arm64/lapis_early.c
+ create mode 100644 osfmk/arm64/lapis_early.h
+
+diff --git a/osfmk/arm/arm_init.c b/osfmk/arm/arm_init.c
+index 6690846..c33c681 100644
+--- a/osfmk/arm/arm_init.c
++++ b/osfmk/arm/arm_init.c
+@@ -58,6 +58,7 @@
+ #include <pexpert/arm/consistent_debug.h>
+ #include <pexpert/device_tree.h>
+ #include <arm64/proc_reg.h>
++#include <arm64/lapis_early.h>
+ #include <arm/pmap.h>
+ #include <arm/caches_internal.h>
+ #include <arm/cpu_internal.h>
+@@ -356,6 +357,7 @@ arm_init(
+ 	DTEntry chosen = NULL;
+ 	unsigned int dt_entry_size = 0;
+ 
++	lapis_early_mark(1, "arm_init entered (MMU on)");
+ 	arm_slide_rebase_and_sign_image();
+ 
+ 	arm_static_if_init(args);
+@@ -376,6 +378,7 @@ arm_init(
+ #endif /* defined(HAS_APPLE_PAC) */
+ 
+ 	PE_init_platform(FALSE, args); /* Get platform expert set up */
++	lapis_early_mark(2, "PE_init_platform done");
+ 
+ #if __arm64__
+ 	configure_timer_apple_regs();
+@@ -459,6 +462,7 @@ arm_init(
+ #endif
+ 
+ 	ml_parse_cpu_topology();
++	lapis_early_mark(3, "ml_parse_cpu_topology done");
+ 
+ 
+ 	boot_cpu_id = ml_get_boot_cpu_number();
+@@ -490,11 +494,13 @@ arm_init(
+ 	 */
+ 	thread->machine.preemption_count = 0;
+ 	cpu_bootstrap();
++	lapis_early_mark(4, "cpu_bootstrap done");
+ 
+ 	rtclock_early_init();
+ 
+ 	kernel_debug_string_early("kernel_startup_bootstrap");
+ 	kernel_startup_bootstrap();
++	lapis_early_mark(5, "kernel_startup_bootstrap done");
+ 
+ 	/*
+ 	 * Initialize the timer callout world
+@@ -502,6 +508,7 @@ arm_init(
+ 	timer_call_init();
+ 
+ 	cpu_init();
++	lapis_early_mark(6, "cpu_init done");
+ 
+ 	processor_bootstrap();
+ 
+@@ -569,6 +576,7 @@ arm_init(
+ 	gDramSize = *dram_size;
+ 	pmap_first_pnum = (ppnum_t)atop(gDramBase);
+ 
++	lapis_early_mark(7, "entering arm_vm_init");
+ 	arm_vm_init(xmaxmem, args);
+ 
+ 	if (debug_boot_arg) {
+diff --git a/osfmk/arm64/arm_vm_init.c b/osfmk/arm64/arm_vm_init.c
+index 756af52..52ce2d3 100644
+--- a/osfmk/arm64/arm_vm_init.c
++++ b/osfmk/arm64/arm_vm_init.c
+@@ -40,6 +40,7 @@
+ 
+ #include <machine/atomic.h>
+ #include <arm64/proc_reg.h>
++#include <arm64/lapis_early.h>
+ #include <arm64/lowglobals.h>
+ #include <arm/cpu_data_internal.h>
+ #include <arm/misc_protos.h>
+@@ -2174,6 +2175,8 @@ arm_vm_init(uint64_t memory_size, boot_args * args)
+ 	cpu_tte = (tt_entry_t*)(phystokv(cpu_ttep));
+ 	invalid_tte = (tt_entry_t*)(phystokv(invalid_ttep));
+ 
++	lapis_early_disable();
++
+ 	// From here on out, we're off the bootstrap translation tables.
+ 
+ 
+diff --git a/osfmk/arm64/lapis_early.c b/osfmk/arm64/lapis_early.c
+new file mode 100644
+index 0000000..5313de2
+--- /dev/null
++++ b/osfmk/arm64/lapis_early.c
+@@ -0,0 +1,135 @@
++/*
++ * lapis bootstrap console on the ABL splash framebuffer.
++ * No allocation/locks/ADT: reachable from panic before a current thread exists.
++ * start.s maps FB VA=PA as Normal Non-Cacheable in the V=P L2 table.
++ * Disable before arm_vm_init tears down bootstrap TTBR0.
++ */
++#include <arm64/lapis_early.h>
++
++#if defined(LAPIS)
++#include <stdint.h>
++#include <kern/misc_protos.h>
++
++/* M0-verified splash: XRGB8888, 2944x1840, stride 11776. */
++#define EARLY_FB ((volatile uint32_t *)(uintptr_t)0xD5100000ULL)
++#define EARLY_WIDTH 2944u
++#define EARLY_HEIGHT 1840u
++#define EARLY_STRIDE (11776u / 4u)
++#define EARLY_SCALE 3u
++#define EARLY_CELL_W (8u * EARLY_SCALE)
++#define EARLY_CELL_H (16u * EARLY_SCALE)
++#define EARLY_ROWS ((EARLY_HEIGHT - 48u) / EARLY_CELL_H)
++#define EARLY_COLS (EARLY_WIDTH / EARLY_CELL_W)
++
++extern unsigned char iso_font[256 * 16];
++
++static unsigned int early_row, early_col;
++static unsigned int early_started, early_disabled, early_panicking;
++
++static void
++lapis_early_clear_row(void)
++{
++	for (unsigned int y = 0; y < EARLY_CELL_H; y++) {
++		volatile uint32_t *line = EARLY_FB + (early_row * EARLY_CELL_H + y) * EARLY_STRIDE;
++		for (unsigned int x = 0; x < EARLY_WIDTH; x++) {
++			line[x] = 0xff001010u;
++		}
++	}
++}
++
++void
++lapis_early_putc(char c)
++{
++	if (early_disabled) {
++		return;
++	}
++	if (!early_started) {
++		early_started = 1;
++		lapis_early_clear_row();
++	}
++	if (c == '\r') {
++		early_col = 0;
++		return;
++	}
++	if (c == '\n' || early_col == EARLY_COLS) {
++		early_col = 0;
++		early_row = (early_row + 1) % EARLY_ROWS;
++		lapis_early_clear_row();
++		if (c == '\n') {
++			return;
++		}
++	}
++	const unsigned char *glyph = iso_font + (unsigned char)c * 16;
++	for (unsigned int gy = 0; gy < 16; gy++) {
++		for (unsigned int sy = 0; sy < EARLY_SCALE; sy++) {
++			volatile uint32_t *line = EARLY_FB +
++			    (early_row * EARLY_CELL_H + gy * EARLY_SCALE + sy) * EARLY_STRIDE +
++			    early_col * EARLY_CELL_W;
++			for (unsigned int gx = 0; gx < 8; gx++) {
++				uint32_t pixel = (glyph[gy] & (0x80u >> gx)) ? 0xffffffffu : 0xff001010u;
++				for (unsigned int sx = 0; sx < EARLY_SCALE; sx++) {
++					line[gx * EARLY_SCALE + sx] = pixel;
++				}
++			}
++		}
++	}
++	early_col++;
++}
++
++static void
++lapis_early_string(const char *s)
++{
++	while (*s) {
++		lapis_early_putc(*s++);
++	}
++}
++
++void
++lapis_early_mark(unsigned int stage, const char *label)
++{
++	if (early_disabled || stage > 9) {
++		return;
++	}
++	uint32_t color = 0xff00ff00u | ((stage * 24u) << 16) | ((9u - stage) * 20u);
++	unsigned int x0 = stage * 96u;
++	unsigned int x1 = x0 + 96u;
++	if (x1 > EARLY_WIDTH) {
++		x1 = EARLY_WIDTH;
++	}
++	for (unsigned int y = EARLY_HEIGHT - 48; y < EARLY_HEIGHT; y++) {
++		for (unsigned int x = x0; x < x1; x++) {
++			EARLY_FB[y * EARLY_STRIDE + x] = color;
++		}
++	}
++	__asm__ volatile("dsb sy" ::: "memory");
++	lapis_early_string("LAPIS EARLY ");
++	lapis_early_putc((char)('0' + stage));
++	lapis_early_string(": ");
++	lapis_early_string(label);
++	lapis_early_putc('\n');
++}
++
++void
++lapis_early_panic(const char *fmt, va_list *args)
++{
++	if (early_disabled || early_panicking) {
++		return;
++	}
++	early_panicking = 1;
++	lapis_early_string("\nLAPIS EARLY PANIC: ");
++	va_list copy;
++	va_copy(copy, *args);
++	_doprnt(fmt, &copy, lapis_early_putc, 16);
++	va_end(copy);
++	lapis_early_putc('\n');
++	__asm__ volatile("dsb sy" ::: "memory");
++}
++
++void
++lapis_early_disable(void)
++{
++	lapis_early_mark(8, "leaving bootstrap TTBR0");
++	early_disabled = 1;
++	__asm__ volatile("dsb sy" ::: "memory");
++}
++#endif /* LAPIS */
+diff --git a/osfmk/arm64/lapis_early.h b/osfmk/arm64/lapis_early.h
+new file mode 100644
+index 0000000..c14daee
+--- /dev/null
++++ b/osfmk/arm64/lapis_early.h
+@@ -0,0 +1,22 @@
++/* Early splash-FB diagnostics while bootstrap TTBR0 V=P is live (LAPIS). */
++#ifndef _ARM64_LAPIS_EARLY_H_
++#define _ARM64_LAPIS_EARLY_H_
++
++#include <pexpert/arm64/board_config.h>
++#include <stdarg.h>
++
++#if defined(LAPIS)
++void lapis_early_mark(unsigned int stage, const char *label);
++void lapis_early_putc(char c);
++void lapis_early_panic(const char *fmt, va_list *args);
++void lapis_early_disable(void);
++#else
++static inline void lapis_early_mark(unsigned int stage, const char *label)
++{
++	(void)stage;
++	(void)label;
++}
++static inline void lapis_early_disable(void) {}
++#endif
++
++#endif /* _ARM64_LAPIS_EARLY_H_ */
+diff --git a/osfmk/arm64/start.s b/osfmk/arm64/start.s
+index ca003c8..72f634b 100644
+--- a/osfmk/arm64/start.s
++++ b/osfmk/arm64/start.s
+@@ -126,8 +126,9 @@ LEXT(LowResetVectorBase)
+ 	.globl EXT(reset_vector)
+ LEXT(reset_vector)
+ 	// Preserve x0 for start_first_cpu, if called
+-	// Unlock the core for debugging
++#if !defined(LAPIS)
+ 	msr		OSLAR_EL1, xzr
++#endif
+ 	msr		DAIFSet, #(DAIFSC_ALL)				// Disable all interrupts
+ 
+ #if !(defined(KERNEL_INTEGRITY_KTRR) || defined(KERNEL_INTEGRITY_CTRR) || defined(KERNEL_INTEGRITY_PV_CTRR))
+@@ -242,6 +243,94 @@ LEXT(_start)
+ 	.align 12, 0
+ 	.global	EXT(LowExceptionVectorBase)
+ LEXT(LowExceptionVectorBase)
++#if defined(LAPIS)
++	mov		x9, #0
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #1
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #2
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #3
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #4
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #5
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #6
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #7
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #8
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #9
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #10
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #11
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #12
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #13
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #14
++	b		lapis_low_exc
++	.align	7
++	mov		x9, #15
++	b		lapis_low_exc
++	.align	2
++lapis_low_exc:
++	MOV64	x0, 0xD5100000
++MOV64	x1, 0xff0000a0
++	MOV64	x2, (2944 * 128)
++1:	str		w1, [x0], #4
++	subs	x2, x2, #1
++	b.ne	1b
++	mrs		x3, ESR_EL1
++	mrs		x4, ELR_EL1
++	mrs		x5, FAR_EL1
++	MOV64	x0, (0xD5100000 + 200 * 11776)
++MOV64	x1, 0xffffff00
++	add		x2, x0, x9, lsl #6
++	str		w1, [x2]
++MOV64	x1, 0xff00ff00
++	and		x2, x3, #0xff
++	add		x2, x0, x2, lsl #2
++	add		x2, x2, #1024
++	str		w1, [x2]
++MOV64	x1, 0xffff00ff
++	lsr		x2, x3, #26
++	and		x2, x2, #0x3f
++	add		x2, x0, x2, lsl #3
++	add		x2, x2, #2048
++	str		w1, [x2]
++	MOV64	x0, (0xD5100000 + 220 * 11776)
++MOV64	x1, 0xff00ffff
++	and		x2, x4, #0xff
++	add		x2, x0, x2, lsl #2
++	str		w1, [x2]
++MOV64	x1, 0xffff8000
++	and		x2, x5, #0xff
++	add		x2, x0, x2, lsl #2
++	add		x2, x2, #1024
++	str		w1, [x2]
++	dsb		sy
++2:	wfe
++	b		2b
++#else
+ 	/* EL1 SP 0 */
+ 	b		.
+ 	.align	7
+@@ -277,6 +366,7 @@ LEXT(LowExceptionVectorBase)
+ 	b		.
+ 	.align	7
+ 	b		.
++#endif /* LAPIS */
+ 	.align 12, 0
+ 
+ #if defined(KERNEL_INTEGRITY_KTRR) || defined(KERNEL_INTEGRITY_CTRR) || defined(KERNEL_INTEGRITY_PV_CTRR)
+@@ -467,13 +557,32 @@ start_cpu:
+ 	.globl EXT(start_first_cpu)
+ LEXT(start_first_cpu)
+ 
+-	// Unlock the core for debugging
+-	msr		OSLAR_EL1, xzr
+-	msr		DAIFSet, #(DAIFSC_ALL)				// Disable all interrupts
+-
+ 	mov		x20, x0
+ 	mov		x21, #0
+ 
++#if defined(LAPIS)
++	MOV64	x0, 0xD5100000
++	mov		w1, #-1
++	mov		x2, #48
++Llapis_s0_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s0_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s0_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s0_row
++	dsb		sy
++#endif
++
++#if !defined(LAPIS)
++	msr		OSLAR_EL1, xzr
++#endif
++	msr		DAIFSet, #(DAIFSC_ALL)				// Disable all interrupts
++
+ 	// Set low reset vector before attempting any loads
+ 	adrp	x0, EXT(LowExceptionVectorBase)@page
+ 	add		x0, x0, EXT(LowExceptionVectorBase)@pageoff
+@@ -620,6 +729,30 @@ Lkernelcache_base_found:
+ 	lsr		x5,  x24, #(ARM_TT_L2_SHIFT)
+ 	create_bootstrap_mapping x14, x15, x5, x3, x2, x9, x10, x11, x12, x13
+ 
++#if defined(LAPIS)
++	MOV64	x10, 0xD5100000
++	MOV64	x11, (ARM_TTE_TYPE_BLOCK | ARM_TTE_VALID | ARM_TTE_BLOCK_SH(SH_OUTER_MEMORY) | ARM_TTE_BLOCK_ATTRINDX(CACHE_ATTRINDX_WRITECOMB) | ARM_TTE_BLOCK_AF | ARM_TTE_BLOCK_PNX | ARM_TTE_BLOCK_NX)
++	orr		x11, x11, x10
++	and		x12, x10, #(ARM_TT_L2_INDEX_MASK)
++	lsr		x12, x12, #(ARM_TT_L2_SHIFT)
++	add		x13, x25, #(2 * PGBYTES)
++	str		x11, [x13, x12, lsl #TTE_SHIFT]
++	MOV64	x0, (0xD5100000 + 64 * 11776)
++MOV64	x1, 0xff80ff00
++	mov		x2, #32
++Llapis_s1_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s1_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s1_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s1_row
++#endif
++
+ 	/* Ensure TTEs are visible */
+ 	dsb		ish
+ 
+@@ -747,11 +880,47 @@ common_start:
+ 	PAC_INIT_KEY_STATE tmp=x0, tmp2=x1
+ #endif /* HAS_APPLE_PAC */
+ 
++#if defined(LAPIS)
++	MOV64	x0, (0xD5100000 + 112 * 11776)
++MOV64	x1, 0xff00ffff
++	mov		x2, #32
++Llapis_s2_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s2_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s2_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s2_row
++	dsb		sy
++#endif
++
+ 	// Enable caches, MMU, ROP and JOP
+ 	MOV64   x0, SCTLR_EL1_DEFAULT
+ 	MSR_SCTLR_EL1_X0
+ 	isb		sy
+ 
++#if defined(LAPIS)
++	MOV64	x0, (0xD5100000 + 160 * 11776)
++MOV64	x1, 0xffff00ff
++	mov		x2, #32
++Llapis_s3_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s3_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s3_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s3_row
++	dsb		sy
++#endif
++
+ #if !VMAPPLE && !defined(LAPIS)
+ 	MOV64	x1, SCTLR_EL1_DEFAULT
+ 	cmp		x0, x1
+diff --git a/osfmk/conf/files.arm64 b/osfmk/conf/files.arm64
+index 645aee1..9a1d8e5 100644
+--- a/osfmk/conf/files.arm64
++++ b/osfmk/conf/files.arm64
+@@ -52,6 +52,7 @@ osfmk/arm64/dbgwrap.c		standard
+ osfmk/arm/arm_timer.c		standard
+ osfmk/arm/arm_init.c	optional config_pmap_ppl
+ osfmk/arm64/arm_vm_init.c	optional config_pmap_ppl
++osfmk/arm64/lapis_early.c	standard
+ osfmk/arm64/arm64_hypercall.c	standard
+ osfmk/arm/io_map.c		standard
+ osfmk/arm64/loose_ends.c	standard
+diff --git a/osfmk/kern/debug.c b/osfmk/kern/debug.c
+index 48f9405..8af72db 100644
+--- a/osfmk/kern/debug.c
++++ b/osfmk/kern/debug.c
+@@ -86,6 +86,9 @@
+ #include <stdatomic.h>
+ #include <sys/pgo.h>
+ #include <console/serial_protos.h>
++#if defined(__arm64__)
++#include <arm64/lapis_early.h>
++#endif
+ #include <IOKit/IOBSD.h>
+ #include <libkern/crc.h>
+ 
+@@ -1251,6 +1254,10 @@ __mockable void
+ panic_trap_to_debugger(const char *panic_format_str, va_list *panic_args, unsigned int reason, void *ctx,
+     uint64_t panic_options_mask, void *panic_data_ptr, unsigned long panic_caller, const char *panic_initiator)
+ {
++#if defined(LAPIS)
++	lapis_early_panic(panic_format_str, panic_args);
++#endif
++
+ #pragma clang diagnostic pop
+ 
+ #if defined(__x86_64__) && (DEVELOPMENT || DEBUG)
+-- 
+2.43.0
+
+

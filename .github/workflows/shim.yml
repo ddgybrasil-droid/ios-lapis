@@ -1,0 +1,77 @@
+name: shim
+# Re-trigger after Actions empty-step/capacity failures on HEAD.
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/shim.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Build shim + boot.img
+        run: ./scripts/build-bootimg.sh
+
+      - name: Static checks
+        run: |
+          python3 - <<'PY'
+          import struct, pathlib, json
+          img = pathlib.Path('out/shim-boot.img').read_bytes()
+          assert img[:8] == b'ANDROID!', img[:8]
+          hdr_ver = struct.unpack_from('<I', img, 40)[0]
+          assert hdr_ver == 4, hdr_ver
+          p = json.load(open('hw/lapis-profile.json'))
+          phys = int(p['memory']['phys_base'], 16)
+          size = int(p['memory']['mem_size'], 16)
+          assert phys == 0x8C0000000 and size == 0x22FA60000, (hex(phys), hex(size))
+          print('boot.img v4 ok, size', len(img), 'DRAM', hex(phys), hex(size))
+          print(pathlib.Path('out/DRAM.txt').read_text())
+          # Diagnostic image: tiny ramdisk, no LAPISXNU required
+          ks, rs = __import__('struct').unpack_from('<II', img, 8)
+          assert rs < 65536, rs
+          print('diagnostic ramdisk_size', rs, 'kernel_size', ks)
+          PY
+          aarch64-linux-gnu-gcc -c -x c -o /tmp/ba.o - <<'C'
+          #include <stdint.h>
+          #define BOOT_LINE_LENGTH 1024
+          struct Boot_Video { unsigned long a,b,c,d,e,f; };
+          typedef struct boot_args {
+            uint16_t Revision, Version;
+            uint64_t virtBase, physBase, memSize, topOfKernelData;
+            struct Boot_Video Video;
+            uint32_t machineType;
+            void *deviceTreeP;
+            uint32_t deviceTreeLength;
+            char CommandLine[BOOT_LINE_LENGTH];
+            uint64_t bootFlags, memSizeActual;
+          } boot_args;
+          _Static_assert(sizeof(boot_args) == 1152, "size");
+          _Static_assert(__builtin_offsetof(boot_args, CommandLine) == 108, "cmdline");
+          C
+          echo "boot_args 1152/1024 assert ok"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-shim-boot
+          path: |
+            out/shim-boot.img
+            out/Image
+            out/lapis.adt
+            shim/out/shim.elf

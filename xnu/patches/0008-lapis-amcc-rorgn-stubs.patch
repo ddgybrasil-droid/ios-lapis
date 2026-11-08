@@ -1,0 +1,75 @@
+From efd5e3db2bd3688c193a7ea404751978f1966a97 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 19:22:47 +0000
+Subject: [PATCH] 0008 amcc stubs
+
+---
+ osfmk/arm64/amcc_rorgn_common.c   | 8 ++++++++
+ osfmk/arm64/amcc_rorgn_ppl.c      | 8 ++++++++
+ osfmk/arm64/amcc_rorgn_ppl_amcc.c | 8 ++++++++
+ osfmk/arm64/amcc_rorgn_pv_ctrr.c  | 8 ++++++++
+ 4 files changed, 32 insertions(+)
+ create mode 100644 osfmk/arm64/amcc_rorgn_common.c
+ create mode 100644 osfmk/arm64/amcc_rorgn_ppl.c
+ create mode 100644 osfmk/arm64/amcc_rorgn_ppl_amcc.c
+ create mode 100644 osfmk/arm64/amcc_rorgn_pv_ctrr.c
+
+diff --git a/osfmk/arm64/amcc_rorgn_common.c b/osfmk/arm64/amcc_rorgn_common.c
+new file mode 100644
+index 0000000..c91e6d3
+--- /dev/null
++++ b/osfmk/arm64/amcc_rorgn_common.c
+@@ -0,0 +1,8 @@
++/*
++ * lapis: files.arm64 builds this for nos_arm_asm / config_pmap_ppl, but the
++ * implementation only ships in Apple's closed per-SoC library. It programs
++ * the AMCC read-only region (KTRR/CTRR). LAPIS does not define
++ * KERNEL_INTEGRITY_KTRR/CTRR/PV_CTRR, so a translation unit is enough.
++ */
++#include <stdint.h>
++static const uint8_t lapis_no_amcc_rorgn __attribute__((unused)) = 0;
+diff --git a/osfmk/arm64/amcc_rorgn_ppl.c b/osfmk/arm64/amcc_rorgn_ppl.c
+new file mode 100644
+index 0000000..c91e6d3
+--- /dev/null
++++ b/osfmk/arm64/amcc_rorgn_ppl.c
+@@ -0,0 +1,8 @@
++/*
++ * lapis: files.arm64 builds this for nos_arm_asm / config_pmap_ppl, but the
++ * implementation only ships in Apple's closed per-SoC library. It programs
++ * the AMCC read-only region (KTRR/CTRR). LAPIS does not define
++ * KERNEL_INTEGRITY_KTRR/CTRR/PV_CTRR, so a translation unit is enough.
++ */
++#include <stdint.h>
++static const uint8_t lapis_no_amcc_rorgn __attribute__((unused)) = 0;
+diff --git a/osfmk/arm64/amcc_rorgn_ppl_amcc.c b/osfmk/arm64/amcc_rorgn_ppl_amcc.c
+new file mode 100644
+index 0000000..c91e6d3
+--- /dev/null
++++ b/osfmk/arm64/amcc_rorgn_ppl_amcc.c
+@@ -0,0 +1,8 @@
++/*
++ * lapis: files.arm64 builds this for nos_arm_asm / config_pmap_ppl, but the
++ * implementation only ships in Apple's closed per-SoC library. It programs
++ * the AMCC read-only region (KTRR/CTRR). LAPIS does not define
++ * KERNEL_INTEGRITY_KTRR/CTRR/PV_CTRR, so a translation unit is enough.
++ */
++#include <stdint.h>
++static const uint8_t lapis_no_amcc_rorgn __attribute__((unused)) = 0;
+diff --git a/osfmk/arm64/amcc_rorgn_pv_ctrr.c b/osfmk/arm64/amcc_rorgn_pv_ctrr.c
+new file mode 100644
+index 0000000..c91e6d3
+--- /dev/null
++++ b/osfmk/arm64/amcc_rorgn_pv_ctrr.c
+@@ -0,0 +1,8 @@
++/*
++ * lapis: files.arm64 builds this for nos_arm_asm / config_pmap_ppl, but the
++ * implementation only ships in Apple's closed per-SoC library. It programs
++ * the AMCC read-only region (KTRR/CTRR). LAPIS does not define
++ * KERNEL_INTEGRITY_KTRR/CTRR/PV_CTRR, so a translation unit is enough.
++ */
++#include <stdint.h>
++static const uint8_t lapis_no_amcc_rorgn __attribute__((unused)) = 0;
+-- 
+2.43.0
+
