@@ -1,0 +1,15 @@
+out/
+shim/out/
+*.o
+*.elf
+*.img
+*.adt
+*.bin
+*.ppm
+dxb/
+.DS_Store
+backup/
+dtb/
+research/
+*.ipsw
+*.im4p

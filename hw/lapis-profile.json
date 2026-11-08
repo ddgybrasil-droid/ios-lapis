@@ -1,0 +1,52 @@
+{
+  "codename": "lapis",
+  "product": "TB520FU",
+  "marketing_name": "Lenovo Yoga Pad Pro 12.7",
+  "soc": "SM8650",
+  "hypervisor": "Gunyah",
+  "entry_el": 1,
+  "gic": {
+    "compatible": "arm,gic-v3",
+    "gicd_base": "0x17100000",
+    "gicd_size": "0x10000",
+    "gicr_base": "0x17180000",
+    "gicr_size": "0x200000",
+    "gicr_stride": "0x40000",
+    "source": "upstream arch/arm64/boot/dts/qcom/sm8650.dtsi; reconcile with device HW.md"
+  },
+  "timer": {
+    "compatible": "arm,armv8-timer",
+    "vtimer_intid": 27,
+    "note": "SM8650 DT uses standard PPIs 13/14/11/10 => virt timer INTID 27 (unlike sweet's remapped INTID 19)"
+  },
+  "psci": {
+    "compatible": "arm,psci-1.0",
+    "method": "smc"
+  },
+  "framebuffer": {
+    "base": "0xD5100000",
+    "width": 2944,
+    "height": 1840,
+    "stride": 11776,
+    "format": "XRGB8888",
+    "rotation": 0,
+    "orientation": "landscape",
+    "source": "task description / M0 verification"
+  },
+  "memory": {
+    "phys_base": "0x100000000",
+    "mem_size": "0x80000000",
+    "panic_log_size": "0x100000",
+    "note": "Placeholder high-bank range (above 4GiB) chosen to avoid FB at 0xD5100000. REPLACE with verified free RAM from HW.md before trusting on-device boots."
+  },
+  "xnu": {
+    "tag": "xnu-12377.121.6",
+    "boot_line_length": 1024,
+    "boot_args_sizeof": 1152,
+    "machine_config": "LAPIS"
+  },
+  "provenance": {
+    "uploads_mounted": false,
+    "note": "Agent environment did not receive uploads/ (PLAN.md, HW.md, iomem.txt, VERIFICATION.md, IMPLEMENTATION-HANDOFF.md). Values above combine the user query with public SM8650 DT and verified xnu-12377.121.6 boot.h."
+  }
+}

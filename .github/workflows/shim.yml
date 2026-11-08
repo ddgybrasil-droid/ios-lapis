@@ -1,0 +1,68 @@
+name: shim
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'shim/**'
+      - 'tools/**'
+      - 'scripts/**'
+      - 'hw/**'
+      - '.github/workflows/shim.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
+
+      - name: Build shim + boot.img
+        run: ./scripts/build-bootimg.sh
+
+      - name: Static checks
+        run: |
+          python3 - <<'PY'
+          import struct, pathlib, sys
+          img = pathlib.Path('out/shim-boot.img').read_bytes()
+          assert img[:8] == b'ANDROID!', img[:8]
+          hdr_ver = struct.unpack_from('<I', img, 40)[0]
+          assert hdr_ver == 4, hdr_ver
+          # boot_args layout self-test via aarch64-linux-gnu-gcc
+          print('boot.img v4 ok, size', len(img))
+          PY
+          aarch64-linux-gnu-gcc -c -x c -o /tmp/ba.o - <<'C'
+          #include <stdint.h>
+          #define BOOT_LINE_LENGTH 1024
+          struct Boot_Video { unsigned long a,b,c,d,e,f; };
+          typedef struct boot_args {
+            uint16_t Revision, Version;
+            uint64_t virtBase, physBase, memSize, topOfKernelData;
+            struct Boot_Video Video;
+            uint32_t machineType;
+            void *deviceTreeP;
+            uint32_t deviceTreeLength;
+            char CommandLine[BOOT_LINE_LENGTH];
+            uint64_t bootFlags, memSizeActual;
+          } boot_args;
+          _Static_assert(sizeof(boot_args) == 1152, "size");
+          _Static_assert(__builtin_offsetof(boot_args, CommandLine) == 108, "cmdline");
+          C
+          echo "boot_args 1152/1024 assert ok"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lapis-shim-boot
+          path: |
+            out/shim-boot.img
+            out/Image
+            out/lapis.adt
+            shim/out/shim.elf

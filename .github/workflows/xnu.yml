@@ -1,0 +1,112 @@
+name: xnu
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos_version:
+        description: macOS release whose xnu to build (26.5 => xnu-12377.x)
+        default: "26.5"
+      kernel_config:
+        description: RELEASE / DEVELOPMENT / DEBUG
+        default: DEVELOPMENT
+      keep_going:
+        description: make -k (collect compile errors)
+        default: "true"
+  push:
+    branches: [main, 'cursor/**']
+    paths:
+      - 'xnu/patches/**'
+      - '.github/workflows/xnu.yml'
+  pull_request:
+    paths:
+      - 'xnu/patches/**'
+      - '.github/workflows/xnu.yml'
+
+concurrency:
+  group: xnu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DXB_REPO: https://github.com/blacktop/darwin-xnu-build
+  # Recent main with MACOS_VERSION 26.5 support; pin for reproducibility.
+  DXB_SHA: 663906528d1cd5ea8fde7de6f16de73db9511549
+  MACOS_VERSION: ${{ inputs.macos_version || '26.5' }}
+  KERNEL_CONFIG: ${{ inputs.kernel_config || 'DEVELOPMENT' }}
+  MACHINE_CONFIG: LAPIS
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch darwin-xnu-build
+        run: |
+          git init -q dxb
+          git -C dxb fetch -q --depth 1 "$DXB_REPO" "$DXB_SHA"
+          git -C dxb checkout -q FETCH_HEAD
+          # Layer blacktop 26.0 patches into 26.5 (script falls back, but be explicit)
+          mkdir -p "dxb/patches/${MACOS_VERSION}"
+          if [ -d dxb/patches/26.0 ]; then
+            cp -n dxb/patches/26.0/* "dxb/patches/${MACOS_VERSION}/" || true
+          fi
+          cp xnu/patches/*.patch "dxb/patches/${MACOS_VERSION}/"
+          # Plain arm64 for LAPIS (libfirehose / archives may be arm64e-only otherwise)
+          sed -i '' 's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' dxb/build.sh || true
+          ls "dxb/patches/${MACOS_VERSION}"
+
+      - name: Deps
+        run: |
+          brew install jq gum bash cmake ninja || true
+          printf '#!/bin/sh\nexit 0\n' | sudo tee /usr/local/bin/xcodes >/dev/null
+          sudo chmod +x /usr/local/bin/xcodes
+          sw_vers
+          ls -d /Applications/Xcode*.app || true
+          XC=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "DEVELOPER_DIR=$XC/Contents/Developer" >> "$GITHUB_ENV"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          xcrun --find iig || true
+
+      - name: Build
+        working-directory: dxb
+        env:
+          MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
+          CODEQL: "0"
+        run: |
+          set -o pipefail
+          bash build.sh 2>&1 | tee "$GITHUB_WORKSPACE/xnu-build.log"
+          echo "BUILD_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+
+      - name: Summarize result
+        if: always()
+        run: |
+          mkdir -p out
+          echo "build_exit=${BUILD_EXIT:-unknown}" | tee out/RESULT.txt
+          # Capture trailing errors for the PR summary
+          if [ -f xnu-build.log ]; then
+            tail -n 200 xnu-build.log | tee out/build-tail.txt
+            rg -n "error:|fatal error:|ld:|Undefined symbols" xnu-build.log | tail -n 80 | tee out/errors.txt || true
+          fi
+          cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
+          ls -la out || true
+          (cd out && shasum -a 256 kernel.* > SHA256SUMS) 2>/dev/null || true
+          # Fail the job if build failed — after uploading artifacts
+          if [ "${BUILD_EXIT:-1}" != "0" ]; then
+            echo "XNU build failed with exit ${BUILD_EXIT}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xnu-kernel-lapis
+          path: |
+            out/
+            xnu-build.log
+          if-no-files-found: warn
+
+      - name: Fail if kernel build failed
+        if: always()
+        run: |
+          test "${BUILD_EXIT:-1}" = "0"
