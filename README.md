@@ -17,7 +17,7 @@ an XNU Mach-O plus a generated Apple Device Tree (ADT).
 | aarch64 shim + boot.img v4 | Builds on Linux (`scripts/build-bootimg.sh`) |
 | `boot_args` for xnu-12377 | **Verified**: `BOOT_LINE_LENGTH=1024`, `sizeof=1152` |
 | XNU patches for LAPIS | Bring-up set `0001`–`0005`; full sweet rebase documented, not finished |
-| macOS XNU CI | Workflow present; see latest Actions run / `docs/STATUS.md` for pass/fail |
+| macOS XNU CI | **Green** — `kernel.development.lapis` ([run 42517908527](https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517908527)) |
 | On-device XNU boot | **Not claimed** — needs kernel artifact + verified free RAM |
 
 ## Build the shim (Linux)

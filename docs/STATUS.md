@@ -98,3 +98,15 @@ Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517180385
 - Remaining `kextsymboltool` errors: `_pmap_create_aligned_buffer` /
   `_pmap_destroy_aligned_buffer` listed in `Private.arm64.exports` but absent
   from open-source `nos_arm_pmap` → drop in `0011`
+
+## Final XNU CI — **green**
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42517908527
+
+- `MACOS_VERSION=26.5`, `MACHINE_CONFIG=LAPIS`, KDK 26.5 / Xcode 26.3
+- Artifact: `kernel.development.lapis` (+ unstripped)
+- Shim workflow also green on the same commit
+
+Still blocked for on-device XNU boot: placeholder DRAM map in `hw/lapis-profile.json`
+must be reconciled with real free RAM before trusting `fastboot boot` of a
+shim+payload image.
