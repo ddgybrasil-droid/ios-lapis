@@ -92,9 +92,19 @@ jobs:
             tail -n 200 xnu-build.log | tee out/build-tail.txt
             rg -a -n "No rule to make target|error:|fatal error:|Undefined symbols|ld: symbol" xnu-build.log | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | sort -u | tail -n 120 | tee out/errors.txt || true
           fi
+          # Prefer installed kernels; fall back to the objroot binary if
+          # install failed late (e.g. kextsymboltool) after a successful link.
           cp -R dxb/fakeroot/System/Library/Kernels/. out/ 2>/dev/null || true
+          find dxb/build/xnu.obj -name 'kernel.development.lapis' -o -name 'kernel.development.lapis.unstripped' 2>/dev/null | while read -r f; do
+            cp -n "$f" "out/$(basename "$f")" 2>/dev/null || true
+          done
           ls -la out || true
           (cd out && shasum -a 256 kernel.* > SHA256SUMS) 2>/dev/null || true
+          if ls out/kernel.development.lapis* >/dev/null 2>&1; then
+            echo "KERNEL_ARTIFACT=yes" | tee -a out/RESULT.txt
+          else
+            echo "KERNEL_ARTIFACT=no" | tee -a out/RESULT.txt
+          fi
           # Fail the job if build failed — after uploading artifacts
           if [ "${BUILD_EXIT:-1}" != "0" ]; then
             echo "XNU build failed with exit ${BUILD_EXIT}"

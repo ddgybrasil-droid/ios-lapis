@@ -78,3 +78,14 @@ Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42515561940
 Only remaining undefined symbol: `_tb_transport_startup`. The stub TU was
 gated on `#if defined(LAPIS)` without including `board_config.h`, so the
 symbol was never emitted. `0009` rewritten to define it unconditionally.
+
+## Fifth XNU CI (after tb_transport fix — linked, failed symbolset)
+
+Run: https://github.com/ddgybrasil-droid/ios-lapis/actions/runs/42516313076
+
+`kernel.development.lapis` **linked successfully**, then `kextsymboltool` failed
+building `Private.symbolset` (~276 "exported name not in import list", mostly
+`_tb_*` from force-loaded `libTightbeam.a`, plus Apple IOMMU/SPTM exports).
+
+Patch `0010` skips Tightbeam force_load for LAPIS and drops Apple-only IOMMU
+exports from `Private.arm64.exports` (ios-sweet 0009 approach).

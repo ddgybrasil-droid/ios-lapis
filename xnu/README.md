@@ -19,6 +19,7 @@ Patches in `patches/` are adapted from the ios-sweet approach
 | `0007-lapis-pmap-without-closed-ppl` | Avoid closed `ptep_get_iommu` / `pmap_ppl_*` |
 | `0008-lapis-amcc-rorgn-stubs` | Empty AMCC/CTRR TUs required by `nos_arm_asm` |
 | `0009-lapis-closed-lib-link-stubs` | Cache/monitor/Tightbeam link stubs |
+| `0010-lapis-skip-tightbeam-and-apple-only-exports` | No libTightbeam; drop Apple IOMMU KPI exports |
 
 ## Not yet ported (see `docs/PATCH-PORTING.md`)
 
