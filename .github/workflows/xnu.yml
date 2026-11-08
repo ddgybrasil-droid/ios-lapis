@@ -119,6 +119,15 @@ jobs:
             xnu-build.log
           if-no-files-found: warn
 
+      # Small dedicated artifact for the packaging job (avoids pulling the
+      # multi-hundred-MB build log through download-artifact).
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: xnu-kernel-binary
+          path: out/kernel.development.lapis
+          if-no-files-found: error
+
       - name: Fail if kernel build failed
         if: always()
         run: |
@@ -126,8 +135,12 @@ jobs:
 
   package-bootimg:
     needs: build
+    if: needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
@@ -137,14 +150,16 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu cpio gzip
 
-      - name: Download kernel artifact from this run
+      - name: Download kernel binary from this run
         uses: actions/download-artifact@v4
         with:
-          name: xnu-kernel-lapis
+          name: xnu-kernel-binary
           path: kernel-art
 
       - name: Package flashable boot.img
         run: |
+          set -euo pipefail
+          find kernel-art -type f -ls
           K=$(find kernel-art -type f -name 'kernel.development.lapis' ! -name '*.unstripped' | head -n1)
           test -n "$K"
           ./scripts/build-bootimg.sh "$K"
