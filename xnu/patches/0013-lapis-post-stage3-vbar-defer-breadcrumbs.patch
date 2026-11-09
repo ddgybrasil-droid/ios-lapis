@@ -1,0 +1,169 @@
+
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 8 Nov 2026 22:50:00 +0000
+Subject: [PATCH] 0013 lapis post-stage3 breadcrumbs and VBAR defer
+
+After magenta (stage3/MMU-on), hardware hangs with no C tiles. Evidence:
+common_start switches VBAR to ExceptionVectorsBase (no FB paint) before
+ret to arm_init, so post-MMU traps are invisible. Defer that switch,
+add asm stages 4-5, and a BSS-free C beacon before normal VBAR install.
+
+---
+
+--- a/osfmk/arm64/start.s	2026-11-08 21:37:29.527402466 +0000
++++ b/osfmk/arm64/start.s	2026-11-08 22:52:38.787544157 +0000
+@@ -860,6 +860,13 @@
+ 1:
+ 
+ 	// Set up the exception vectors
++#if defined(LAPIS)
++	/*
++	 * Keep LowExceptionVectorBase (set earlier; PA works via V=P after MMU)
++	 * until arm_init's C beacon. ExceptionVectorsBase has no FB paint, so an
++	 * early post-MMU trap would otherwise look identical to a silent hang.
++	 */
++#else /* !LAPIS */
+ #if __ARM_KERNEL_PROTECT__
+ 	/* If this is not the first reset of the boot CPU, the alternate mapping
+ 	 * for the exception vectors will be set up, so use it.  Otherwise, we
+@@ -875,6 +882,7 @@
+ 	sub		x0, x0, x23
+ 1:
+ 	MSR_VBAR_EL1_X0
++#endif /* !LAPIS */
+ 
+ #if HAS_APPLE_PAC
+ 	PAC_INIT_KEY_STATE tmp=x0, tmp2=x1
+@@ -942,6 +950,24 @@
+ 	// Clear thread pointer
+ 	msr		TPIDR_EL1, xzr						// Set thread register
+ 
++#if defined(LAPIS)
++	/* Stage4: survived CPACR/TPIDR (MMU on). Orange @ row 208. */
++	MOV64	x0, (0xD5100000 + 208 * 11776)
++MOV64	x1, 0xffff8000
++	mov		x2, #32
++Llapis_s4_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s4_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s4_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s4_row
++	dsb		sy
++#endif
+ 
+ #if defined(APPLE_ARM64_ARCH_FAMILY)
+ 	mrs		x12, MDSCR_EL1
+@@ -969,6 +995,27 @@
+ 	add		x0, x20, x22
+ 	sub		x0, x0, x23
+ 
++#if defined(LAPIS)
++	/* Stage5: boot_args KVA in x0, about to ret to arm_init. Spring @ row 256. */
++	mov		x6, x0
++	MOV64	x0, (0xD5100000 + 256 * 11776)
++MOV64	x1, 0xff00ff80
++	mov		x2, #32
++Llapis_s5_row:
++	mov		x3, #160
++	mov		x5, x0
++Llapis_s5_px:
++	str		w1, [x5], #4
++	subs	x3, x3, #1
++	b.ne	Llapis_s5_px
++	MOV64	x4, 11776
++	add		x0, x0, x4
++	subs	x2, x2, #1
++	b.ne	Llapis_s5_row
++	dsb		sy
++	mov		x0, x6
++#endif
++
+ #if KASAN
+ 	mov	x20, x0
+ 	mov	x21, lr
+
+--- a/osfmk/arm64/lapis_early.c	2026-11-08 21:29:08.569111832 +0000
++++ b/osfmk/arm64/lapis_early.c	2026-11-08 22:52:46.067490970 +0000
+@@ -22,10 +22,42 @@
+ #define EARLY_COLS (EARLY_WIDTH / EARLY_CELL_W)
+ 
+ extern unsigned char iso_font[256 * 16];
++extern uint8_t ExceptionVectorsBase[];
+ 
+ static unsigned int early_row, early_col;
+ static unsigned int early_started, early_disabled, early_panicking;
+ 
++/*
++ * BSS-free C entry beacon: wide yellow bar above the shim green handoff.
++ * Does not read early_* statics (absence of tiles must not be blamed on BSS).
++ */
++void
++lapis_early_c_beacon(void)
++{
++	volatile uint32_t *fb = EARLY_FB;
++	for (unsigned int y = EARLY_HEIGHT - 128u; y < EARLY_HEIGHT - 64u; y++) {
++		for (unsigned int x = 0; x < 512u; x++) {
++			fb[y * EARLY_STRIDE + x] = 0xffffff00u;
++		}
++	}
++	__asm__ volatile("dsb sy" ::: "memory");
++}
++
++void
++lapis_install_kernel_vbar(void)
++{
++	/*
++	 * Switch from LowExceptionVectorBase (PA/V=P with FB paint) to the
++	 * normal ExceptionVectorsBase now that C entry is proven.
++	 */
++	__asm__ volatile(
++	    "msr VBAR_EL1, %0\n"
++	    "isb"
++	    :
++	    : "r"(ExceptionVectorsBase)
++	    : "memory");
++}
++
+ static void
+ lapis_early_clear_row(void)
+ {
+
+--- a/osfmk/arm64/lapis_early.h	2026-11-08 21:29:08.569111832 +0000
++++ b/osfmk/arm64/lapis_early.h	2026-11-08 22:52:41.411524928 +0000
+@@ -6,11 +6,15 @@
+ #include <stdarg.h>
+ 
+ #if defined(LAPIS)
++void lapis_early_c_beacon(void);
++void lapis_install_kernel_vbar(void);
+ void lapis_early_mark(unsigned int stage, const char *label);
+ void lapis_early_putc(char c);
+ void lapis_early_panic(const char *fmt, va_list *args);
+ void lapis_early_disable(void);
+ #else
++static inline void lapis_early_c_beacon(void) {}
++static inline void lapis_install_kernel_vbar(void) {}
+ static inline void lapis_early_mark(unsigned int stage, const char *label)
+ {
+ 	(void)stage;
+
+--- a/osfmk/arm/arm_init.c	2026-11-08 21:29:08.569111832 +0000
++++ b/osfmk/arm/arm_init.c	2026-11-08 22:52:48.303474737 +0000
+@@ -357,7 +357,10 @@
+ 	DTEntry chosen = NULL;
+ 	unsigned int dt_entry_size = 0;
+ 
++	/* BSS-free FB beacon, then staged marks; then install normal VBAR. */
++	lapis_early_c_beacon();
+ 	lapis_early_mark(1, "arm_init entered (MMU on)");
++	lapis_install_kernel_vbar();
+ 	arm_slide_rebase_and_sign_image();
+ 
+ 	arm_static_if_init(args);
+

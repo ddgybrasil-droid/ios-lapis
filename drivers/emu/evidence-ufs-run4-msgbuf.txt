@@ -1,0 +1,236 @@
+[   10.112562]:  vm_cache_geometry_colors: 8
+[   10.113949]: do_cacheid() - 81920 bytes Unknown cache (I:49152 D:32768 (separate)), 16-way assoc, 64 bytes/line
+[   10.115113]: [processor_init] processor 0 belongs to processor set 0 of type 0
+[   10.132957]: kprintf initialized
+[   10.140426]: initialize_screen: b=D5100000, w=00000B80, h=00000730, r=00002E00, d=00000000
+[   10.142345]: pe_arm_init_interrupts: args: 0xfffffe0007c9efa0
+[   10.142910]: pe_arm_map_interrupt_controller: soc_phys:  0x1000000
+[   10.143420]: pe_arm_map_interrupt_controller: failed to find the interrupt-controller.
+[   10.145071]: pe_arm_init_debug: failed to find cpu-debug-interface
+[   10.147594]: Darwin Kernel Version 25.5.0: Wed Jun 17 23:28:50 UTC 2026; runner:xnu-12377.121.6
+[   10.322763]: pmap_startup() init/release time: 155192 microsec
+[   10.323633]: vm_page_bootstrap: 562469 free pages, 10547 wired pages
+[   10.335754]: VM bootstrap: 73 maps, 256 entries and 64 nodes available
+[   10.336250]: Enable all vm_debug options with boot-arg vm_debug=1
+[   10.339929]: Maximum number of VM swap files: 100
+[   10.343005]: zones                   : 0xfffffe10007b0000 - 0xfffffe30007b0000 (128G)
+[   10.343745]: compressor              : 0xfffffe30007b0000 - 0xfffffe38bf0b0000 (34G)
+[   10.344227]: zone_meta               : 0xfffffe38bf0b0000 - 0xfffffe38c8aac000 (153M)
+[   10.344666]: mb                      : 0xfffffe38c8aac000 - 0xfffffe38d0aac000 (128M)
+[   10.345144]: bsd_pageable            : 0xfffffe38d0aac000 - 0xfffffe38d4db4000 (67M)
+[   10.345575]: ipc_kernel_map          : 0xfffffe38d4db4000 - 0xfffffe38d8db4000 (64M)
+[   10.345995]: ipc_kernel_copy_map     : 0xfffffe38d8db4000 - 0xfffffe38d95b4000 (8M)
+[   10.346456]: kmem_data_shared_range  : 0xfffffe38d95b4000 - 0xfffffe6b060f4000 (200G)
+[   10.346927]: kmem_ptr_range_0        : 0xfffffe6b060f4000 - 0xfffffe9d32c38000 (200G)
+[   10.347367]: kmem_io                 : 0xfffffe9d32c38000 - 0xfffffe9d72c38000 (1024M)
+[   10.347801]: kmem_data_private_range : 0xfffffe9d72c38000 - 0xfffffecf9f778000 (200G)
+[   10.348256]: gIOKitPageableFixed     : 0xfffffecf9f778000 - 0xfffffecfff778000 (1536M)
+[   10.348684]: bufferhdr               : 0xfffffecfff778000 - 0xfffffecfffcfc000 (5M)
+[   10.349690]: vm: "vm_compressor_mode" is 4
+[   10.354580]: zone_init: map VM    0xfffffe10007b0000:0xfffffe14cd47c000 (19G, 19G usable)
+[   10.355156]: zone_init: map RO    0xfffffe14cd47c000:0xfffffe1666e20000 (6G, 6G usable)
+[   10.355703]: zone_init: map GEN0  0xfffffe1666e20000:0xfffffe1b33aec000 (19G, 19G usable)
+[   10.356192]: zone_init: map GEN1  0xfffffe1b33aec000:0xfffffe20007b8000 (19G, 19G usable)
+[   10.357314]: zone_init: map GEN2  0xfffffe20007b8000:0xfffffe24cd484000 (19G, 19G usable)
+[   10.357844]: zone_init: map GEN3  0xfffffe24cd484000:0xfffffe299a150000 (19G, 19G usable)
+[   10.358872]: zone_init: map DATA  0xfffffe299a150000:0xfffffe30007b0000 (25G, 25G usable)
+[   10.359428]: zone_init: metadata  0xfffffe38bf0c0000:0xfffffe38c70c0000 (128M)
+[   10.359905]: zone_init: metabits  0xfffffe38c70c0000:0xfffffe38c8a9c000 (25M)
+[   10.360372]: zone_init: extra     0:0 (0B)
+[   10.369491]: Unable to find vm tag  for btlog
+[   10.371014]: VM bootstrap done: 71 maps, 235 entries and 60 nodes left
+[   10.403104]: IOKit IOMD setownership ENABLED
+[   10.403636]: ATM subsystem is initialized
+[   10.411354]: standard timeslicing quantum is 10000 us
+[   10.411855]: standard background quantum is 2500 us
+[   10.413076]: Scheduler: Default of clutch
+[   10.413538]: Setting scheduler priority decay band limit 18
+[   10.414846]: Long logs support configured: size: 16384
+[   10.415936]: Firehose configured: 16 chunks, 8 io pages
+[   10.416596]: OSLog stream configured: stream: 8192 bytes, cache: 2112 bytes
+[   10.417059]: OSLog stream verification: 0
+[   10.418893]: Log queues configured: slot count: 9, per-slot size: 32768, total size: 294912
+[   10.419549]: [trap_telemetry] trap_telemetry_init
+[   10.421434]: BANK subsystem is initialized
+[   10.421981]: IPC_PTHREAD_PRIORITY subsystem is initialized
+[   10.422599]: mig_table_max_displ = 90 mach_kobj_count = 384
+[   10.424609]: EXT_PANICLOG: Initializing list
+[   10.448522]: suspend_cluster_powerdown_locked>calling sched_update_powered_cores to suspend powerdown
+[   10.449028]: EXT_PANICLOG: Initializing list
+[   10.449607]: kdp_core zlib memory 0x8000
+[   10.451784]: Registered coredump handler for kernel
+[   10.452358]: Serial requested, consistent debug disabled or debug boot arg not present, configuring debugging over serial
+[   10.452882]: Initializing serial KDP
+[   10.501198]: iBoot version: lapis-shim
+[   10.501448]: iBoot Stage 2 version: lapis-shim
+[   10.532027]: "name" not a kext
+[   10.532218]: "AAPL,phandle" not a kext
+[   10.532399]: "RAMDisk" not a kext
+[   10.534766]: IONVRAM.cpp:start:1447 - ...
+[   10.537005]: IONVRAM.cpp:initImageFormat:1586 - NVRAM size is 65536 bytes
+[   10.537620]: IONVRAM.cpp:getNVRAMProperties:1340 - _bankSize=0x10000, _bankCount=0x1, _currentBank=0
+[   10.539007]: IONVRAMCHRPHandler.cpp:unserializeImage:487 - NVRAM : commonPartitionOffset - 0x30, commonPartitionSize - 0x7fd0, systemPartitionOffset - 0x8010, systemPartitionSize - 0x7ff0
+[   10.540288]: IONVRAMCHRPHandler.cpp:unserializeVariables:584 - _commonSize 0x7fd0, _systemSize 0x7ff0
+[   10.541442]: IONVRAM.cpp:handleEphDM:1373 - ephemeral-data-mode not supported
+[   10.548463]: ulock_initialize>thread_max=10240, ull_hash_buckets=4096
+[   10.549365]: vm: creating swapout thread
+[   10.549702]: vm: creating swapfile creation thread
+[   10.550060]: vm: creating swapfile GC thread
+[   10.552867]: lockdown_mode: lockdown mode in nvram is off
+[   10.557477]: calling mpo_policy_init for vnguard
+[   10.557934]: Security policy loaded: Guarded vnode policy (vnguard)
+[   10.558416]: no external trust caches found (segment length is zero)
+[   10.559885]: keepsyms boot arg specified; keeping linkedit segment for symbols.
+[   10.576417]: No POST boot-arg set.
+[   10.599087]: LAPIS: starting device-tree platform expert
+[   10.603674]: PMRD: PMTraceWorker 0x94ecc001e79d5613
+[   10.607864]: PMRD: power event 7 args 0x94ecc006b4572dd3 0x0
+[   10.617861]: PMRD: PowerChangeOverride (OFF_STATE->ON_STATE, f, 0x2) tag 0x20064
+[   10.619327]: IOServicePH::kIOMessageSystemCapabilityChange: will 0xf->0xf
+[   10.620688]: IOServicePH::systemPowerChange to 0x30
+[   10.623091]: IOServicePH::kIOMessageSystemCapabilityChange: did 0xf->0xf
+[   10.623590]: PMRD: tellChangeUp OFF_STATE->ON_STATE
+[   10.624059]: PMRD: PowerChangeDone: OFF_STATE->ON_STATE
+[   10.624102]: PMRD: Force re-evaluating aggressiveness
+[   10.624160]: PMRD: changePowerStateWithTagToPriv(ON_STATE, 30002)
+[   10.624423]: PMRD: adjustPowerState ON_STATE, asap 0, idleSleepEnabled 0, _aotNow 0
+[   10.624473]: PMRD: changePowerStateWithTagToPriv(ON_STATE, 40008)
+[   10.624591]: PMRD: PowerChangeOverride (ON_STATE->ON_STATE, f, 0x2) tag 0x30002
+[   10.624614]: PMRD: PowerChangeDone: ON_STATE->ON_STATE
+[   10.624738]: PMRD: PowerChangeOverride (ON_STATE->ON_STATE, f, 0x2) tag 0x40008
+[   10.624759]: PMRD: PowerChangeDone: ON_STATE->ON_STATE
+[   10.624850]: PMRD: changePowerStateWithTagToPriv(ON_STATE, 10001)
+[   10.625094]: PMRD: PowerChangeOverride (ON_STATE->ON_STATE, f, 0x2) tag 0x10001
+[   10.625119]: PMRD: PowerChangeDone: ON_STATE->ON_STATE
+[   10.625145]: PMRD: power event 7 args 0x94ecc006b45716b3 0x0
+[   10.625234]: PMRD: PowerChangeOverride (ON_STATE->ON_STATE, f, 0x302) tag 0x50064
+[   10.625504]: PMRD: sysPowerDownHandler message kIOMessageSystemCapabilityChange
+[   10.625564]: PMRD: sysPowerDownHandler cap 0 -> f (flags 0)
+[   10.625711]: PMRD: PowerChangeDone: ON_STATE->ON_STATE
+[   10.649917]: LAPIS: platform expert registered
+[   10.651610]: Copyright (c) 1982, 1986, 1989, 1991, 1993
+	The Regents of the University of California. All rights reserved.
+
+[   10.652890]: MAC Framework successfully initialized
+[   10.665949]: using 11296 buffer headers and 7696 cluster IO buffer headers
+[   10.668594]: LAPIS drv: built-in drivers v1 (LapisGICv3, LapisUFS)
+[   10.671260]: LapisGICv3: GICD pa 0x8000000 TYPER 0x37a0208 (INTIDs<288) IIDR 0x43b ArchRev 3 CTLR 0x53 DS; GICR pa 0x80a0000 stride 0x20000 TYPER0 0x1000011
+[   10.672277]: LapisGICv3: boot CPU MPIDR 0x80000000 -> GICR +0x0 WAKER 0x0 IGROUPR0 0xffffffff ISENABLER0 0x8000002; ICC PMR 0xf8 IGRPEN1 1
+[   10.674400]: LapisGICv3: registered as IOInterruptController0000000D (288 vectors), cpu_data interrupt_handler installed
+[   10.676035]: LapisGICv3: selftest: vtimer INTID 27: Group1, enabled at boot-CPU redistributor, CNTV_CTL 0x1 (handled by sleh_irq before LapisGICv3)
+[   10.677727]: LapisGICv3: selftest: pl031 @0x9010000 PeriphID 1031 CellID 0d interrupts=<34 4> IOInterruptControllers=yes
+[   10.680716]: LapisUFS: PCI 00:01.0 1b36:0013 class 010901 BAR0 0x10000000 size 0x2000 INTA -> INTID 36
+[   10.681637]: LapisUFS: initial: CAP 0x107021f VER 0x400 HCPID 0x0 HCMID 0x0 AHIT 0x0 IS 0x0 IE 0x0 HCS 0x0 HCE 0x0 UTRLBA 0x0:00000000 RSR 0 DBR 0x0 UTMRL RSR 0
+[   10.682565]: LapisUFS: NUTRS 32 NUTMRS 8 64AS 1 MCQS 0, UFSHCI 4.0
+[   10.683315]: LapisUFS: DMA: lists/UCD page pa 0x8caecc000, data page pa 0x8caee8000
+[   10.683973]: LapisUFS: DME_LINKSTARTUP OK, HCS 0xf (DME_GET unsupported)
+[   10.685646]: LapisUFS: NOP OUT -> NOP IN ok
+[   10.687384]: LapisUFS: fDeviceInit done; Device descriptor: len 89 bNumberLU 1 wSpecVersion 0x400 wManufacturerID 0x0
+[   10.688425]: LapisUFS: LUN 0 INQUIRY: type 0x0 vendor 'QEMU    ' product 'QEMU HARDDISK   '
+[   10.701238]: LapisUFS: LUN 0: 16384 blocks x 4096 bytes = 64 MiB
+[   10.701719]: LapisUFS: bring-up 17 ms; UTRCS interrupts so far: 8 (last IS 0x1) via LapisGICv3
+[   10.703569]: LapisUFS: GPT: rev 0x10000 hdr 92 bytes crc OK, disk 6C617069-732D-7566-732D-746573743031, usable LBA 6..16378, 128 entries x 128 @ LBA 2
+[   10.705231]: LapisUFS: GPT: entry array crc OK
+[   10.705610]: LapisUFS:   disk0s1 "EFI" LBA 6..2053 (8 MiB) type C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+[   10.706595]: LapisUFS:     block 6: "LAPIS-PART:EFI"
+[   10.706951]: LapisUFS:   disk0s2 "lapis-root" LBA 2054..6149 (16 MiB) type 7C3457EF-0000-11AA-AA11-00306543ECAC
+[   10.707964]: LapisUFS:     block 2054: "LAPIS-PART:lapis-root"
+[   10.716081]: LapisUFS:   disk0s3 "lapis-data" LBA 6150..16378 (39 MiB) type 48465300-0000-11AA-AA11-00306543ECAC
+[   10.724159]: LapisUFS:     block 6150: "LAPIS-PART:lapis-data"
+[   10.731057]: LapisUFS: done (13 completion interrupts dispatched)
+[   12.684945]: LapisGICv3: selftest: PASS pl031 alarm: INTID 34 dispatched 1 time(s) via IOKit nub handler, 2000 ms after arming (DR 1794226671 -> MR 1794226673), RIS now 0x0, vector count 1
+[   12.694109]: LapisGICv3: selftest: PASS causeInterrupt: INTID 40 (edge) delivered 3/3 via GICD_ISPENDR -> sleh_irq -> handler
+[   12.702114]: LapisGICv3: selftest: done: spurious 0 unhandled 0
+[   40.670297]: clock_initialize_calendar system does not have monotonic clock
+[   40.670410]: clock_initialize_calendar WARNING: UTC time is less then sys time, (0 s 0 u) UTC (40 s 669504 u) sys
+[   40.678245]: ktriage_register_subsystem_strings: set subsystem 8 strings
+[   40.687807]: mbinit: done [128 MB total pool size, (85/42) split]
+[   40.697623]: New aio workqueue implementation selected
+[   40.705384]: SK: netagent is enabled by default for this platform
+[   40.708071]: DLIL: running SUM16 self-tests ... PASSED
+[   40.716779]: dlil_init: Waiting for all the create dlil kernel threads to get scheduled at least once.
+[   40.726023]: dlil_init: All the created dlil kernel threads have been scheduled at least once. Proceeding.
+[   40.739825]: igmp_init: initializing
+[   40.741303]: mld_init: initializing
+[   40.743951]: SK[0]: skmem_region_init              seg_size 16384, md_seg_size 16384, drv_buf_seg_size 65536 [eff 65536], usr_buf_seg_size 16384
+[   40.762267]: SK[0]: nx_fsw_prov_init               initializing com.apple.nexus.flowswitch
+[   40.762441]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe0007c94258 (com.apple.nexus.flowswitch) dom flowswitch
+[   40.762596]: SK[0]: nx_upipe_prov_init             initializing com.apple.nexus.upipe
+[   40.762623]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe0007c95908 (com.apple.nexus.upipe) dom upipe
+[   40.762715]: SK[0]: nx_kpipe_prov_init             initializing com.apple.nexus.kpipe
+[   40.762738]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe0007c96320 (com.apple.nexus.kpipe) dom kpipe
+[   40.762831]: SK[0]: nx_netif_prov_init             initializing com.apple.nexus.netif
+[   40.762855]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe0007c94d00 (com.apple.nexus.netif) dom netif
+[   40.762968]: SK[0]: nx_netif_prov_init             initializing com.apple.nexus.netif.compat
+[   40.762988]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe0007c94e10 (com.apple.nexus.netif.compat) dom netif
+[   40.763809]: SK[0]: ch_redzone_init                __ch_umd_redzone_cookie: 0x96698b4592ee1245
+[   40.764239]: SK[0]: netns_init                     initializing global namespaces
+[   40.764511]: SK[0]: netns_init                     initialized netns
+[   40.765093]: SK[0]: protons_init                   initialized protons
+[   40.765191]: SK[0]: flowidns_init                  initialized flow ID namespace
+[   40.765290]: Skywalk: running self-tests
+[   40.765355]: Skywalk: sk_copy64_8 ... PASSED
+[   40.765438]: Skywalk: sk_copy32_8 ... PASSED
+[   40.765571]: Skywalk: sk_copy64_16 ... PASSED
+[   40.765634]: Skywalk: sk_copy32_16 ... PASSED
+[   40.765697]: Skywalk: sk_copy64_20 ... PASSED
+[   40.765752]: Skywalk: sk_copy64_24 ... PASSED
+[   40.765804]: Skywalk: sk_copy64_32 ... PASSED
+[   40.765867]: Skywalk: sk_copy32_32 ... PASSED
+[   40.765931]: Skywalk: sk_copy64_40 ... PASSED
+[   40.765988]: Skywalk: sk_copy64_64x ... PASSED
+[   40.766075]: Skywalk: sk_copy64_32x ... PASSED
+[   40.766154]: Skywalk: sk_copy64_8x ... PASSED
+[   40.766235]: Skywalk: sk_copy64_4x ... PASSED
+[   40.766392]: Skywalk: sk_zero_16 ... PASSED
+[   40.766454]: Skywalk: sk_zero_32 ... PASSED
+[   40.766512]: Skywalk: sk_zero_48 ... PASSED
+[   40.766568]: Skywalk: sk_zero_128 ... PASSED
+[   40.767078]: Skywalk: memcmp mask ... PASSED
+[   40.777542]: bsd_autoconf: calling kminit
+[   40.798223]: ifclassq instance 0xfffffe1b33b3ba00 createdigmp_domifattach: called for ifp lo
+[   40.801754]: igmp_domifattach: allocated igmp_ifinfo for ifp lo
+[   40.801862]: mld_domifattach: called for ifp lo0
+[   40.802142]: mld_domifattach: allocated mld_ifinfo for ifp lo0
+[   40.802275]: ifnet_attach: All kernel threads created for interface lo0 have been scheduled at least once. Proceeding.
+[   40.817969]: lo0: attached
+[   40.818727]: ifclassq instance 0xfffffe1b33b39600 createdigmp_domifattach: called for ifp gif
+[   40.820658]: igmp_domifattach: allocated igmp_ifinfo for ifp gif
+[   40.820708]: mld_domifattach: called for ifp gif0
+[   40.820779]: mld_domifattach: allocated mld_ifinfo for ifp gif0
+[   40.820821]: ifnet_attach: Waiting for all kernel threads created for interface gif0 to get scheduled at least once.
+[   40.836875]: ifnet_attach: All kernel threads created for interface gif0 have been scheduled at least once. Proceeding.
+[   40.845402]: gif0: attached
+[   40.846193]: SK[0]: nxdom_prov_ext_init            initializing com.apple.feth
+[   40.846249]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe20009674a0 (com.apple.feth) dom netif
+[   40.846390]: SK[0]: nxdom_prov_ext_init            initializing com.apple.headless
+[   40.846410]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe2000966860 (com.apple.headless) dom netif
+[   40.847197]: SK[0]: nxdom_prov_ext_init            initializing com.apple.utun
+[   40.847244]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe20009641e0 (com.apple.utun) dom netif
+[   40.847435]: SK[0]: nxdom_prov_ext_init            initializing com.apple.ipsec
+[   40.847464]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe20009642c0 (com.apple.ipsec) dom netif
+[   40.848188]: SK[0]: nxdom_prov_ext_init            initializing com.apple.redirect
+[   40.848213]: SK[0]: nxdom_prov_add                 nxdom_prov 0xfffffe2000967660 (com.apple.redirect) dom netif
+[   40.848306]: kctl_test_init ctl_sendsize 262144 ctl_recvsize 2097152kctl_test_register: OK kctlref 0xc000c kctlid c ctl_sendsize 262144 ctl_recvsize 2097152skip attaching fsw to lo0 using legacy TX model
+[   40.867198]: Reinit'd ND information for interface lo0
+[   40.875570]: ifclassq instance 0xfffffe1b33b38800 createdigmp_domifattach: called for ifp stf
+[   40.875997]: igmp_domifattach: allocated igmp_ifinfo for ifp stf
+[   40.876013]: mld_domifattach: called for ifp stf0
+[   40.876046]: mld_domifattach: allocated mld_ifinfo for ifp stf0
+[   40.876067]: ifnet_attach: Waiting for all kernel threads created for interface stf0 to get scheduled at least once.
+[   40.887027]: ifnet_attach: All kernel threads created for interface stf0 have been scheduled at least once. Proceeding.
+[   40.894889]: stf0: attached
+[   40.897602]: Added memory device md0/rmd0 (01000000/12000000) at FFFFFE00083D0000 for 0000000000004000
+[   40.905369]: BSD root: md0, major 1, minor 0
+[   40.914117]: LAPIS mockfs: registered
+[   40.923661]: spec_open : si_devbsdunit initialized to (0), throttle_mask is (0x0), isssd is (0)
+[   40.935389]: LAPIS mockfs: mounting md root, size=0xfffffe6b0611b990
+[   40.967421]: resume_cluster_powerdown_locked>calling sched_update_powered_cores to resume powerdown
+[   40.974077]: vm: initializing swap
+[   40.984852]: vm: starting swapout thread
+[   40.994613]: vm: starting swapfile creation thread
+[   41.001871]: vm: starting swapfile GC thread
+[   41.009340]: VM Swap Subsystem is ON
+[   41.021517]: No POST boot-arg set.
+[   41.032648]: load_init_program: attempting to load /usr/appleinternal/sbin/launchd.development
+[   41.059398]: load_init_program: attempting to load /sbin/launchd
