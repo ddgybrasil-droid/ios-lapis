@@ -53,8 +53,9 @@ def main():
         mk('ufs', [('compatible', cstr('lapis,ufshci-qemu-pci')),
                    ('pci-ecam', u64(0x4010000000, 0x10000000)),
                    ('pci-mmio32', u64(0x10000000, 0x2eff0000)),
-                   ('pci-intx-spi-base', u32(3)),
-                   ('lapis,mode', cstr('full'))])
+                   ('pci-intx-spi-base', u32(3))] +
+                  irq(32 + 4, 4) +   # 00:01.0 INTA -> SPI 4 (virt interrupt-map); checked against PCI at runtime
+                  [('lapis,mode', cstr('full'))])
     elif target == 'hw':
         mk('ufs', [('compatible', cstr('qcom,ufshc') + cstr('jedec,ufs-2.0')),
                    ('reg', u64(0x01D84000, 0x3000))] + irq(32 + 265, 4) +
