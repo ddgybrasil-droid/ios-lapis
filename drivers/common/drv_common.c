@@ -1,5 +1,6 @@
 /* drv_common.c - shared helpers + the single entry point of the lapis built-in drivers. */
 #include "../include/kern.h"
+#include "../include/blk.h"
 
 void *drv_dt_entry(const char *path)
 {
@@ -31,8 +32,6 @@ int drv_dt_u64(void *entry, const char *key, unsigned idx, uint64_t *out)
 	*out = v; return 1;
 }
 
-/* top-level ADT nodes become IOPlatformDevice nubs in IODTPlatformExpert::processTopLevel
- * (called from configure() inside IOPlatformExpert::start, i.e. before our hook). */
 void *drv_dt_service(const char *path, unsigned wait_ms)
 {
 	for (unsigned t = 0;; t += 10) {
@@ -57,17 +56,31 @@ void drv_thread(thread_continue_t fn, void *arg)
 	else klog("LAPIS drv: kernel_thread_start failed\n");
 }
 
-/* gic/lapis_gic.c, ufs/lapis_ufs.c */
 int  lapis_gic_start(void *platform);
 void lapis_ufs_start(void);
+void lapis_sdhci_start(void);
+void lapis_fb_start(void);
+void lapis_smp_start(void);
+void lapis_touch_start(void);
+void lapis_batt_start(void);
+void lapis_wifi_start(void);
+void lapis_gpu_start(void);
+void lapis_audio_start(void);
+void blk_start(void);
 
-/* Called from LapisPlatformExpert::start (after IODTPlatformExpert::start and
- * registerService) through drv_pe_hook (common/drv_entry.S). */
 void lapis_drivers_start(void *pe)
 {
-	klog("LAPIS drv: built-in drivers v1 (LapisGICv3, LapisUFS)\n");
-	if (drv_bootarg("lapis_gic", 1))
-		lapis_gic_start(pe);
-	if (drv_bootarg("lapis_ufs", 1))
-		lapis_ufs_start();
+	klog("LAPIS drv: built-in drivers v2 (GIC,UFS,Blk,SDHCI,FB,SMP,Touch,Batt,WiFi,GPU,Audio)\n");
+	blk_start();
+	if (drv_bootarg("lapis_gic", 1))   lapis_gic_start(pe);
+	if (drv_bootarg("lapis_ufs", 1))   lapis_ufs_start();
+	if (drv_bootarg("lapis_fb", 1))    lapis_fb_start();
+	/* HW-only / risky: off by default. Enable with lapis_*=1 on the tablet. */
+	if (drv_bootarg("lapis_sdhci", 0)) lapis_sdhci_start();
+	if (drv_bootarg("lapis_smp", 0))   lapis_smp_start();
+	if (drv_bootarg("lapis_touch", 0)) lapis_touch_start();
+	if (drv_bootarg("lapis_batt", 0))  lapis_batt_start();
+	if (drv_bootarg("lapis_wifi", 0))  lapis_wifi_start();
+	if (drv_bootarg("lapis_gpu", 0))   lapis_gpu_start();
+	if (drv_bootarg("lapis_audio", 0)) lapis_audio_start();
 }

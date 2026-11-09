@@ -56,10 +56,26 @@ def main():
                    ('pci-intx-spi-base', u32(3))] +
                   irq(32 + 4, 4) +   # 00:01.0 INTA -> SPI 4 (virt interrupt-map); checked against PCI at runtime
                   [('lapis,mode', cstr('full'))])
+        mk('sdhci', [('compatible', cstr('lapis,sdhci-probe')),
+                     ('reg', u64(0x08804000, 0x1000))] + irq(32 + 207, 4) +
+                    [('lapis,mode', cstr('probe'))])
+        mk('lapis-fb', [('compatible', cstr('lapis,fb')),
+                        ('reg', u64(0xD5100000, 2944*1840*4)),
+                        ('width', u32(2944)), ('height', u32(1840)), ('stride', u32(11776))])
+
     elif target == 'hw':
         mk('ufs', [('compatible', cstr('qcom,ufshc') + cstr('jedec,ufs-2.0')),
                    ('reg', u64(0x01D84000, 0x3000))] + irq(32 + 265, 4) +
-                  [('lapis,mode', cstr('probe'))])
+                  [('lapis,mode', cstr('reuse'))])
+        mk('sdhci', [('compatible', cstr('qcom,sdhci-msm-v5')),
+                     ('reg', u64(0x08804000, 0x1000))] + irq(32 + 207, 4) +
+                    [('lapis,mode', cstr('probe'))])
+        mk('lapis-fb', [('compatible', cstr('lapis,fb')),
+                        ('reg', u64(0xD5100000, 2944*1840*4)),
+                        ('width', u32(2944)), ('height', u32(1840)), ('stride', u32(11776))])
+        mk('lapis-smp', [('compatible', cstr('lapis,smp')),
+                         ('cpus', u32(8)), ('psci-method', cstr('smc'))])
+
     else:
         raise SystemExit('bad --target')
     open(dst, 'wb').write(adt.serialize(root))

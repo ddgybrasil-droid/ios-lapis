@@ -10,7 +10,11 @@ make -s -C shim -f /dev/null 2>/dev/null || true
   $CC $CFLAGS -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -Wl,-N out/start.o out/shim.o out/console.o out/fdt.o out/loader.o -o out/shim.elf
   aarch64-linux-gnu-objcopy -O binary out/shim.elf out/Image
   size=$(aarch64-linux-gnu-nm out/shim.elf | awk '$3=="_end"{print $1}'); truncate -s $((16#$size)) out/Image )
-python3 tools/mkadt.py $OUT/lapis.adt ${PROFILE:+--profile $PROFILE}
+python3 tools/mkadt.py $OUT/lapis.base.adt ${PROFILE:+--profile $PROFILE}
+# lapis built-in drivers (drivers/): DRV_TARGET=hw|emu (default: emu if PROFILE set, else hw); DRV=0 disables
+DRV_TARGET=${DRV_TARGET:-$([ -n "${PROFILE:-}" ] && echo emu || echo hw)}
+if [ "${DRV:-1}" = 1 ]; then drivers/build.sh; python3 tools/drv_adt.py $OUT/lapis.base.adt $OUT/lapis.adt --target $DRV_TARGET
+  EXTRA=${EXTRA:-tools/drv_binpatches.py}; else cp $OUT/lapis.base.adt $OUT/lapis.adt; fi
 xnu/lapis-exc/build.sh && xnu/lapis-crypto/build.sh >/dev/null && xnu/lapis-mockfs/build.sh >/dev/null
 RD_ARGS=()
 rm -f $OUT/Image.ramdisk-pa

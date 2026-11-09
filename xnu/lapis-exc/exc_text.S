@@ -269,7 +269,7 @@ ttbr_restore:
 	dsb	ish
 	isb
 	adr	x1, s_8
-	mov	w0, #8
+	mov	w0, #1
 	b	k_lapis_early_mark            /* returns to lapis_early_disable */
 
 	.global panic_guard            /* lapis_early_panic entry */
@@ -384,7 +384,7 @@ bzero_zva_loop:
 /* s10: LapisPlatformExpert::start stands in for the platform kext, which on
  * the classic IOCPU path calls IOCPUInterruptController::initCPUInterruptController
  * -> ml_set_max_cpus(). Without it kernel_bootstrap_thread sleeps forever in
- * ml_wait_max_cpus() (kperf_init_early). cpus=1 bring-up: max_cpus = 1. */
+ * ml_wait_max_cpus() (kperf_init_early). default max_cpus = 8 (override with care; QEMU -smp must match). */
 	.global lapis_pe_cpus
 lapis_pe_cpus:
 	stp	x29, x30, [sp, #-16]!

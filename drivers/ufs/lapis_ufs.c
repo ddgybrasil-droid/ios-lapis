@@ -14,6 +14,7 @@
  */
 #include "../include/kern.h"
 #include "ufshci.h"
+#include "../include/blk.h"
 
 #define LOG(fmt, ...) klog("LapisUFS: " fmt "\n", ##__VA_ARGS__)
 #define PG 0x4000u
@@ -39,6 +40,9 @@ struct ufs {
 	int         irq_ok;
 };
 static struct ufs U;
+static void publish_ufs_disk(void);
+static int ufs_write_blocks(uint64_t, uint32_t, const void *);
+int ufs_read_blocks(uint64_t, uint32_t, void *);
 
 static uint32_t R(uint32_t o) { return rd32(U.hc + o); }
 static void W(uint32_t o, uint32_t v) { wr32(U.hc + o, v); }
@@ -167,7 +171,7 @@ static int scsi(const uint8_t *cdb, unsigned cdblen, uint32_t dlen, uint8_t *sen
 	return 0;
 }
 
-static int ufs_read_blocks(uint64_t lba, uint32_t n, void *out)
+int ufs_read_blocks(uint64_t lba, uint32_t n, void *out)
 {
 	while (n) {
 		uint32_t k = PG / U.bs; if (k > n) k = n;
@@ -176,6 +180,25 @@ static int ufs_read_blocks(uint64_t lba, uint32_t n, void *out)
 		if (s) { LOG("READ(10) lba %llu x%u -> %#x", lba, k, s); return -1; }
 		memcpy(out, U.buf, k * U.bs);
 		out = (uint8_t *)out + k * U.bs; lba += k; n -= k;
+	}
+	return 0;
+}
+
+static int ufs_write_blocks(uint64_t lba, uint32_t n, const void *in)
+{
+	while (n) {
+		uint32_t k = PG / U.bs; if (k > n) k = n;
+		memcpy(U.buf, in, k * U.bs);
+		uint8_t c[10] = {0x2a, 0, (uint8_t)(lba >> 24), (uint8_t)(lba >> 16), (uint8_t)(lba >> 8), (uint8_t)lba, 0, (uint8_t)(k >> 8), (uint8_t)k, 0};
+		/* WRITE(10) needs UTRD_DD_WRITE */
+		uint8_t *u = upiu_hdr(UPIU_COMMAND, UPIU_FLAG_WRITE, (uint8_t)U.lun, 0);
+		u[4] = 0; put_be32(u + 12, k * U.bs); memcpy(u + 16, c, 10);
+		int ocs = utr_issue(UTRD_DD_WRITE, k * U.bs);
+		uint8_t *r = ucd() + UCD_RSP_OFF;
+		if (ocs || r[0] != UPIU_RESPONSE || r[6] || r[7]) {
+			LOG("WRITE(10) lba %llu x%u -> ocs %#x upiu %#x", lba, k, ocs, r[0]); return -1;
+		}
+		in = (const uint8_t *)in + k * U.bs; lba += k; n -= k;
 	}
 	return 0;
 }
@@ -407,7 +430,26 @@ static void ufs_thread(void *arg, int wr)
 	k_IORE_setPropertyNum(nub, "ufs-irq-count", U.irqs, 32);
 	gpt_scan();
 	LOG("done (%u completion interrupts dispatched)", U.irqs);
+	publish_ufs_disk();
 }
+
+static int ufs_xfer(void *ctx, uint64_t lba, uint32_t n, void *va, int write)
+{
+	(void)ctx;
+	return write ? ufs_write_blocks(lba, n, va) : ufs_read_blocks(lba, n, va);
+}
+
+static void publish_ufs_disk(void)
+{
+	static struct lapis_disk disk;
+	ksnprintf(disk.name, sizeof(disk.name), "ufs-lun%u", U.lun);
+	disk.bs = U.bs; disk.nblocks = U.nblocks;
+	disk.writable = drv_bootarg("lapis_ufs_write", 0);
+	disk.xfer = ufs_xfer; disk.ctx = NULL;
+	disk.max_blocks = PG / U.bs;
+	blk_register(&disk);
+}
+
 
 void lapis_ufs_start(void)
 {

@@ -25,13 +25,14 @@ CC=aarch64-linux-gnu-gcc
 CFLAGS="-Os -std=gnu11 -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align
  -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -fno-jump-tables
  -Wall -Wextra -Wno-unused-parameter -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
-SRCS="common/klog.c common/drv_common.c gic/lapis_gic.c gic/gic_selftest.c ufs/lapis_ufs.c"
+SRCS="common/klog.c common/drv_common.c gic/lapis_gic.c gic/gic_selftest.c ufs/lapis_ufs.c blk/lapis_blk.c fb/lapis_fb.c smp/lapis_smp.c sdhci/lapis_sdhci.c touch/lapis_touch.c batt/lapis_batt.c wifi/lapis_wifi.c gpu/lapis_gpu.c audio/lapis_audio.c"
 OBJS=""
 for s in $SRCS; do o=out/$(basename ${s%.c}).o; $CC $CFLAGS -c $s -o $o; OBJS="$OBJS $o"; done
 $CC -c common/drv_entry.S -o out/drv_entry.o
 aarch64-linux-gnu-ld -T drv.ld --no-warn-rwx-segments -e drv_pe_hook $DS -o out/drivers.elf out/drv_entry.o $OBJS
 aarch64-linux-gnu-objcopy -O binary -j .text out/drivers.elf out/drivers.bin
+aarch64-linux-gnu-objcopy -O binary -j .text2 out/drivers.elf out/drivers2.bin
 dsz=$(aarch64-linux-gnu-size -A out/drivers.elf | awk '$1==".data"{print $2}')
 [ "${dsz:-0}" = 0 ] || { echo "drivers: .data not allowed ($dsz bytes)"; exit 1; }
 bsz=$(aarch64-linux-gnu-size -A out/drivers.elf | awk '$1==".bss"{print $2}')
-echo "drivers.bin $(stat -c %s out/drivers.bin)/40320 bytes text, bss ${bsz:-0}/4096"
+echo "drivers.bin $(stat -c %s out/drivers.bin)/40320 + drivers2.bin $(stat -c %s out/drivers2.bin)/60412 bytes text, bss $((${bsz:-0}))/4096"

@@ -152,3 +152,25 @@ int  drv_dt_u64(void *entry, const char *key, unsigned idx, uint64_t *out);
 void *drv_dt_service(const char *path, unsigned wait_ms);   /* IOService* nub (waits) */
 int  drv_bootarg(const char *name, uint32_t dflt);
 void drv_thread(thread_continue_t fn, void *arg);
+
+/* BSD buffer / device switch (used by LapisBlk) */
+extern uint32_t buf_flags(void *);
+extern uint32_t buf_count(void *);
+extern void    *buf_device(void *);
+extern int64_t  buf_blkno(void *);
+extern int      buf_map(void *, char **);
+extern void     buf_unmap(void *);
+extern void     buf_setresid(void *, uint32_t);
+extern void     buf_seterror(void *, int);
+extern void     buf_biodone(void *);
+extern int      bdevsw_add(int, void *);
+extern int      cdevsw_add(int, void *);
+extern int      cdevsw_add_with_bdev(int, void *, int);
+extern void    *devfs_make_node(uint32_t, int, uint32_t, uint32_t, int, const char *, ...);
+extern int      physio(void *, void *, uint32_t, int, void *, void *);
+extern char     minphys[];   /* function address via --defsym */
+extern int      enodev(void);
+extern void     IOLockFree(void *);
+extern void     ml_set_max_cpus(unsigned);
+
+extern int k_devfs_ready;

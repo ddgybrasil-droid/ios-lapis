@@ -142,6 +142,19 @@ struct mnt_data {
 	uint64_t total;
 };
 enum { LFS_DIR = 1, LFS_REG = 2 };
+
+/* LapisBlk hand-off (drivers BSS, fixed VA — see drivers/drv.ld). */
+#define LAPIS_BLKOPS_VA   ((struct lapis_blkops *)0xfffffe0007daf000)
+#define LAPIS_BLKOPS_MAGIC 0x4c424c4b
+struct lapis_blkops {
+	uint32_t magic;
+	volatile int32_t state;
+	int (*read)(uint64_t off, uint64_t len, void *va);
+	uint64_t root_size;
+	char root_name[32];
+	uint64_t reserved;
+};
+
 struct vnop_readlink_args { void *a_desc; vnode_t a_vp; void *a_uio; vfs_context_t a_context; };
 
 /* kernel imports */
@@ -250,7 +263,54 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 	struct mnt_data *md;
 	uint64_t base = 0, sz = 0;
 	const uint8_t *b;
+	struct lapis_blkops *bo = LAPIS_BLKOPS_VA;
+	int use_blk = 0;
 	(void)rvp; (void)data; (void)ctx;
+	/* Prefer a real disk root published by LapisBlk (UFS/SD). Wait up to ~3s. */
+	if (bo->magic == LAPIS_BLKOPS_MAGIC) {
+		int i; for (i = 0; i < 300 && bo->state == 0; i++) {
+			/* IOSleep not linked here; busy-wait via a tiny pause */
+			volatile int spin; for (spin = 0; spin < 100000; spin++) ;
+		}
+		if (bo->state == 1 && bo->read && bo->root_size >= 0x4000) use_blk = 1;
+	}
+	if (use_blk) {
+		/* Stage the image header (and later file data) via bo->read into a
+		 * kernel buffer for metadata; file data goes through strategy. */
+		uint8_t *hdr = IOMallocZero(0x4000);
+		if (!hdr || bo->read(0, 0x4000, hdr)) { if (hdr) IOFree(hdr, 0x4000); return EIO; }
+		if (strncmp((const char *)hdr, "LAPISFS1", 8) || *(const uint32_t *)(hdr + 12) != 2) {
+			IOLog("LAPIS lapisfs: bad magic on blk root\n"); IOFree(hdr, 0x4000); return EINVAL;
+		}
+		md = IOMallocZero(sizeof(*md));
+		if (!md) { IOFree(hdr, 0x4000); return ENOMEM; }
+		md->base = hdr;   /* only the first page staged; strategy uses bo->read */
+		md->nent = *(const uint32_t *)(hdr + 8);
+		/* For blk roots we need the full metadata (ents+strs). Read them too. */
+		{
+			uint64_t ent_off = *(const uint64_t *)(hdr + 16);
+			uint64_t str_off = *(const uint64_t *)(hdr + 24);
+			uint64_t total = *(const uint64_t *)(hdr + 32);
+			uint64_t meta_end = str_off + 0x10000; /* generous; clamp */
+			if (meta_end > total) meta_end = total;
+			if (meta_end > 0x4000) {
+				uint8_t *full = IOMallocZero((size_t)meta_end);
+				if (!full) { IOFree(hdr, 0x4000); IOFree(md, sizeof(*md)); return ENOMEM; }
+				if (bo->read(0, meta_end, full)) { IOFree(full,(size_t)meta_end); IOFree(hdr,0x4000); IOFree(md,sizeof(*md)); return EIO; }
+				IOFree(hdr, 0x4000); hdr = full; md->base = hdr;
+			}
+			md->ents = (const struct lfs_ent *)(hdr + ent_off);
+			md->strs = (const char *)(hdr + str_off);
+			md->total = total;
+		}
+		md->nodes = IOMallocZero(sizeof(void *) * md->nent);
+		if (!md->nodes) return ENOMEM;
+		vfs_setfsprivate(mp, md);
+		/* Stash blkops pointer in reserved via a side channel: encode use_blk in nent top? 
+		 * Instead: strategy checks LAPIS_BLKOPS_VA->state. */
+		lapis_log("LAPIS lapisfs: mounted blk root size=%llx entries=%llu state=%llu\n", md->total, md->nent, (uint64_t)bo->state);
+		return 0;
+	}
 	if (mdevgetrange(0, &base, &sz) != 0 || sz < 0x4000) return EINVAL;
 	b = (const uint8_t *)base;
 	if (strncmp((const char *)b, "LAPISFS1", 8) || *(const uint32_t *)(b + 12) != 2) { IOLog("LAPIS lapisfs: bad magic on md0\n"); return EINVAL; }
@@ -260,7 +320,7 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 	md->nent = *(const uint32_t *)(b + 8);
 	md->ents = (const struct lfs_ent *)(b + *(const uint64_t *)(b + 16));
 	md->strs = (const char *)(b + *(const uint64_t *)(b + 24));
-	md->total = *(const uint64_t *)(b + 32);   /* v2 header; md0's own size wraps at 4 GiB */
+	md->total = *(const uint64_t *)(b + 32);
 	md->nodes = IOMallocZero(sizeof(void *) * md->nent);
 	if (!md->nodes) return ENOMEM;
 	vfs_setfsprivate(mp, md);
@@ -345,6 +405,7 @@ static int mockfs_strategy(struct vnop_strategy_args *ap)
 	uint32_t blk = vfs_devblocksize(f->mnt);
 	uint64_t off, cnt, n;
 	char *va;
+	struct lapis_blkops *bo = LAPIS_BLKOPS_VA;
 	if (!blk) blk = 512;
 	off = (uint64_t)buf_blkno(bp) * blk;
 	cnt = buf_count(bp);
@@ -353,8 +414,16 @@ static int mockfs_strategy(struct vnop_strategy_args *ap)
 	}
 	n = (off < md->total) ? md->total - off : 0;
 	if (n > cnt) n = cnt;
-	if (n) memcpy(va, md->base + off, n);
-	if (n < cnt) memset(va + n, 0, cnt - n);
+	if (n) {
+		/* If LapisBlk owns the root, file data lives on the disk — use its read. */
+		if (bo->magic == LAPIS_BLKOPS_MAGIC && bo->state == 1 && bo->read &&
+		    off + n > 0x10000) {          /* past the staged metadata window */
+			if (bo->read(off, n, va)) { buf_unmap(bp); buf_seterror(bp, EIO); buf_biodone(bp); return EIO; }
+		} else {
+			memcpy(va, md->base + off, (size_t)n);
+		}
+	}
+	if (n < cnt) memset(va + n, 0, (size_t)(cnt - n));
 	buf_unmap(bp);
 	buf_setresid(bp, 0);
 	buf_biodone(bp);

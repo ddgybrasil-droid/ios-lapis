@@ -51,3 +51,32 @@ k_IORE_setPropertyBytes        __ZN15IORegistryEntry11setPropertyEPKcPvj
 k_OSData_getBytesNoCopy        __ZNK6OSData14getBytesNoCopyEv
 k_OSData_getLength             __ZNK6OSData9getLengthEv
 k_gIODTPlane                   _gIODTPlane
+
+# block layer (blk/lapis_blk.c)
+bdevsw_add                     _bdevsw_add
+cdevsw_add                     _cdevsw_add
+devfs_make_node                _devfs_make_node
+physio                         _physio
+minphys                        _minphys
+buf_map                        _buf_map
+buf_unmap                      _buf_unmap
+buf_blkno                      _buf_blkno
+buf_count                      _buf_count
+buf_flags                      _buf_flags
+buf_device                     _buf_device
+buf_setresid                   _buf_setresid
+buf_seterror                   _buf_seterror
+buf_biodone                    _buf_biodone
+enodev                         _enodev
+k_devfs_ready                  _devfs_ready
+IOLockFree                     _IOLockFree
+
+# SMP
+LowResetVectorBase             _LowResetVectorBase
+start_cpu                      _start_cpu
+ml_get_topology_info           _ml_get_topology_info
+ml_get_cpu_count               _ml_get_cpu_count
+ml_get_max_cpu_number          _ml_get_max_cpu_number
+ml_processor_register          _ml_processor_register
+ml_set_max_cpus                _ml_set_max_cpus
+cdevsw_add_with_bdev          _cdevsw_add_with_bdev
