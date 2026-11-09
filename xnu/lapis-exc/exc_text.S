@@ -15,6 +15,7 @@
  *            EC xx V s        (s = vector slot, hex)
  *            ESR / ELR / FAR / SP / X30   16 hex digits each
  */
+#define BOOT_TTBR0 0x8c11ac000
 #define FB_BASE   0xD5100000
 #define STRIDE    11776           /* 2944 px * 4 */
 #define BAND_ROW  420
@@ -236,6 +237,137 @@ tc_init_guard:
 	stp	x29, x30, [sp, #-16]!          /* displaced insn */
 	b	k_trust_cache_init_body
 1:	ret
+
+/* ===================== s8: early console past arm_vm_init =====================
+ * Source equivalent: xnu patch 0016 (osfmk/arm64/lapis_early.c).
+ * arm_vm_init switches TTBR0 to invalid_ttep, which unmapped the V=P FB the
+ * early console uses, so on hardware everything between arm_vm_init and
+ * vcattach() (PE_init_iokit, very late) was invisible.  Re-install the
+ * bootstrap TTBR0 (TCR/MAIR are unchanged) right after the switch and keep
+ * the early console alive while TTBR0 still equals it.  Every entry point
+ * below is guarded by "TTBR0 == bootstrap", so once XNU loads another TTBR0
+ * (first user/kernel pmap switch) output silently stops instead of faulting.
+ */
+	.macro TTB0_GUARD skip
+	mrs	x9, ttbr0_el1
+	ldr	x10, =BOOT_TTBR0
+	cmp	x9, x10
+	b.ne	\skip
+	.endm
+
+	.global ttbr_restore           /* bl'd from lapis_early_disable */
+ttbr_restore:
+	adrp	x0, k_vectors
+	add	x0, x0, :lo12:k_vectors
+	msr	vbar_el1, x0
+	ldr	x0, =BOOT_TTBR0
+	msr	ttbr0_el1, x0
+	isb
+	tlbi	vmalle1
+	dsb	ish
+	isb
+	adr	x1, s_8
+	mov	w0, #8
+	b	k_lapis_early_mark            /* returns to lapis_early_disable */
+
+	.global panic_guard            /* lapis_early_panic entry */
+panic_guard:
+	TTB0_GUARD 1f
+	sub	sp, sp, #0x40
+	b	k_lapis_early_panic_body
+1:	ret
+
+/* vlog: tee printf/kprintf to the early console. Called with x16 = caller
+ * LR, sp = sp at printf entry (Darwin: variadic args live there). */
+vlog:
+	TTB0_GUARD 2f
+	stp	x29, x30, [sp, #-112]!
+	mov	x29, sp
+	stp	x0, x1, [sp, #16]
+	stp	x2, x3, [sp, #32]
+	stp	x4, x5, [sp, #48]
+	stp	x6, x7, [sp, #64]
+	str	x16, [sp, #80]
+	add	x8, sp, #112
+	str	x8, [sp, #88]
+	add	x1, sp, #88
+	adrp	x2, k_lapis_early_putc
+	add	x2, x2, :lo12:k_lapis_early_putc
+	mov	w3, #16
+	bl	k_doprnt
+	ldp	x0, x1, [sp, #16]
+	ldp	x2, x3, [sp, #32]
+	ldp	x4, x5, [sp, #48]
+	ldp	x6, x7, [sp, #64]
+	ldr	x16, [sp, #80]
+	ldp	x29, x30, [sp], #112
+2:	ret
+
+	.global printf_hook
+printf_hook:
+	mov	x16, x30
+	bl	vlog
+	mov	x30, x16
+	sub	sp, sp, #0x20                 /* displaced printf insn */
+	b	k_printf_body
+	.global kprintf_hook
+kprintf_hook:
+	mov	x16, x30
+	bl	vlog
+	mov	x30, x16
+	sub	sp, sp, #0x40                 /* displaced kprintf insn */
+	b	k_kprintf_body
+
+/* call-site breadcrumbs in arm_init: print label, then tail-call target */
+hook_common:                          /* x16 = label, x17 = target */
+	TTB0_GUARD 4f
+	stp	x29, x30, [sp, #-96]!
+	mov	x29, sp
+	stp	x0, x1, [sp, #16]
+	stp	x2, x3, [sp, #32]
+	stp	x4, x5, [sp, #48]
+	stp	x6, x7, [sp, #64]
+	stp	x17, x19, [sp, #80]
+	mov	x19, x16
+3:	ldrb	w0, [x19], #1
+	cbz	w0, 5f
+	bl	k_lapis_early_putc
+	b	3b
+5:	ldp	x0, x1, [sp, #16]
+	ldp	x2, x3, [sp, #32]
+	ldp	x4, x5, [sp, #48]
+	ldp	x6, x7, [sp, #64]
+	ldp	x17, x19, [sp, #80]
+	ldp	x29, x30, [sp], #96
+4:	br	x17
+
+	.macro HOOK name, target, label
+	.global \name
+\name:
+	adr	x16, 7f
+	adrp	x17, \target
+	add	x17, x17, :lo12:\target
+	b	hook_common
+7:	.asciz	"\label"
+	.balign 4
+	.endm
+	HOOK h_after_vm,   k_pe_cd_inherit,   "S8 A: arm_vm_init returned\n"
+	HOOK h_serial,     k_serial_init,     "S8 B: serial_init\n"
+	HOOK h_pe_plat,    k_pe_init_plat,    "S8 F: PE_init_platform(TRUE) intc/timer\n"
+	HOOK h_gic,        k_ec64_target,     "S8 K: intc init (GICR)\n"
+	HOOK h_mstart,     k_machine_startup, "S8 O: machine_startup\n"
+/* PE_init_iokit: PE_init_printf(TRUE) == vcattach -> XNU video console owns
+ * the screen from here; mute the early console so they don't overdraw. */
+	.global h_vc_on
+h_vc_on:
+	adrp	x9, k_early_disabled
+	mov	w10, #1
+	strb	w10, [x9, :lo12:k_early_disabled]
+	dsb	sy
+	b	k_pe_init_printf
+s_8:	.asciz	"TTBR0 restored after arm_vm_init"
+	.balign 4
+	.ltorg
 
 	.org	0x838
 	.global prng_fallback

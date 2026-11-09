@@ -188,6 +188,11 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	con_str("STEP", "3 phys/virt map");
 	con_hex("PHYS", p->phys_base);
 	con_hex("MEMSZ", p->mem_size);
+	/* s8: clamp to DTB RAM (bank containing phys_base minus reserved-memory) */
+	uint64_t msz = p->mem_size;
+	if (g_dtb_ram_end > p->phys_base && g_dtb_ram_end - p->phys_base < msz)
+		msz = (g_dtb_ram_end - p->phys_base) & ~(TWIG_32M - 1);
+	con_hex("MEMSZ_DTB", msz);
 	con_hex("VIRT", p->virt_base);
 	con_hex("ENTRY", p->entry_va);
 
@@ -195,7 +200,7 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	{
 		uintptr_t img_lo = (uintptr_t)_head;
 		uintptr_t img_hi = img_lo + (uintptr_t)image_size_field();
-		if (img_hi > p->phys_base && img_lo < p->phys_base + p->mem_size)
+		if (img_hi > p->phys_base && img_lo < p->phys_base + msz)
 			return "Image overlaps kernel memory";
 	}
 
@@ -235,7 +240,7 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	ba->Version = 2;
 	ba->virtBase = p->virt_base;
 	ba->physBase = p->phys_base;
-	ba->memSize = p->mem_size;
+	ba->memSize = msz;
 	ba->topOfKernelData = top;
 	ba->Video.v_baseAddr = FB_BASE;
 	/* v_display=0: PE_create_console() picks kPETextMode, so the XNU
@@ -249,7 +254,7 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	ba->deviceTreeLength = (uint32_t)p->adt_size;
 	for (int i = 0; i < BOOT_LINE_LENGTH; i++)
 		ba->CommandLine[i] = p->cmdline[i];
-	ba->memSizeActual = p->mem_size;
+	ba->memSizeActual = msz;
 	con_hex("BA_PA", ba_pa);
 	con_hex("TOPKD", top);
 
@@ -273,6 +278,20 @@ static const char *boot_payload(const struct payload *p, const char *src)
 		for (int y = FB_H - 64; y < FB_H; y++)
 			for (int x = 0; x < 256; x++)
 				fb[y * (FB_STRIDE / 4) + x] = 0xff00ff00U;
+	}
+	/* s8: bottom-strip DRAM summary (rows XNU's early console never clears) */
+	{
+		char *q = g_mem_strip[2], *e;
+		static const char t[] = "XNU RAM: ";
+		for (e = (char *)t; *e; ) *q++ = *e++;
+		q = con_fmt_hex(q, p->phys_base, 9); *q++ = '-';
+		q = con_fmt_hex(q, p->phys_base + msz, 9);
+		for (e = (char *)" (profile "; *e; ) *q++ = *e++;
+		q = con_fmt_hex(q, p->phys_base + p->mem_size, 9);
+		for (e = (char *)(msz != p->mem_size ? ", CLAMPED by DTB)" : ", DTB ok)"); *e; ) *q++ = *e++;
+		*q = 0;
+		for (int i = 0; i < 3; i++)
+			con_text_at(1000, FB_H - 62 + 20 * i, 1, g_mem_strip[i], 0xffffffffU, 0xff000000U);
 	}
 	__asm__ volatile("dsb sy" ::: "memory");
 

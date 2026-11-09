@@ -97,3 +97,31 @@ void con_hex2(const char *label, const char *a, uint32_t va, const char *b, uint
 	row++;
 }
 
+
+void con_text_at(int x, int y, int scale, const char *s, uint32_t fg, uint32_t bg)
+{
+	for (; *s; s++, x += 8 * scale) {
+		char ch = *s;
+		if (ch < 0x20 || ch > 0x7e)
+			ch = '?';
+		if (x + 8 * scale > FB_W || y + 16 * scale > FB_H)
+			return;
+		const unsigned char *g = font8x16[ch - 0x20];
+		for (int gy = 0; gy < 16; gy++)
+			for (int gx = 0; gx < 8; gx++) {
+				uint32_t c = (g[gy] & (0x80 >> gx)) ? fg : bg;
+				for (int sy = 0; sy < scale; sy++) {
+					volatile uint32_t *p = con_fb + (y + gy * scale + sy) * (FB_STRIDE / 4)
+							       + x + gx * scale;
+					for (int sx = 0; sx < scale; sx++)
+						p[sx] = c;
+				}
+			}
+	}
+}
+
+char *con_fmt_hex(char *dst, uint64_t v, int digits)
+{
+	fmt_hex(dst, v, digits);
+	return dst + digits;
+}

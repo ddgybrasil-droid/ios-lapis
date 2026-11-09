@@ -24,7 +24,21 @@ PATCHES = [
     # video console prints.  (start.s msr vbar stays NOP'd for early debug.)
     ('early-disable-no-paint+kernel-vbar', 0xfffffe0007568188,
      [0xb0ffd761, 0x912f0c21, 0x52800100, 0x97fffefb],
-     [0xd0000000, 0x91000000, 0xd518c000, 0xd5033fdf]),
+     [0xd0000000, 0x91000000, 0xd518c000, 0xd5033fdf]),   # s8: word 0 rewritten below
+    # s8: lapis_early_putc glyph bit order. iso_font rows are LSB = leftmost
+    # pixel; the unrolled loop tested MSB first -> mirrored text on s7.
+    ('early-font-lsb-left-0', 0xfffffe0007567c94, [0x38ed69c2, 0x7100005f, 0x5a9fa122],
+                                                 [0x386d69c2, 0x7200005f, 0x5a9f0122]),
+    ('early-font-lsb-left-1', 0xfffffe0007567cb0, [0x721a005f], [0x721f005f]),
+    ('early-font-lsb-left-2', 0xfffffe0007567cc8, [0x721b005f], [0x721e005f]),
+    ('early-font-lsb-left-3', 0xfffffe0007567ce0, [0x721c005f], [0x721d005f]),
+    ('early-font-lsb-left-4', 0xfffffe0007567cf8, [0x721d005f], [0x721c005f]),
+    ('early-font-lsb-left-5', 0xfffffe0007567d10, [0x721e005f], [0x721b005f]),
+    ('early-font-lsb-left-6', 0xfffffe0007567d28, [0x721f005f], [0x721a005f]),
+    ('early-font-lsb-left-7', 0xfffffe0007567d40, [0x7200005f], [0x7219005f]),
+    # s8: keep early console enabled (do not set early_disabled)
+    ('early-keep-enabled', 0xfffffe0007568198, [0x52800028, 0xd0003b09, 0x393c1128],
+                                              [0xd503201f, 0xd503201f, 0xd503201f]),
 ]
 
 # s7: replace the s6 bit-bar regdump (bars did not survive phone photos) with a
@@ -60,3 +74,23 @@ for _name, _va in (('cr_random_generate', 0xfffffe0007a918c4), ('cr_random_unifo
 _t = _sym('tc_init_guard'); assert _EXC_VA <= _t < _EXC_VA + _EXC_LEN
 PATCHES.append(('trust_cache_init-guard', 0xfffffe0007919954, [0xa9bf7bfd],
                 [0x14000000 | (((_t - 0xfffffe0007919954) >> 2) & 0x3ffffff)]))
+
+# ---- s8: early console past arm_vm_init (source: patch 0016) ----
+def _b(src, dst, link=False):
+    off = dst - src; assert -(1 << 27) <= off < (1 << 27) and off % 4 == 0
+    return (0x94000000 if link else 0x14000000) | ((off >> 2) & 0x3ffffff)
+_P = {p[0]: p for p in PATCHES}
+_e = _P['early-disable-no-paint+kernel-vbar']
+PATCHES[PATCHES.index(_e)] = (_e[0], _e[1], _e[2],
+    [_b(0xfffffe0007568188, _sym('ttbr_restore'), True), 0xd503201f, 0xd503201f, 0xd503201f])
+PATCHES.append(('lapis_early_panic-guard', 0xfffffe0007567f8c, [0xd10103ff], [_b(0xfffffe0007567f8c, _sym('panic_guard'))]))
+PATCHES.append(('printf-tee-early', 0xfffffe00073b6c64, [0xd10083ff], [_b(0xfffffe00073b6c64, _sym('printf_hook'))]))
+PATCHES.append(('kprintf-tee-early', 0xfffffe0007b714fc, [0xd10103ff], [_b(0xfffffe0007b714fc, _sym('kprintf_hook'))]))
+for _site, _tgt, _h in ((0xfffffe0007bcead8, 0xfffffe0007b6f810, 'h_after_vm'),
+                        (0xfffffe0007bceadc, 0xfffffe0007b7162c, 'h_serial'),
+                        (0xfffffe0007bcec38, 0xfffffe0007b70748, 'h_pe_plat'),
+                        (0xfffffe0007bcec64, 0xfffffe0007b71a0c, 'h_gic'),
+                        (0xfffffe0007bcec94, 0xfffffe0007571474, 'h_mstart')):
+    PATCHES.append(('arm_init-crumb-' + _h, _site, [_b(_site, _tgt, True)], [_b(_site, _sym(_h), True)]))
+PATCHES.append(('pe_init_iokit-vcattach-mute-early', 0xfffffe0007b70318,
+                [_b(0xfffffe0007b70318, 0xfffffe0007b6f0f8, True)], [_b(0xfffffe0007b70318, _sym('h_vc_on'), True)]))

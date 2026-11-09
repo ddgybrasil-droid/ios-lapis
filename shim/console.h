@@ -22,3 +22,6 @@ void con_str(const char *label, const char *s);
 void con_hex(const char *label, uint64_t v);
 void con_hex2(const char *label, const char *a, uint32_t va, const char *b, uint32_t vb);
 
+/* s8: free-positioned text (any scale), and hex formatting helper */
+void con_text_at(int x, int y, int scale, const char *s, uint32_t fg, uint32_t bg);
+char *con_fmt_hex(char *dst, uint64_t v, int digits);
