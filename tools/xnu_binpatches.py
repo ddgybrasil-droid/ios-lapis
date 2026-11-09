@@ -96,3 +96,6 @@ PATCHES.append(('pe_init_iokit-vcattach-mute-early', 0xfffffe0007b70318,
                 [_b(0xfffffe0007b70318, 0xfffffe0007b6f0f8, True)], [_b(0xfffffe0007b70318, _sym('h_vc_on'), True)]))
 # s9: bzero DC ZVA loop -> stp loop (device-type-safe); see exc_text.S
 PATCHES.append(('bzero-no-dczva', 0xfffffe0007c48744, [0xd50b7423], [_b(0xfffffe0007c48744, _sym('bzero_zva_loop'))]))
+# s10: LapisPlatformExpert::start -> also ml_set_max_cpus(1) (platform-kext duty)
+PATCHES.append(('lapispe-set-max-cpus', 0xfffffe0007b6d01c, [_b(0xfffffe0007b6d01c, 0xfffffe0007aa6fdc, True)],
+                [_b(0xfffffe0007b6d01c, _sym('lapis_pe_cpus'), True)]))

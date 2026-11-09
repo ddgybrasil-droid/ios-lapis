@@ -379,6 +379,19 @@ bzero_zva_loop:
 	subs	x2, x2, #0x40
 	b.hi	1b
 	b	k_bzero_tail
+/* s10: LapisPlatformExpert::start stands in for the platform kext, which on
+ * the classic IOCPU path calls IOCPUInterruptController::initCPUInterruptController
+ * -> ml_set_max_cpus(). Without it kernel_bootstrap_thread sleeps forever in
+ * ml_wait_max_cpus() (kperf_init_early). cpus=1 bring-up: max_cpus = 1. */
+	.global lapis_pe_cpus
+lapis_pe_cpus:
+	stp	x29, x30, [sp, #-16]!
+	mov	x29, sp
+	bl	k_IOLog
+	mov	w0, #1
+	bl	k_ml_set_max_cpus
+	ldp	x29, x30, [sp], #16
+	ret
 s_8:	.asciz	"TTBR0 restored after arm_vm_init"
 	.balign 4
 	.ltorg
