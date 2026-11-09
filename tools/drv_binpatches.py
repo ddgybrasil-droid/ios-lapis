@@ -36,4 +36,8 @@ PATCHES = [
     ('drv-blob2', BLOB2_VA, BLOB2_OLD_SHA, list(struct.unpack('<%dI' % (len(_blob2) // 4), _blob2))),
     # LapisPlatformExpert::start+0x60 `mov x0,x20` -> bl drv_pe_hook (which does mov x0,x20)
     ('drv-lapispe-hook', 0xfffffe0007b6d020, [0xaa1403e0], [_b(0xfffffe0007b6d020, _sym('drv_pe_hook'), True)]),
+    # PE_cpu_start_internal → lapis_pe_cpu_start (PSCI CPU_ON)
+    ('drv-pe-cpu-start', 0xfffffe0007afed2c, [0xf9400008], [_b(0xfffffe0007afed2c, _sym('lapis_pe_cpu_start'), False)]),
+    ('drv-pe-cpu-machine-init', 0xfffffe0007afed5c, [0xd10143ff], [_b(0xfffffe0007afed5c, _sym('lapis_pe_cpu_machine_init'), False)]),
+    ('drv-pe-cpu-signal', 0xfffffe0007afed38, [0xf9400008], [_b(0xfffffe0007afed38, _sym('lapis_pe_cpu_signal'), False)]),
 ]

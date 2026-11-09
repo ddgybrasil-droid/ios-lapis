@@ -128,7 +128,7 @@ PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))
 _mdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-mockfs')
 _mb = open(_os.path.join(_mdir, 'mockfs.bin'), 'rb').read()
 _mb += b'\0' * (((len(_mb) + 3) & ~3) - len(_mb))
-PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, '36650fca95ec4b54a98cd6b078ba26b5b2b440fd4a040cff15e456ceef59a19c',
+PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'd4f8ee49fe3046308b8b194c4cdb582445d338472d5dfaa7e87e057b0a0af4dd',
                 list(_st.unpack('<%dI' % (len(_mb) // 4), _mb))))
 _mw = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
            if l.endswith(' lapis_mountroot_wrap')][0], 16)

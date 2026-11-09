@@ -17,7 +17,7 @@ SECTIONS {
 	.text2 : { *lapis_ufs.o(.text* .rodata*) *lapis_blk.o(.text* .rodata*)
 	           *lapis_fb.o(.text* .rodata*) *lapis_smp.o(.text* .rodata*) *lapis_sdhci.o(.text* .rodata*)
 	           *lapis_touch.o(.text* .rodata*) *lapis_batt.o(.text* .rodata*)
-	           *lapis_wifi.o(.text* .rodata*) *lapis_gpu.o(.text* .rodata*) *lapis_audio.o(.text* .rodata*)
+	           *lapis_wifi.o(.text* .rodata*) *lapis_gpu.o(.text* .rodata*) *lapis_audio.o(.text* .rodata*) *lapis_crypter.o(.text* .rodata*) *qcom_scm.o(.text* .rodata*) *lapis_pil.o(.text* .rodata*)
 	           *(.text*) *(.rodata*) *(.data.rel.ro*) . = ALIGN(4); } > TEXT2
 	.data : { *(.data*) *(.sdata*) } > TEXT
 	.bss (NOLOAD) : { *(.bss.blkops) *(.bss*) *(COMMON) } > BSS

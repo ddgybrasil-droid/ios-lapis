@@ -220,25 +220,32 @@ static int gpt_scan_unit(struct unit *u)
 static struct unit *root_u;
 static uint64_t root_lba, root_nbl;
 
+static void *blk_lock;
+
 static int blkops_read(uint64_t off, uint64_t len, void *va)
 {
+	LOG("blkops_read off=%llu len=%llu", off, len);
 	if (!root_u || !len) return -1;
 	uint32_t bs = root_u->d->bs;
 	uint64_t end = root_nbl * bs;
 	if (off >= end) { bzero(va, (size_t)len); return 0; }
 	if (off + len > end) { bzero((uint8_t *)va + (end - off), (size_t)(len - (end - off))); len = end - off; }
-	/* read covering LBAs into a bounce if unaligned; else direct */
 	uint64_t lba = root_lba + off / bs;
 	uint32_t skip = (uint32_t)(off % bs);
-	uint64_t need = skip + len;
-	uint32_t n = (uint32_t)((need + bs - 1) / bs);
-	if (!skip && (len % bs) == 0)
-		return disk_read(root_u, lba, n, va);
-	uint8_t *tmp = IOMallocAligned(n * bs, 64);
-	if (!tmp) return -1;
-	int r = disk_read(root_u, lba, n, tmp);
-	if (!r) memcpy(va, tmp + skip, (size_t)len);
-	IOFree(tmp, n * bs);
+	uint32_t n = (uint32_t)((skip + len + bs - 1) / bs);
+	/* Always bounce: caller buffers (e.g. IOMallocZero) must not be assumed DMA-aligned,
+	 * and UFS xfer is single-threaded — serialize with blk_lock. */
+	if (!blk_lock) blk_lock = IOLockAlloc();
+	IOLockLock(blk_lock);
+	uint8_t *tmp = IOMallocZero((size_t)n * bs);
+	int r = -1;
+	if (tmp) {
+		r = disk_read(root_u, lba, n, tmp);
+		if (!r) memcpy(va, tmp + skip, (size_t)len);
+		IOFree(tmp, (size_t)n * bs);
+	}
+	IOLockUnlock(blk_lock);
+	LOG("blkops_read done r=%d", r);
 	return r;
 }
 

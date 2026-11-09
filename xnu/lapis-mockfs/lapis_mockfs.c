@@ -267,18 +267,22 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 	int use_blk = 0;
 	(void)rvp; (void)data; (void)ctx;
 	/* Prefer a real disk root published by LapisBlk (UFS/SD). Wait up to ~3s. */
+	lapis_log("LAPIS lapisfs: blkops magic=%x state=%d size=%llx\n",
+	          (uint64_t)bo->magic, (uint64_t)(int64_t)bo->state, bo->root_size);
 	if (bo->magic == LAPIS_BLKOPS_MAGIC) {
-		int i; for (i = 0; i < 300 && bo->state == 0; i++) {
-			/* IOSleep not linked here; busy-wait via a tiny pause */
-			volatile int spin; for (spin = 0; spin < 100000; spin++) ;
+		int i; for (i = 0; i < 5000 && bo->state == 0; i++) {
+			volatile uint64_t spin; for (spin = 0; spin < 200000; spin++) ;
 		}
+		lapis_log("LAPIS lapisfs: after wait state=%d read=%llx z=%llu\n",
+		          (uint64_t)(int64_t)bo->state, (uint64_t)(uintptr_t)bo->read, 0ULL);
 		if (bo->state == 1 && bo->read && bo->root_size >= 0x4000) use_blk = 1;
 	}
 	if (use_blk) {
 		/* Stage the image header (and later file data) via bo->read into a
 		 * kernel buffer for metadata; file data goes through strategy. */
 		uint8_t *hdr = IOMallocZero(0x4000);
-		if (!hdr || bo->read(0, 0x4000, hdr)) { if (hdr) IOFree(hdr, 0x4000); return EIO; }
+		if (!hdr || bo->read(0, 0x4000, hdr)) { if (hdr) IOFree(hdr, 0x4000); IOLog("LAPIS lapisfs: blk header read FAILED\n"); return EIO; }
+		IOLog("LAPIS lapisfs: blk header OK\n");
 		if (strncmp((const char *)hdr, "LAPISFS1", 8) || *(const uint32_t *)(hdr + 12) != 2) {
 			IOLog("LAPIS lapisfs: bad magic on blk root\n"); IOFree(hdr, 0x4000); return EINVAL;
 		}

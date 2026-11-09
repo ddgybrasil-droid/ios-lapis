@@ -80,3 +80,8 @@ ml_get_max_cpu_number          _ml_get_max_cpu_number
 ml_processor_register          _ml_processor_register
 ml_set_max_cpus                _ml_set_max_cpus
 cdevsw_add_with_bdev          _cdevsw_add_with_bdev
+
+text_crypter_create_hook_set   _text_crypter_create_hook_set
+real_ncpus                     _real_ncpus
+ml_cpu_up                      _ml_cpu_up
+ml_get_interrupts_enabled      _ml_get_interrupts_enabled

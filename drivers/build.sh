@@ -25,7 +25,7 @@ CC=aarch64-linux-gnu-gcc
 CFLAGS="-Os -std=gnu11 -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align
  -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -fno-jump-tables
  -Wall -Wextra -Wno-unused-parameter -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
-SRCS="common/klog.c common/drv_common.c gic/lapis_gic.c gic/gic_selftest.c ufs/lapis_ufs.c blk/lapis_blk.c fb/lapis_fb.c smp/lapis_smp.c sdhci/lapis_sdhci.c touch/lapis_touch.c batt/lapis_batt.c wifi/lapis_wifi.c gpu/lapis_gpu.c audio/lapis_audio.c"
+SRCS="common/klog.c common/drv_common.c gic/lapis_gic.c gic/gic_selftest.c ufs/lapis_ufs.c blk/lapis_blk.c fb/lapis_fb.c smp/lapis_smp.c sdhci/lapis_sdhci.c touch/lapis_touch.c batt/lapis_batt.c wifi/lapis_wifi.c gpu/lapis_gpu.c audio/lapis_audio.c crypter/lapis_crypter.c scm/qcom_scm.c scm/lapis_pil.c"
 OBJS=""
 for s in $SRCS; do o=out/$(basename ${s%.c}).o; $CC $CFLAGS -c $s -o $o; OBJS="$OBJS $o"; done
 $CC -c common/drv_entry.S -o out/drv_entry.o
