@@ -99,11 +99,13 @@ void lapis_scm_start(void)
 		return;
 	}
 	static const struct { uint32_t id; const char *name; } pas[] = {
-		{PAS_ADSP, "adsp"}, {PAS_MPSS, "mpss"}, {PAS_SLPI, "slpi"},
-		{PAS_CDSP, "cdsp"}, {PAS_WPSS, "wpss"}, {PAS_GPU_ZAP, "gpu_zap"},
+		{PAS_ADSP, "adsp?"}, {PAS_MPSS, "mpss?"}, {PAS_SLPI, "slpi?"},
+		{PAS_CDSP, "cdsp?"}, {PAS_WPSS, "wpss?"}, {PAS_GPU_ZAP, "gpu_zap?"},
+		{PAS_GH_TVM, "gh-trustedvm"}, {PAS_GH_OEM, "gh-oemvm"}, {PAS_GH_CPU, "gh-cpusys"},
 	};
+	LOG("dtb note: ADSP remoteproc has no qcom,pas-id; scanning Linux defaults + Gunyah VMs");
 	for (unsigned i = 0; i < sizeof(pas)/sizeof(pas[0]); i++) {
 		int s = qcom_scm_pas_supported(pas[i].id);
-		LOG("PAS id %u (%s) supported=%d", pas[i].id, pas[i].name, s);
+		LOG("PAS id %u/%#x (%s) supported=%d", pas[i].id, pas[i].id, pas[i].name, s);
 	}
 }

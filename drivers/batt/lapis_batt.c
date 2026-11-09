@@ -3,8 +3,9 @@
  *
  * dtb VERIFIED: spmi@c42d000 qcom,spmi-pmic-arb
  *   reg-names cnfg@0xc42d000, core@0xc400000, chnls, obsrvr, intr
- * Battery path on this tablet goes through ADSP pmic_glink (qcom,battery-charger)
- * for the high-level charger; raw FG registers still sit on SPMI PMICs (pm8550*).
+ * Dump truth: no qpnp-fg node. High-level path is qcom,battery-charger via
+ * ADSP pmic_glink (PMIC_RTR_ADSP_APPS). Direct SPMI SOC is best-effort only and
+ * may never work until ADSP is up.
  *
  * Boot-args:
  *   lapis_batt_mode=0  probe SPMI STATUS (default)

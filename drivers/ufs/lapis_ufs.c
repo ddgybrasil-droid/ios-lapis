@@ -385,6 +385,7 @@ static void ufs_thread(void *arg, int wr)
 {
 	(void)arg; (void)wr;
 	unsigned len;
+	int pending = 0;
 	void *nub = drv_dt_service("/ufs", 3000);
 	if (!nub) { LOG("no /ufs nub"); return; }
 	U.nub = nub;
@@ -422,25 +423,31 @@ static void ufs_thread(void *arg, int wr)
 	k_IORE_setPropertyNum(nub, "ufshci-ver", R(UFS_VER), 32);
 	if (m == 0) { LOG("probe-only mode: done (no writes)"); return; }
 
+	/* Signal LapisBlk that a root candidate may still appear. */
+	blk_pending_add(+1);
+	pending = 1;
+
 	U.dma = IOMallocAligned(PG, PG); U.buf = IOMallocAligned(PG, PG);
-	if (!U.dma || !U.buf) { LOG("no memory"); return; }
+	if (!U.dma || !U.buf) { LOG("no memory"); goto done; }
 	bzero(U.dma, PG); bzero(U.buf, PG);
 	U.dma_pa = kvtophys((vm_offset_t)U.dma); U.buf_pa = kvtophys((vm_offset_t)U.buf);
-	if (((U.dma_pa | U.buf_pa) >> 32) && !(U.cap & CAP_64AS)) { LOG("DMA pages above 4G but no 64AS"); return; }
+	if (((U.dma_pa | U.buf_pa) >> 32) && !(U.cap & CAP_64AS)) { LOG("DMA pages above 4G but no 64AS"); goto done; }
 	LOG("DMA: lists/UCD page pa %#llx, data page pa %#llx", U.dma_pa, U.buf_pa);
 	uint64_t t0 = now_ns();
-	if (m == 1) { if (hc_enable_and_link()) return; }
+	if (m == 1) { if (hc_enable_and_link()) goto done; }
 	else { LOG("reuse mode: keeping ABL link (HCE %u HCS %#x)", R(UFS_HCE) & 1, R(UFS_HCS));
-	       if (!(R(UFS_HCE) & 1) || !(R(UFS_HCS) & HCS_DP)) { LOG("reuse: HC not enabled / no device"); return; } }
-	if (lists_start(m == 2)) return;
+	       if (!(R(UFS_HCE) & 1) || !(R(UFS_HCS) & HCS_DP)) { LOG("reuse: HC not enabled / no device"); goto done; } }
+	if (lists_start(m == 2)) goto done;
 	ufs_irq_setup();
-	if (storage_bringup()) { dump_regs("failed"); return; }
+	if (storage_bringup()) { dump_regs("failed"); goto done; }
 	LOG("bring-up %llu ms; UTRCS interrupts so far: %u (last IS %#x)%s", (now_ns() - t0) / 1000000, U.irqs, U.last_is,
 	    U.irq_ok ? " via LapisGICv3" : "");
 	k_IORE_setPropertyNum(nub, "ufs-irq-count", U.irqs, 32);
 	gpt_scan();
 	LOG("done (%u completion interrupts dispatched)", U.irqs);
 	publish_ufs_disk();
+done:
+	if (pending) blk_pending_add(-1);
 }
 
 static int ufs_xfer(void *ctx, uint64_t lba, uint32_t n, void *va, int write)

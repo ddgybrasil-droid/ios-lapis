@@ -4,9 +4,9 @@ Built images (also under `/opt/cursor/artifacts/`):
 
 | Image | Path | sha256 |
 |---|---|---|
-| hw-safe | `out/lapis-xnu-hw-safe.img` | `6ea8b1c7353c7c55991b9eee6c72ce7999436f279b8ca52f2ad189172c78cf43` |
-| hw-full | `out/lapis-xnu-hw-full.img` | `dcbeb60f7f26af5e7aae2176c3381cf52c16b38522a765298356437901cee6ce` |
-| emu | `out-emu/lapis-xnu-emu.img` | `d7b6528be8609a45159144ebb19674e409afd400aa4844e9b5cd42abe286e373` |
+| hw-safe | `out/lapis-xnu-hw-safe.img` | `050768555f0be27424c6e93e09930fa6b16a0788fabeaf2aca86e10a8c88c3a3` |
+| hw-full | `out/lapis-xnu-hw-full.img` | `1c5f29132b737245b8eeae239308fc7dfc2e5fafc80a636c1da36b85e7eeef08` |
+| emu | `out-emu/lapis-xnu-emu.img` | `578665d876cf934a160162665e332ac586b1775e169e89fda86a153fbf54760c` |
 
 Rebuild: `./build-images.sh` (needs `BASE=/workspace/ios-lapis/emu/out/lapis-xnu-s6/Image` or equivalent).
 
@@ -33,9 +33,9 @@ Evidence logs (copied to artifacts):
 | LapisPIL PAS/mdt loader | **compiled-only** | ELF32 parse, carveout load, init_image/mem_setup/auth_and_reset. ADSP needs `.bNN` blobs (missing) |
 | LapisWiFi Kiwi | **compiled-only** (probe) / **NOT DONE** (MHI→WMI) | PARF/BAR/BHI probe + gated IMGTXDB. Needs `kiwi/amss.bin` (7.2 MiB). No WMI/scan |
 | LapisGPU Adreno 750 | **compiled-only** (probe) / **NOT DONE** (submit/blit) | KGSL/GPUCC probe; ZAP via PAS gated; CP_NOP path gated by `lapis_gpu_submit=1`. No 2D fill |
-| LapisAudio ADSP | **compiled-only** (probe) / **NOT DONE** (PCM) | LPASS/rproc probe; PIL path needs `adsp.b00..b55`. No GLINK/GPR/PCM |
-| LapisTouch Novatek | **compiled-only** | Real GENI SPI xfer + Novatek 0x71 protocol + coordinate poll. Needs clocks/CS on hw. No IOHID delivery |
-| LapisBatt SPMI FG | **compiled-only** | Real SPMI EXT_READ + heuristic SOC/V/I decode. May need ADSP pmic_glink for authoritative path |
+| LapisAudio ADSP | **compiled-only** (probe) / **NOT DONE** (PCM) | Probes ADSP rproc `0x3000000` + rx-macro `0x6AC0000` (removed bogus LPASS_CC `0x06F00000`). PIL needs `adsp.bNN`. No GLINK/GPR/PCM |
+| LapisTouch Novatek | **compiled-only** | GENI SPI @ **`0xa90000`** (dtb `spi@a90000`/novatek@0; not `0xa80000`). IRQ gpio 162. No IOHID delivery |
+| LapisBatt SPMI FG | **compiled-only** | SPMI EXT_READ best-effort only — **no qpnp-fg in dtb**; real path is ADSP `pmic_glink` |
 | LapisSDHCI | **compiled-only** | Card detect + CMD0/8/ACMD41/2/3/9/7 + CMD17 PIO + LapisBlk publish. Not exercised in QEMU this pass |
 | mockfs IOLog varargs | **VERIFIED-emu** | Fixed via `lapis_log` / `klog.c`; lapisfs lines print correctly |
 

@@ -15,13 +15,21 @@
 #define QCOM_SCM_SVC_MP              0x0c
 #define QCOM_SCM_MP_CP_RESUME        0x0a
 
-/* SM8650 / pineapple PAS ids (Linux qcom_q6v5_pas + dt bindings) */
-#define PAS_ADSP   1
-#define PAS_MPSS   2
-#define PAS_SLPI   3
-#define PAS_CDSP   5
-#define PAS_WPSS   6
-#define PAS_GPU_ZAP 9   /* HYPOTHESIS — confirm via is_call / pas_supported on hw */
+/*
+ * SM8650 / pineapple PAS ids — Linux qcom_q6v5_pas table defaults.
+ * TB520FU dtb: remoteproc-adsp has NO qcom,pas-id. DT ids 0x1c/0x22/0x23 are
+ * Gunyah secure VM loaders (trustedvm/oemvm/cpusys_vm), not ADSP/CDSP.
+ * Confirm every id with pas_supported() on hardware before auth_and_reset.
+ */
+#define PAS_ADSP    1
+#define PAS_MPSS    2
+#define PAS_SLPI    3
+#define PAS_CDSP    5
+#define PAS_WPSS    6
+#define PAS_GPU_ZAP 9
+#define PAS_GH_TVM  0x1c
+#define PAS_GH_OEM  0x22
+#define PAS_GH_CPU  0x23
 
 static inline uint32_t qcom_scm_fn(uint32_t svc, uint32_t cmd, int arginfo)
 {

@@ -101,6 +101,7 @@ static void sdhci_thread(void *a, int w)
 {
 	(void)a;(void)w;
 	int mode = drv_bootarg("lapis_sdhci_mode", 0);
+	int pending = 0;
 	hc = ml_io_map((vm_offset_t)SDHCI_PA, 0x1000);
 	if (!hc) { LOG("map fail"); return; }
 	uint32_t pst = R32(SDHC_PRESENT), caps = R32(SDHC_CAPS);
@@ -109,43 +110,46 @@ static void sdhci_thread(void *a, int w)
 	if (!(pst & PRESENT_CARD)) { LOG("no card"); return; }
 	if (mode == 0) { LOG("probe-only"); return; }
 
+	/* Only claim a pending root slot when we will try to publish a disk. */
+	if (mode >= 2) { blk_pending_add(+1); pending = 1; }
+
 	W8(SDHC_SWRST, 1);
 	for (int i = 0; i < 100 && (R8(SDHC_SWRST) & 1); i++) IODelay(100);
-	if (R8(SDHC_SWRST) & 1) { LOG("reset stuck"); return; }
+	if (R8(SDHC_SWRST) & 1) { LOG("reset stuck"); goto done; }
 	W8(SDHC_PWRCTL, 0x0f);
 	W16(SDHC_CLKCTL, 0x0005);
 	for (int i = 0; i < 100; i++) { if (R16(SDHC_CLKCTL) & 2) break; IODelay(100); }
 	W16(SDHC_CLKCTL, R16(SDHC_CLKCTL) | 4);
 
 	uint32_t resp[4] = {0};
-	if (sdhci_cmd(0x0000, 0, NULL)) return;
-	if (sdhci_cmd(0x081a, 0x1aa, resp)) return;
+	if (sdhci_cmd(0x0000, 0, NULL)) goto done;
+	if (sdhci_cmd(0x081a, 0x1aa, resp)) goto done;
 	LOG("CMD8 resp %#x", resp[0]);
 	for (int i = 0; i < 100; i++) {
-		if (sdhci_cmd(0x371a, 0, NULL)) return;
-		if (sdhci_cmd(0x2902, 0x40300000, resp)) return;
+		if (sdhci_cmd(0x371a, 0, NULL)) goto done;
+		if (sdhci_cmd(0x2902, 0x40300000, resp)) goto done;
 		if (resp[0] & (1u << 31)) break;
 		IOSleep(10);
 	}
 	card_ocr = resp[0];
 	LOG("ACMD41 OCR %#x", card_ocr);
-	if (sdhci_cmd(0x0209, 0, resp)) return;
-	if (sdhci_cmd(0x031a, 0, resp)) return;
+	if (sdhci_cmd(0x0209, 0, resp)) goto done;
+	if (sdhci_cmd(0x031a, 0, resp)) goto done;
 	rca = resp[0] & 0xffff0000;
 	LOG("RCA %#x", rca);
-	if (sdhci_cmd(0x0915, rca, resp)) return;
+	if (sdhci_cmd(0x0915, rca, resp)) goto done;
 	/* CSD v2: c_size in bits 69:48 across resp words — rough */
 	uint32_t c_size = ((resp[1] & 0x3f) << 16) | (resp[2] >> 16);
 	block_count = (c_size + 1) * 1024; /* 512-byte blocks */
 	LOG("CSD[0..3] %#x %#x %#x %#x -> ~%u blocks", resp[0], resp[1], resp[2], resp[3], block_count);
-	if (sdhci_cmd(0x071b, rca, NULL)) return;
+	if (sdhci_cmd(0x071b, rca, NULL)) goto done;
 	LOG("card selected");
 
-	if (mode < 2) { LOG("READ path: set lapis_sdhci_mode=2"); return; }
+	if (mode < 2) { LOG("READ path: set lapis_sdhci_mode=2"); goto done; }
 
 	uint8_t *probe = IOMallocZero(512);
 	if (!probe || sdhci_read_block(0, probe)) {
-		LOG("CMD17 LBA0 failed"); if (probe) IOFree(probe, 512); return;
+		LOG("CMD17 LBA0 failed"); if (probe) IOFree(probe, 512); goto done;
 	}
 	LOG("LBA0 %02x%02x%02x%02x ...", probe[0], probe[1], probe[2], probe[3]);
 	IOFree(probe, 512);
@@ -157,5 +161,7 @@ static void sdhci_thread(void *a, int w)
 	disk.max_blocks = 1;
 	blk_register(&disk);
 	LOG("published sd0 via LapisBlk (%u blocks)", block_count);
+done:
+	if (pending) blk_pending_add(-1);
 }
 void lapis_sdhci_start(void){drv_thread(sdhci_thread,NULL);}
