@@ -358,8 +358,14 @@ void blk_pending_add(int delta)
 static void nodes_thread(void *arg, int wr)
 {
 	(void)arg; (void)wr;
-	for (int t = 0; t < 2000 && !k_devfs_ready; t++) IOSleep(10);
+	/* bsd_init mounts /dev ~40s into boot; prior 20s timeout was too short. */
+	for (int t = 0; t < 12000 && !k_devfs_ready; t++) IOSleep(10);
+	if (!k_devfs_ready) {
+		LOG("devfs still not ready after 120s; will keep polling");
+		for (int t = 0; t < 1200 && !k_devfs_ready; t++) IOSleep(100);
+	}
 	if (!k_devfs_ready) { LOG("devfs never became ready"); return; }
+	LOG("devfs ready — publishing /dev/disk*");
 	for (int i = 0; i < n_units; i++) make_nodes(&U[i], i);
 }
 

@@ -6,37 +6,77 @@
  *   WLAN BAR window 0x60400000 (within pcie ranges 0x60300000+)
  *   Firmware: kiwi/amss.bin (+ amss20), bdwlan_lapis.elf, phy_ucode*.elf, regdb.bin
  *
- * Bring-up steps (each gated):
+ * Bring-up (Linux drivers/bus/mhi + drivers/net/wireless/cnss2):
  *   mode 0: probe PARF + BAR (default, safe)
- *   mode 1: dump PCIe link status / PARF registers (read-mostly)
- *   mode 2: attempt MHI BHI base probe + log firmware download prerequisites
- *           (amss.bin not shipped — will log NOT DONE / request blob)
- *   No PCIe core reset / PERST toggle unless lapis_wifi_reset=1.
+ *   mode 1: dump PCIe link / PARF
+ *   mode 2: MHI BHI/BHIe state machine + optional firmware doorbell
+ *           (amss.bin not shipped — request blob)
+ *   No PCIe core reset / PERST unless lapis_wifi_reset=1.
  */
 #include "../include/kern.h"
 #define LOG(fmt, ...) klog("LapisWiFi: " fmt "\n", ##__VA_ARGS__)
 #define PARF_PA   0x01C00000ull
 #define PARF_SZ   0x3000u
-#define PHY_PA    0x01C06000ull
 #define BAR_PA    0x60400000ull
 #define BAR_SZ    0x10000u
 #define CONF_PA   0x60100000ull
 
-/* PARF offsets (qcom pcie) */
 #define PARF_DEVICE_TYPE   0x1000
 #define PARF_LTSSM         0x1B0
 #define PARF_PM_CTRL       0x20
 #define PARF_SLV_ADDR_SPACE_SIZE 0x358
 
-/* MHI MMIO (relative to BAR0) — BHI */
-#define MHI_BHI_VERSION    0x00
+/* MHI MMIO — BHI (boot) at BAR+0 for WCN785x/cnss2 */
+#define MHI_BHI_VERSION      0x00
 #define MHI_BHI_IMGADDR_LOW  0x08
 #define MHI_BHI_IMGADDR_HIGH 0x0c
-#define MHI_BHI_IMGSIZE    0x10
-#define MHI_BHI_IMGTXDB    0x18
-#define MHI_BHI_INTVEC     0x20
-#define MHI_BHI_EXECENV    0x28
-#define MHI_BHI_STATUS     0x2C
+#define MHI_BHI_IMGSIZE      0x10
+#define MHI_BHI_IMGTXDB      0x18
+#define MHI_BHI_INTVEC       0x20
+#define MHI_BHI_EXECENV      0x28
+#define MHI_BHI_STATUS       0x2C
+#define MHI_BHI_ERRCODE      0x30
+#define MHI_BHI_ERRDBG1      0x34
+#define MHI_BHI_ERRDBG2      0x38
+#define MHI_BHI_ERRDBG3      0x3C
+#define MHI_BHI_SERIALNU     0x40
+#define MHI_BHI_SBLANTIROLLVER 0x44
+#define MHI_BHI_NUMSEG       0x48
+#define MHI_BHI_MSMHWID_OFFS 0x4C
+#define MHI_BHI_OEMPKHASH_OFFS 0x64
+#define MHI_BHI_STATUS_MASK  0xC0000000
+#define MHI_BHI_STATUS_SHIFT 30
+#define BHI_STATUS_SUCCESS   0
+#define BHI_STATUS_ERROR     3
+#define BHI_STATUS_RESET     2
+/* BHIe (for amss after SBL) — typically BAR+0x70 region on kiwi */
+#define MHI_BHIE_STATUSOFF   0x70
+#define MHI_BHIE_TXVECSTATUS 0x80
+#define MHI_BHIE_TXVECDB     0x84
+#define MHI_BHIE_TXVECADDR_LOW_OFFS  0x88
+#define MHI_BHIE_TXVECADDR_HIGH_OFFS 0x8C
+#define MHI_BHIE_TXVECSIZE_OFFS      0x90
+
+/* Minimal MHI channel context programming (Linux mhi_init_mmio) offsets into BAR */
+#define MHIREGLEN   0x100
+#define MHIVER      0x108
+#define MHICFG      0x110
+#define CHDBOFF     0x118
+#define ERDBOFF     0x120
+#define BHIOFF      0x128
+#define BHIEOFF     0x12C
+#define MHICTRL     0x138
+#define MHISTATUS   0x148
+
+static const char *bhi_status_str(uint32_t st)
+{
+	switch ((st & MHI_BHI_STATUS_MASK) >> MHI_BHI_STATUS_SHIFT) {
+	case 0: return "SUCCESS";
+	case 2: return "RESET";
+	case 3: return "ERROR";
+	default: return "BUSY/OTHER";
+	}
+}
 
 static void wifi_thread(void *a, int w)
 {
@@ -52,12 +92,11 @@ static void wifi_thread(void *a, int w)
 	LOG("PCIe0 PARF @ %#llx LTSSM %#x DEVICE_TYPE %#x", PARF_PA, ltssm, dtype);
 	if (conf) {
 		uint32_t vend = rd32(conf + 0x00);
-		uint32_t link = rd32(conf + 0x80); /* PCI Express Link Status/Control often @0x80 in capability */
+		uint32_t link = rd32(conf + 0x80);
 		LOG("RC conf @ %#llx id %#x linkish %#x", CONF_PA, vend, link);
 	}
 	if (bar) {
-		uint32_t b0 = rd32(bar);
-		LOG("WLAN BAR @ %#llx raw@0 %#x", BAR_PA, b0);
+		LOG("WLAN BAR @ %#llx raw@0 %#x", BAR_PA, rd32(bar));
 	} else {
 		LOG("WLAN BAR map failed (link down or SMMU stream)");
 	}
@@ -68,39 +107,57 @@ static void wifi_thread(void *a, int w)
 	if (mode >= 1) {
 		LOG("mode>=1: PARF PM_CTRL %#x SLV_ADDR_SPACE %#x",
 		    rd32(parf + PARF_PM_CTRL), rd32(parf + PARF_SLV_ADDR_SPACE_SIZE));
-		if (drv_bootarg("lapis_wifi_reset", 0)) {
-			LOG("lapis_wifi_reset=1 refused in this build without SMMU SID setup (would hang link)");
-		}
+		if (drv_bootarg("lapis_wifi_reset", 0))
+			LOG("lapis_wifi_reset=1 refused without SMMU SID setup");
 	}
 
 	if (mode >= 2 && bar) {
-		/* MHI BHI typically lives at a fixed offset into the endpoint BAR;
-		 * for WCN785x/cnss2 the BHI base is often at BAR+0. Probe version. */
-		uint32_t bhi_ver = rd32(bar + MHI_BHI_VERSION);
-		uint32_t bhi_st  = rd32(bar + MHI_BHI_STATUS);
-		uint32_t ee      = rd32(bar + MHI_BHI_EXECENV);
-		LOG("MHI BHI VERSION %#x STATUS %#x EXECENV %#x", bhi_ver, bhi_st, ee);
-		LOG("firmware download needs kiwi/amss.bin (7.2 MiB) staged + SMMU stream for PCIe EP");
-		LOG("MHI channel bring-up / WMI / scan: NOT DONE without amss.bin (request blob)");
-		if (drv_bootarg("lapis_wifi_fw", 0)) {
-			pmap_paddr_t fw_pa = 0; uint32_t fw_sz = 0;
-			PE_parse_boot_argn("lapis_wifi_fw_pa", &fw_pa, sizeof(fw_pa));
-			PE_parse_boot_argn("lapis_wifi_fw_sz", &fw_sz, sizeof(fw_sz));
-			if (!fw_pa || !fw_sz) {
-				LOG("lapis_wifi_fw=1 needs lapis_wifi_fw_pa/sz");
-			} else {
-				LOG("would program BHI_IMGADDR=%#llx IMGSIZE=%u then ring IMGTXDB (gated — not ringing without hw confirm)",
-				    fw_pa, fw_sz);
-				/* Intentionally do NOT write doorbell here unless explicitly forced */
-				if (drv_bootarg("lapis_wifi_fw_doorbell", 0)) {
-					wr32(bar + MHI_BHI_IMGADDR_LOW, (uint32_t)fw_pa);
-					wr32(bar + MHI_BHI_IMGADDR_HIGH, (uint32_t)(fw_pa >> 32));
-					wr32(bar + MHI_BHI_IMGSIZE, fw_sz);
-					wr32(bar + MHI_BHI_IMGTXDB, 1);
-					LOG("IMGTXDB rung; STATUS now %#x", rd32(bar + MHI_BHI_STATUS));
-				}
-			}
+		uint32_t bhi_off = rd32(bar + BHIOFF);
+		uint32_t bhie_off = rd32(bar + BHIEOFF);
+		uint32_t mhictrl = rd32(bar + MHICTRL);
+		uint32_t mhist = rd32(bar + MHISTATUS);
+		LOG("MHI MHIVER %#x MHICFG %#x CTRL %#x STATUS %#x BHI@%#x BHIe@%#x",
+		    rd32(bar + MHIVER), rd32(bar + MHICFG), mhictrl, mhist, bhi_off, bhie_off);
+		vm_offset_t bhi = bar + (bhi_off ? bhi_off : 0);
+		uint32_t bhi_ver = rd32(bhi + MHI_BHI_VERSION);
+		uint32_t bhi_st  = rd32(bhi + MHI_BHI_STATUS);
+		uint32_t ee      = rd32(bhi + MHI_BHI_EXECENV);
+		LOG("BHI VERSION %#x STATUS %#x (%s) EXECENV %#x ERR %#x",
+		    bhi_ver, bhi_st, bhi_status_str(bhi_st), ee, rd32(bhi + MHI_BHI_ERRCODE));
+		LOG("BHI SERIAL %#x NUMSEG %#x", rd32(bhi + MHI_BHI_SERIALNU), rd32(bhi + MHI_BHI_NUMSEG));
+
+		if (!drv_bootarg("lapis_wifi_fw", 0)) {
+			LOG("firmware download gated (set lapis_wifi_fw=1 + lapis_wifi_fw_pa/sz)");
+			LOG("MHI channel bring-up / WMI / scan: NOT DONE without amss.bin");
+			return;
 		}
+		pmap_paddr_t fw_pa = 0; uint32_t fw_sz = 0;
+		PE_parse_boot_argn("lapis_wifi_fw_pa", &fw_pa, sizeof(fw_pa));
+		PE_parse_boot_argn("lapis_wifi_fw_sz", &fw_sz, sizeof(fw_sz));
+		if (!fw_pa || !fw_sz) { LOG("need lapis_wifi_fw_pa/sz"); return; }
+
+		/* BHI image download (SBL): program IMGADDR/SIZE then ring IMGTXDB. */
+		wr32(bhi + MHI_BHI_STATUS, 0);
+		wr32(bhi + MHI_BHI_IMGADDR_LOW, (uint32_t)fw_pa);
+		wr32(bhi + MHI_BHI_IMGADDR_HIGH, (uint32_t)(fw_pa >> 32));
+		wr32(bhi + MHI_BHI_IMGSIZE, fw_sz);
+		LOG("BHI programmed IMGADDR=%#llx SIZE=%u", fw_pa, fw_sz);
+		if (!drv_bootarg("lapis_wifi_fw_doorbell", 0)) {
+			LOG("doorbell gated (set lapis_wifi_fw_doorbell=1 after confirming PA is DMA-visible to EP)");
+			return;
+		}
+		wr32(bhi + MHI_BHI_IMGTXDB, 1);
+		for (int i = 0; i < 500; i++) {
+			bhi_st = rd32(bhi + MHI_BHI_STATUS);
+			uint32_t s = (bhi_st & MHI_BHI_STATUS_MASK) >> MHI_BHI_STATUS_SHIFT;
+			if (s == BHI_STATUS_SUCCESS || s == BHI_STATUS_ERROR) break;
+			IOSleep(10);
+		}
+		LOG("after IMGTXDB STATUS %#x (%s) EXECENV %#x ERR %#x/%#x/%#x",
+		    bhi_st, bhi_status_str(bhi_st), rd32(bhi + MHI_BHI_EXECENV),
+		    rd32(bhi + MHI_BHI_ERRCODE), rd32(bhi + MHI_BHI_ERRDBG1), rd32(bhi + MHI_BHI_ERRDBG2));
+		/* Next: BHIe vector for amss, then MHI READY → channels → WMI — needs amss.bin. */
+		LOG("BHIe/amss + WMI/scan still need kiwi/amss.bin staged (request blob)");
 	}
 }
 void lapis_wifi_start(void) { drv_thread(wifi_thread, NULL); }

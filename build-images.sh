@@ -23,7 +23,8 @@ SAFE_DRV="$SAFE_DRV lapis_audio=1 lapis_audio_mode=0"
 SAFE_DRV="$SAFE_DRV lapis_ufs_mode=2"
 
 # FULL: enable bring-up modes; still requires explicit *=1 for doorbells/auth.
-FULL_DRV="cpus=1 lapis_smp=1 lapis_smp_n=8 lapis_mpidr_shift=8 lapis_psci=1 lapis_scm=1 lapis_scm_pas=1 lapis_pil=2"
+# Clamp smp_n=1 until LapisSMP secondaries are VERIFIED-emu (QEMU -smp 8).
+FULL_DRV="cpus=1 lapis_smp=1 lapis_smp_n=1 lapis_psci=1 lapis_scm=1 lapis_scm_pas=1 lapis_pil=2"
 FULL_DRV="$FULL_DRV lapis_sdhci=1 lapis_sdhci_mode=2"
 FULL_DRV="$FULL_DRV lapis_touch=1 lapis_touch_mode=2"
 FULL_DRV="$FULL_DRV lapis_batt=1 lapis_batt_mode=1"

@@ -12,6 +12,7 @@
  *   lapis_smp_n=<1..8>    clamp CPU count (default: ml_get_cpu_count())
  */
 #include "../include/kern.h"
+#include "../gic/gicv3.h"
 
 #define LOG(fmt, ...) klog("LapisSMP: " fmt "\n", ##__VA_ARGS__)
 #define PSCI_CPU_ON_64       0xC4000003ull
@@ -82,6 +83,12 @@ static uint64_t psci(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3)
 	return use_hvc ? psci_hvc(a0,a1,a2,a3) : psci_smc(a0,a1,a2,a3);
 }
 
+/*
+ * PE_cpu_start_internal / PE_cpu_signal are IOPlatformExpert *vtable trampolines*:
+ *   ldr x8,[x0]; ldr xn,[x8,#slot]; br xn
+ * so x0 = PlatformExpert *this.  CPU id is in x1.  (PE_cpu_machine_init is a
+ * real C function (cpu_id, bootb) — x0 is the cpu id there.)
+ */
 void lapis_pe_cpu_machine_init(void *target, int bootb)
 {
 	unsigned cpu = (unsigned)(uintptr_t)target;
@@ -91,33 +98,58 @@ void lapis_pe_cpu_machine_init(void *target, int bootb)
 	brought_up++;
 }
 
-void lapis_pe_cpu_signal(void *source, void *target)
+/* Send SGI1 (IRQ 1) to the target CPU via ICC_SGI1R_EL1. XNU's sleh_irq routes
+ * INTID < 16 to cpu_signal_handler — same path stock Apple silicon uses. */
+static void sgi_to_cpu(unsigned cpu, unsigned sgi)
 {
-	(void)source;
-	unsigned cpu = (unsigned)(uintptr_t)target;
-	/* Soft IPI: poke GICD_ISPENDR for SGI targeting the destination.
-	 * Full cross-call needs the redistributor online; log for now. */
-	LOG("PE_cpu_signal -> cpu %u (SGI path relies on XNU cpu_signal fallback)", cpu);
+	uint64_t m = lapis_cpu_mpidr[cpu & 7];
+	uint64_t aff0 = m & 0xff;
+	uint64_t aff1 = (m >> 8) & 0xff;
+	uint64_t aff2 = (m >> 16) & 0xff;
+	uint64_t aff3 = (m >> 32) & 0xff;
+	/* TargetList bit for Aff0 within the Aff1 cluster; IRM=0. */
+	uint64_t v = (1ull << (aff0 & 0xf))
+	           | (aff1 << 16)
+	           | ((uint64_t)(sgi & 0xf) << 24)
+	           | (aff2 << 32)
+	           | (aff3 << 48);
+	__asm__ volatile("msr " ICC_SGI1R_EL1 ", %0; isb" :: "r"(v));
 }
 
-void lapis_pe_cpu_start(void *target, vm_offset_t start_paddr, vm_offset_t arg_paddr)
+void lapis_pe_cpu_signal(void *pe_this, void *target)
 {
+	(void)pe_this;
 	unsigned cpu = (unsigned)(uintptr_t)target;
-	uint64_t mpidr = lapis_cpu_mpidr[cpu & 7];
-	/* Prefer XNU-provided start_paddr when non-zero; else LowResetVectorBase. */
+	if (cpu < 8) sgi_to_cpu(cpu, 1);
+	/* Keep quiet on the hot path — DebuggerXCallEnter floods otherwise. */
+}
+
+void lapis_pe_cpu_start(void *pe_this, void *target, vm_offset_t start_paddr, vm_offset_t arg_paddr)
+{
+	(void)pe_this;
+	unsigned cpu = (unsigned)(uintptr_t)target;
+	if (cpu >= 8) {
+		LOG("PE_cpu_start: cpu id %u out of range (thiscall misuse?)", cpu);
+		return;
+	}
+	uint64_t mpidr = lapis_cpu_mpidr[cpu];
+	/* Prefer XNU-provided start_paddr when non-zero; else LowResetVectorBase.
+	 * Note: the trampoline clobbers x3 (arg) when loading the vtable slot — so
+	 * arg_paddr may be garbage; pass 0 to PSCI if it looks non-canonical. */
 	pmap_paddr_t entry = start_paddr ? (pmap_paddr_t)start_paddr
 	                                 : kvtophys((vm_offset_t)LowResetVectorBase);
-	LOG("PE_cpu_start cpu %u mpidr %#llx entry %#llx arg %#lx",
-	    cpu, mpidr, entry, (unsigned long)arg_paddr);
+	uint64_t arg = (uint64_t)arg_paddr;
+	if (arg > 0x100000000ULL && arg < 0xfffffe0000000000ULL) arg = 0; /* clobbered */
+	LOG("PE_cpu_start cpu %u mpidr %#llx entry %#llx arg %#llx",
+	    cpu, mpidr, entry, arg);
 	if (cpu == 0) {
 		LOG("  bsp — skip PSCI");
 		return;
 	}
-	int64_t r = (int64_t)psci(PSCI_CPU_ON_64, mpidr, entry, arg_paddr ? (uint64_t)arg_paddr : 0);
+	int64_t r = (int64_t)psci(PSCI_CPU_ON_64, mpidr, entry, arg);
 	LOG("  PSCI CPU_ON -> %#llx%s", (uint64_t)r,
 	    r == PSCI_SUCCESS ? " OK" : r == PSCI_ALREADY_ON ? " already-on" : " FAIL");
-	/* Brief wait for secondary to clear AFFINITY_INFO to ON (0). */
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 500; i++) {
 		int64_t a = (int64_t)psci(PSCI_AFFINITY_INFO, mpidr, 0, 0);
 		if (a == 0) { LOG("  cpu %u ON (affinity)", cpu); break; }
 		IODelay(1000);
@@ -154,53 +186,11 @@ static unsigned probe_present(unsigned want)
 	return n;
 }
 
-static void smp_register_all(void)
+static unsigned g_want;
+
+static void smp_register_range(unsigned lo, unsigned hi)
 {
-	unsigned n = ml_get_cpu_count();
-	unsigned maxn = ml_get_max_cpu_number();
-	/* lapis_smp_n overrides ADT/cpus= topology so we can boot with cpus=1
-	 * (avoid ml_wait_max_cpus hanging) then raise the count ourselves. */
-	unsigned want = (unsigned)drv_bootarg("lapis_smp_n", 0);
-	if (!want) want = n ? n : 1;
-	LOG("topology: cpu_count=%u max_cpu_number=%u real_ncpus=%u want=%u",
-	    n, maxn, real_ncpus, want);
-	if (want < 1) want = 1;
-	if (want > 8) want = 8;
-
-	pick_psci_conduit();
-	/* MPIDR layout: TB520FU dtb uses Aff1=cpu (0x0,0x100,..0x700).
-	 * QEMU virt uses Aff0=cpu (0,1,2,..). Probe both; boot-arg lapis_mpidr_shift
-	 * forces one (8=hw, 0=qemu). */
-	{
-		int shift = drv_bootarg("lapis_mpidr_shift", 255);
-		if (shift == 255) {
-			for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i << 8;
-			unsigned p8 = probe_present(want > 1 ? 2 : 1);
-			if (p8 < 2 && want > 1) {
-				for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i;
-				unsigned p0 = probe_present(want > 1 ? 2 : 1);
-				LOG("MPIDR probe: shift8 present=%u shift0 present=%u → using %s",
-				    p8, p0, p0 >= 2 ? "Aff0 (QEMU)" : "Aff1<<8 (hw)");
-				if (p0 < 2) { /* fall back to hw layout anyway */
-					for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i << 8;
-				}
-			} else {
-				LOG("MPIDR layout Aff1<<8 (hw/TB520FU)");
-			}
-		} else {
-			for (unsigned i = 0; i < 8; i++)
-				lapis_cpu_mpidr[i] = (shift ? (i << shift) : i);
-			LOG("MPIDR layout forced shift=%d", shift);
-		}
-	}
-
-	unsigned present = probe_present(want);
-	if (present < want) {
-		LOG("clamping %u -> %u (PSCI AFFINITY_INFO; use QEMU -smp %u)", want, present, want);
-		want = present;
-	}
-
-	for (unsigned cpu = 0; cpu < want; cpu++) {
+	for (unsigned cpu = lo; cpu < hi; cpu++) {
 		struct ml_processor_info info;
 		bzero(&info, sizeof(info));
 		info.cpu_id = (void *)(uintptr_t)cpu;
@@ -214,15 +204,67 @@ static void smp_register_all(void)
 		LOG("ml_processor_register cpu %u -> %d proc=%p real_ncpus=%u",
 		    cpu, kr, proc, real_ncpus);
 		if (kr) break;
-		/* Raise the wait ceiling after each successful register so
-		 * ml_wait_max_cpus observers see progress. */
-		ml_set_max_cpus(cpu + 1);
+		ml_set_max_cpus(g_want ? g_want : cpu + 1);
 	}
-	LOG("done: want=%u real_ncpus=%u brought_up≈%u", want, real_ncpus, brought_up);
+}
+
+static void smp_late_thread(void *a, int w)
+{
+	(void)a;(void)w;
+	/* random_cpu_init() Asserts if ml_processor_register(cpu≥1) runs during
+	 * early IOKit matching. Defer secondaries until entropy is up. */
+	unsigned delay = (unsigned)drv_bootarg("lapis_smp_delay_ms", 35000);
+	LOG("deferring cpus 1..%u by %u ms (avoid random_cpu_init Assert)", g_want - 1, delay);
+	if (delay) IOSleep(delay);
+	if (g_want > 1) smp_register_range(1, g_want);
+	LOG("late done: real_ncpus=%u brought_up≈%u", real_ncpus, brought_up);
 }
 
 void lapis_smp_start(void)
 {
 	if (!drv_bootarg("lapis_smp", 0)) { LOG("disabled (lapis_smp=0)"); return; }
-	smp_register_all();
+	/* Probe topology + register BSP now; secondaries deferred unless early=1. */
+	/* Reuse smp_register_all's probe by inlining the setup then splitting. */
+	unsigned n = ml_get_cpu_count();
+	unsigned want = (unsigned)drv_bootarg("lapis_smp_n", 0);
+	if (!want) want = n ? n : 1;
+	if (want < 1) want = 1;
+	if (want > 8) want = 8;
+	LOG("topology: cpu_count=%u max_cpu_number=%u real_ncpus=%u want=%u",
+	    n, ml_get_max_cpu_number(), real_ncpus, want);
+	pick_psci_conduit();
+	{
+		int shift = drv_bootarg("lapis_mpidr_shift", 255);
+		if (shift == 255) {
+			for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i << 8;
+			unsigned p8 = probe_present(want > 1 ? 2 : 1);
+			if (p8 < 2 && want > 1) {
+				for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i;
+				unsigned p0 = probe_present(want > 1 ? 2 : 1);
+				LOG("MPIDR probe: shift8 present=%u shift0 present=%u → using %s",
+				    p8, p0, p0 >= 2 ? "Aff0 (QEMU)" : "Aff1<<8 (hw)");
+				if (p0 < 2)
+					for (unsigned i = 0; i < 8; i++) lapis_cpu_mpidr[i] = i << 8;
+			} else LOG("MPIDR layout Aff1<<8 (hw/TB520FU)");
+		} else {
+			for (unsigned i = 0; i < 8; i++)
+				lapis_cpu_mpidr[i] = (shift ? (i << shift) : i);
+			LOG("MPIDR layout forced shift=%d", shift);
+		}
+	}
+	unsigned present = probe_present(want);
+	if (present < want) {
+		LOG("clamping %u -> %u (PSCI AFFINITY_INFO; use QEMU -smp %u)", want, present, want);
+		want = present;
+	}
+	ml_set_max_cpus(want);
+	g_want = want;
+	smp_register_range(0, 1);   /* BSP only — safe early */
+	if (want <= 1) { LOG("done: uniprocessor"); return; }
+	if (drv_bootarg("lapis_smp_early", 0)) {
+		smp_register_range(1, want);
+		LOG("early done: real_ncpus=%u brought_up≈%u", real_ncpus, brought_up);
+		return;
+	}
+	drv_thread(smp_late_thread, NULL);
 }
