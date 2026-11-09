@@ -224,7 +224,6 @@ static void *blk_lock;
 
 static int blkops_read(uint64_t off, uint64_t len, void *va)
 {
-	LOG("blkops_read off=%llu len=%llu", off, len);
 	if (!root_u || !len) return -1;
 	uint32_t bs = root_u->d->bs;
 	uint64_t end = root_nbl * bs;
@@ -245,7 +244,6 @@ static int blkops_read(uint64_t off, uint64_t len, void *va)
 		IOFree(tmp, (size_t)n * bs);
 	}
 	IOLockUnlock(blk_lock);
-	LOG("blkops_read done r=%d", r);
 	return r;
 }
 

@@ -1,68 +1,68 @@
-# IPSW / rootfs install & boot (TB520FU)
+# IPSW / rootfs install & boot (TB520FU) — never flash
 
-Boot is always `fastboot boot` — **never flash**.
+Boot is always:
 
-## What this kernel can mount as root
+```
+fastboot boot lapis-xnu-hw-safe.img   # first bring-up
+# or
+fastboot boot lapis-xnu-hw-full.img   # after safe looks healthy
+```
 
-1. **Ramdisk (md0)** — small `hw-min-23F77.lfs` embedded in the boot image (launchd+dyld, no dyld cache).
-2. **UFS GPT partition named `lapis-root`** (or any partition / whole disk whose LBA0 is `LAPISFS1`).
-3. **SD card** (SDHCI @ 0x8804000) — same LAPISFS1 image; enable with `lapis_sdhci=1 lapis_sdhci_mode=1` (data path still incomplete; use UFS for now).
+Do **not** `fastboot flash` boot, vendor_boot, super, or any A/B slot.
 
-## Recommended: put the IPSW rootfs on UFS without flashing the bootloader
+## What the kernel mounts as root
 
-### One-time prep (from Android / PixelOS, unlocked fastboot)
+1. Embedded ramdisk (`hw-min-23F77.lfs`) as `md0` (BSD root).
+2. If LapisBlk finds a GPT partition named **`lapis-root`** (or any volume whose first LBA is `LAPISFS1`), lapisfs mounts that as the real userspace root and `load_init_program` pulls `/sbin/launchd` from it.
+3. SDHCI (`0x8804000`) can publish `sd0` the same way when `lapis_sdhci_mode=2` and a card is present.
 
-1. Build the full lapisfs (≈5 GiB, includes dyld shared cache):
+## Recommended install: microSD (preferred)
+
+From the PixelOS dump this tablet uses **dynamic partitions** (`ro.boot.dynamic_partitions=true`) and A/B OTA for boot/system/vendor. There is **no** existing `lapis-root` GPT name. Touching `super` or shrinking Android userdata from a live system is the riskiest option.
+
+**Prefer a microSD card** (external, reversible, zero flash of boot/system):
+
+1. On a host, build or obtain `rootfs-23F77.lfs` (≈4.84 GiB; not in this handoff).
+2. Partition the SD with GPT; create one partition named `lapis-root` (≥5.5 GiB), type Apple APFS GUID `7C3457EF-0000-11AA-AA11-00306543ECAC` is fine (kernel matches **name**, not type).
+3. Write the image:
    ```
-   # already at /workspace/ios-lapis/rd/rootfs-23F77.lfs on the build machine
+   dd if=rootfs-23F77.lfs of=/dev/diskNsM bs=4M status=progress
    ```
-2. On the tablet under Android, free space on `/data` (≥5.5 GiB) and push:
+   Or write the raw `.lfs` starting at the partition’s first LBA so offset 0 contains `LAPISFS1`.
+4. Insert the card, `fastboot boot` the kernel with `lapis_sdhci=1 lapis_sdhci_mode=2` (already on hw-full).
+
+## Alternative: new UFS GPT partition (no boot/system flash)
+
+Only if `sgdisk -p /dev/block/sda` (or equivalent) shows **unallocated** space after Android’s partitions:
+
+1. Under TWRP / rooted Android, create a new partition named `lapis-root` in free space only. Do not delete or resize `super`, `boot`, `vendor_boot`, `userdata` unless you accept bricking risk.
+2. Stage then write:
    ```
    adb push rootfs-23F77.lfs /data/local/tmp/lapis-root.lfs
+   dd if=/data/local/tmp/lapis-root.lfs of=/dev/block/by-name/lapis-root bs=4M
    ```
-3. Write it into a spare GPT partition **you create once** (does not touch Android `super`/`boot`):
-   - Option A (safest): use an SD card — `dd if=rootfs-23F77.lfs of=/dev/block/mmcblk1 bs=4M`
-   - Option B: a new GPT partition on UFS named `lapis-root` (via `sgdisk` / `parted` from TWRP/Android). Then:
-     ```
-     dd if=/data/local/tmp/lapis-root.lfs of=/dev/block/by-name/lapis-root bs=4M
-     ```
-   The kernel looks for the name `lapis-root` **or** the magic `LAPISFS1` at the first LBA.
+3. A file on userdata alone is **staging only** — this kernel does not open Android `userdata` filesystems; it needs a GPT name or `LAPISFS1` at LBA0 of a LapisBlk disk.
 
-### Every boot
+## Boot-args (safety)
 
-```
-fastboot boot lapis-xnu-drv2.img
-```
-
-Expected log lines (serial / photo of early console / msgbuf):
-
-```
-LAPIS drv: built-in drivers v2 (...)
-LapisGICv3: registered ...
-LapisUFS: probing qcom,ufshc @ 0x1d84000 (mode 2) ...
-LapisUFS: NOP OUT -> NOP IN ok
-LapisBlk: ROOT = disk0sN (...)
-LAPIS lapisfs: mounted blk root ...
-load_init_program: attempting to load /sbin/launchd
-```
-
-Hardware image already carries: `lapis_sdhci=1 lapis_smp=1 lapis_touch=1 lapis_batt=1 lapis_wifi=1 lapis_gpu=1 lapis_audio=1`.
-UFS defaults to **reuse** (ABL link, no HCE reset). Override with `lapis_ufs_mode=0` (probe-only) or `=1` (full reset — risky).
-
-## Emulator check (already VERIFIED)
-
-```
-QEMU_EXTRA="-device ufs,serial=x -device ufs-lu,drive=u -drive if=none,id=u,file=ufs-disk.img,format=raw" \
-  KGDB=1 TIMEOUT=55 drivers/emu/run-drv.sh out-emu/lapis-xnu-drv2-emu.img /tmp/out
-```
-
-## Blockers (honest)
-
-| Piece | Status | Evidence |
+| Arg | Safe default | Full |
 |---|---|---|
-| Wi-Fi firmware (PIL/SCM) | BLOCKER at EL1 under Gunyah | needs TrustZone; probe-only code present |
-| GPU ZAP (SCM) | BLOCKER at EL1 under Gunyah | needs TrustZone; probe-only code present |
-| ADSP audio (PIL/SCM) | BLOCKER at EL1 under Gunyah | needs TrustZone; probe-only code present |
-| Full SMP (XNU processor_start) | NOT DONE | PSCI CPU_ON probe only; `ml_set_max_cpus` stays 1 |
-| SDHCI data path | NOT DONE | probe-only; clocks/SMMU hypothesis |
-| Touch / battery | NOT DONE | stubs only |
+| `lapis_ufs_mode` | `2` (reuse ABL link) | `2` |
+| `lapis_scm_pas` | `0` | `1` (auth_and_reset allowed) |
+| `lapis_pil` | `0` | `2` (needs staged mdt PA) |
+| `lapis_wifi_fw_doorbell` | unset | only after BHI looks sane |
+| `lapis_gpu_gdsc` / `lapis_gpu_submit` | unset | only after ZAP OK |
+| `lapis_smp_n` | `1` (safe) | `8` + `lapis_mpidr_shift=8` |
+
+Override UFS to probe-only with `lapis_ufs_mode=0` if reuse DMA faults (SMMU stream `0x60`).
+
+## Emulator reproduction
+
+```
+# Build GPT disk with a lapis-root LAPISFS1 partition (see drivers/emu / tools/mkgpt.py)
+QEMU_EXTRA="-smp 1 -device ufs,serial=x -device ufs-lu,drive=u \
+  -drive if=none,id=u,file=ufs-disk.img,format=raw" \
+  KGDB=1 TIMEOUT=60 drivers/emu/run-drv.sh out-emu/lapis-xnu-emu.img /tmp/out
+```
+
+Verified outcome: UFS GPT + `ROOT=disk0s2` + lapisfs mount + launchd spawn, then immediate exit (`namespace 2 subcode 0xb`). See `DRIVERS-STATUS.md`.

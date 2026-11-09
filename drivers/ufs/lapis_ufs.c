@@ -408,6 +408,16 @@ static void ufs_thread(void *arg, int wr)
 	dump_regs("initial");
 	LOG("NUTRS %u NUTMRS %u 64AS %u MCQS %u, UFSHCI %u.%u", (U.cap & 0x1f) + 1, ((U.cap >> 16) & 7) + 1,
 	    (U.cap >> 24) & 1, (U.cap >> 30) & 1, (R(UFS_VER) >> 8) & 0xff, (R(UFS_VER) >> 4) & 0xf);
+	/* TB520FU dtb: iommus = <apps_smmu 0x60 0>, dma-coherent. ABL leaves the
+	 * controller live; reuse mode assumes Stage-2 / SMMU already permits DMA
+	 * for stream 0x60 (stock Android boots from this same HC). If reuse DMA
+	 * faults on hw, set lapis_ufs_mode=0 and capture the abort — do NOT poke
+	 * the SMMU from this driver without an explicit boot-arg. */
+	if (compat && !strcmp(compat, "qcom,ufshc")) {
+		LOG("hw: SMMU stream 0x60 (dtb); MCQ regs @ 0x1da0000 present — using legacy UTRL path");
+		if ((U.cap & CAP_MCQS) && m == 2)
+			LOG("CAP.MCQS=1 but reuse keeps legacy UTRL (ABL path); MCQ switch needs lapis_ufs_mcq=1");
+	}
 	k_IORE_setPropertyNum(nub, "ufshci-cap", U.cap, 32);
 	k_IORE_setPropertyNum(nub, "ufshci-ver", R(UFS_VER), 32);
 	if (m == 0) { LOG("probe-only mode: done (no writes)"); return; }

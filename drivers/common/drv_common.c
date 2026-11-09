@@ -49,15 +49,18 @@ void blk_start(void);
 
 void lapis_drivers_start(void *pe)
 {
-	klog("LAPIS drv: built-in drivers v3 (GIC,UFS,Blk,FB,SMP,SCM,PIL,Crypt,SDHCI,Touch,Batt,WiFi,GPU,Audio)\n");
+	klog("LAPIS drv: built-in drivers v4 (GIC,UFS,Blk,FB,SMP,SCM,PIL,Crypt,SDHCI,Touch,Batt,WiFi,GPU,Audio)\n");
 	lapis_crypter_start();          /* FIRST: so launchd decrypt LC succeeds */
 	blk_start();
+	/* SMP BEFORE GIC selftest — otherwise DebuggerXCall tries to IPI
+	 * topology CPUs that are not yet online and hangs the boot. */
+	if (drv_bootarg("lapis_smp", 0))   lapis_smp_start();
 	if (drv_bootarg("lapis_gic", 1))   lapis_gic_start(pe);
 	if (drv_bootarg("lapis_ufs", 1))   lapis_ufs_start();
 	if (drv_bootarg("lapis_fb", 1))    lapis_fb_start();
-	/* SMP synchronous so secondaries are online before bsd_init */
-	if (drv_bootarg("lapis_smp", 0))   lapis_smp_start();
-	if (drv_bootarg("lapis_scm", 1))   { lapis_scm_start(); lapis_pil_start(); }
+	/* SCM does real SMCs — fatal on QEMU (no Secure Monitor). Default OFF;
+	 * enable with lapis_scm=1 on hardware (hw-full image). */
+	if (drv_bootarg("lapis_scm", 0))   { lapis_scm_start(); lapis_pil_start(); }
 	if (drv_bootarg("lapis_sdhci", 0)) lapis_sdhci_start();
 	if (drv_bootarg("lapis_touch", 0)) lapis_touch_start();
 	if (drv_bootarg("lapis_batt", 0))  lapis_batt_start();

@@ -87,10 +87,18 @@ static void fb_thread(void *arg, int wr)
 	LOG("splash fb %#llx mapped va %#lx, %ux%u stride %u, cells %ux%u",
 	    FB_PA, (unsigned long)fb, FB_W, FB_H, FB_STRIDE, cols, rows);
 	draw_banner();
-	k_IORE_setPropertyNum(k_IOService_getPlatform(), "lapis-fb-pa", FB_PA, 64);
-	k_IORE_setPropertyNum(k_IOService_getPlatform(), "lapis-fb-w", FB_W, 32);
-	k_IORE_setPropertyNum(k_IOService_getPlatform(), "lapis-fb-h", FB_H, 32);
-	LOG("banner painted (no DSI touch)");
+	{
+		void *plat = k_IOService_getPlatform();
+		k_IORE_setPropertyNum(plat, "lapis-fb-pa", FB_PA, 64);
+		k_IORE_setPropertyNum(plat, "lapis-fb-w", FB_W, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-h", FB_H, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-stride", FB_STRIDE, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-bytes", FB_BYTES, 64);
+		k_IORE_setPropertyStr(plat, "lapis-fb-format", "XRGB8888");
+		/* Publish a stable path userspace / kexts can look up. */
+		k_IORE_setPropertyStr(plat, "lapis-fb-service", "LapisFB");
+	}
+	LOG("banner painted (no DSI touch); service props on platform");
 }
 
 void lapis_fb_start(void) { drv_thread(fb_thread, NULL); }

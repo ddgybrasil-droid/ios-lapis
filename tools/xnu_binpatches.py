@@ -116,7 +116,7 @@ PATCHES.append(('vm_param_test-entry-enotsup', 0xfffffe000743aa04, [0xa9ba6ffc, 
 _cdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-crypto')
 _cb = open(_os.path.join(_cdir, 'crypto.bin'), 'rb').read()
 _cb += b'\0' * (((len(_cb) + 15) & ~15) - len(_cb))
-PATCHES.append(('lapis-crypto-provider', 0xfffffe000743aa10, 'fb6678bc94edbdf00e7484110c85e8af8a62265d625cc4390c02fe99bcd52742',
+PATCHES.append(('lapis-crypto-provider', 0xfffffe000743aa10, '0dbe1892a69f80fc5f55a4aab06a04cfacd16064b821098b3c3df86027866625',
                 list(_st.unpack('<%dI' % (len(_cb) // 4), _cb))))
 _ct = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_cdir, 'crypto.elf')], text=True).splitlines()
            if l.endswith(' lapis_crypto_functions')][0], 16)
@@ -128,7 +128,7 @@ PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))
 _mdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-mockfs')
 _mb = open(_os.path.join(_mdir, 'mockfs.bin'), 'rb').read()
 _mb += b'\0' * (((len(_mb) + 3) & ~3) - len(_mb))
-PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'd4f8ee49fe3046308b8b194c4cdb582445d338472d5dfaa7e87e057b0a0af4dd',
+PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'ee04a60c915666a8fe5332930b3eda87263204ba90f196cbeacd946eee442648',
                 list(_st.unpack('<%dI' % (len(_mb) // 4), _mb))))
 _mw = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
            if l.endswith(' lapis_mountroot_wrap')][0], 16)

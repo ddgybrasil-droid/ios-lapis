@@ -9,6 +9,12 @@
 #        PASS2=0 (skip gdb re-run that captures GPRs at first exception)
 set -euo pipefail
 HERE=/workspace/ios-lapis/emu
+# Prefer QEMU 10 private tree (UFS 4.0) when present; else system qemu.
+if [ -x "$HOME/qemu10/usr/bin/qemu-system-aarch64" ]; then
+	export PATH="$HOME/qemu10/usr/bin:$PATH"
+	export LD_LIBRARY_PATH="$HOME/qemu10/libs/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+QEMU_BIN=${QEMU_BIN:-qemu-system-aarch64}
 IMG="$(readlink -f "$1")"
 NAME="$(basename "${IMG%.*}")"
 OUT="${2:-$HERE/out/$NAME}"
@@ -25,7 +31,7 @@ KERNEL="$OUT/Image"
 
 # RAM 0x40000000..0xB00000000 (43 GiB, lazily allocated / MAP_NORESERVE) covers
 # phys_base 0x8C0000000 + mem_size and the splash FB at 0xD5100000.
-QEMU=(qemu-system-aarch64 -nodefaults -display none -serial none
+QEMU=("$QEMU_BIN" -nodefaults -display none -serial none
 	-M virt,virtualization=off,secure=off,gic-version=3,memory-backend=ram0
 	-m 43G -object memory-backend-ram,id=ram0,size=43G,reserve=off
 	-cpu max -smp ${SMP:-1} -kernel "$KERNEL" ${QEMU_EXTRA:-})
@@ -34,6 +40,7 @@ if [ -f "$IMG.ramdisk-pa" ]; then read RD_PA RD_FILE < "$IMG.ramdisk-pa"
 	QEMU+=(-device loader,file="$RD_FILE",addr=$RD_PA,force-raw=on); echo "ramdisk-ext: $RD_FILE @ $RD_PA"; fi
 DFLAGS=${DFLAGS:-guest_errors,unimp}
 [ "${TRACE:-0}" = 1 ] && DFLAGS=$DFLAGS,in_asm,nochain
+echo "qemu: $($QEMU_BIN --version | head -1) smp=${SMP:-1}"
 
 if [ "${GDB:-0}" = 1 ]; then
 	echo "gdbstub on :1234, CPU halted. gdb-multiarch -ex 'target remote :1234'"
@@ -66,7 +73,7 @@ python3 "$HERE/hmp.py" "$SOCK" stop "info registers" \
 wait $QPID 2>/dev/null || true
 rm -f "$SOCK"
 
-python3 "$HERE/fb2png.py" "$OUT/fb.raw" "$OUT/fb.png" > "$OUT/fb_bars.txt"
+python3 "$HERE/fb2png.py" "$OUT/fb.raw" "$OUT/fb.png" > "$OUT/fb_bars.txt" || true
 rm -f "$OUT/fb.raw"
 python3 "$HERE/analyze.py" "$OUT" > "$OUT/summary.txt" || true
 
