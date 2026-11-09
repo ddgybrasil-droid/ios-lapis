@@ -17,6 +17,28 @@ u64 = lambda *v: struct.pack('<%dQ' % len(v), *v)
 cstr = lambda s: s.encode() + b'\0'
 
 
+
+def blank_chrp_nvram(size=0x10000):
+    """Blank Apple CHRP V1 NVRAM image for /chosen/nvram-proxy-data
+    (IONVRAMCHRPHandler::unserializeImage): 'nvram' apple header with adler32
+    over [generation..end], then empty 'common' and 'system' partitions."""
+    import zlib
+    def chrp(sig, nbytes, name):
+        h = bytearray(struct.pack('<BBH12s', sig, 0, nbytes // 16, name.encode()))
+        c = h[0] + sum(h[2:16])
+        while c > 0xff:
+            c = (c & 0xff) + (c >> 8)
+        h[1] = c
+        return h
+    img = bytearray(size)
+    img[0:16] = chrp(0x5A, 0x20, 'nvram')
+    struct.pack_into('<I', img, 20, 1)                    # generation
+    half = size // 2
+    img[0x20:0x30] = chrp(0x70, half - 0x20, 'common')
+    img[half:half + 16] = chrp(0x70, size - half, 'system')
+    struct.pack_into('<I', img, 16, zlib.adler32(bytes(img[20:])) & 0xffffffff)
+    return bytes(img)
+
 def node(name, props=(), children=()):
     n = adt.Node()
     n.props = [('name', 0, cstr(name))] + [(k, 0, v) for k, v in props]
@@ -53,11 +75,15 @@ def build(profile, seed=None):
     fb_size = fb_stride * fb_h
 
     SOC_BASE = 0x01000000
-    TIMEBASE = 19200000  # CXO; confirm from CNTFRQ on device
+    # must equal CNTFRQ_EL0: SM8650 CXO 19.2 MHz (confirm on device);
+    # QEMU virt -cpu max reports 1 GHz (emulator profile).
+    TIMEBASE = int(timer.get('frequency_hz', 19200000))
     LAPIS_ECID = 0x4C41504953000001  # 'LAPIS' + 1
     BOOT_MANIFEST_HASH = hashlib.sha384(b'lapis boot manifest').digest()
 
-    seed = seed if seed is not None else os.urandom(64)
+    # xnu-12377 early_random wants exactly 256 bytes (prng_random.c:
+    # "Expected 256 seed bytes from bootloader, but got 64").
+    seed = seed if seed is not None else os.urandom(256)
     phandle = iter(range(1, 1000))
     ph = lambda: ('AAPL,phandle', u32(next(phandle)))
 
@@ -73,12 +99,22 @@ def build(profile, seed=None):
         ('boot-manifest-hash', BOOT_MANIFEST_HASH),
         ('crypto-hash-method', cstr('sha2-384')),
         ('display-scale', u32(2)),
-        ('unique-chip-id', struct.pack('<Q', LAPIS_ECID)),
+        # unique-chip-id omitted on purpose: with it (8 bytes) + chip-id,
+        # IOPlatformExpertDevice::generatePlatformUUID() calls SHA1Init(),
+        # which dereferences g_crypto_funcs (registered by the corecrypto
+        # kext, absent here) -> NULL+0x28 data abort (seen in QEMU).
+        # Re-add once a crypto provider is registered.
         ('chip-id', u32(0x8650)),
         ('certificate-production-status', u32(0)),
         ('effective-production-status-ap', u32(0)),
         ('certificate-security-mode', u32(1)),
         ('effective-security-mode-sep', u32(1)),
+        # NVRAM for IONVRAMCHRPHandler: blank in-RAM CHRP image (no NVRAM
+        # controller, so nothing is ever written to device storage).
+        ('nvram-bank-size', u32(0x10000)),
+        ('nvram-bank-count', u32(1)),
+        ('nvram-current-bank', u32(0)),
+        ('nvram-proxy-data', blank_chrp_nvram(0x10000)),
     ], [node('memory-map', [ph()]),
         node('asmb', [ph(), ('lp-sip0', u64(0x6f)), ('lp-sip1', u32(1))])])
 
@@ -148,6 +184,10 @@ def build(profile, seed=None):
         ('home-button-type', u32(2)),
         ('opposed-power-vol-buttons', u32(1)),
     ])
+    # /options: IODTPlatformExpert::processTopLevel asserts gIOOptionsEntry,
+    # which createNVRAM() only builds when /options exists (QEMU-found wall).
+    # NVRAM geometry lives in /chosen (nvram-bank-*); no proxy data -> empty.
+    options = node('options', [ph()])
     pram = node('pram', [ph(), ('reg', u64(panic_base) + u64(panic_log))])
 
     return node('device-tree', [
@@ -159,7 +199,7 @@ def build(profile, seed=None):
         ('manufacturer', cstr('Lenovo')),
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
-    ], [chosen, defaults, cpus, arm_io, fbcon, buttons, pram])
+    ], [chosen, defaults, options, cpus, arm_io, fbcon, buttons, pram])
 
 
 if __name__ == '__main__':

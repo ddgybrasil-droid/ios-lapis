@@ -19,6 +19,7 @@
 
 #define BOOT_LINE_LENGTH	1024
 #define PAGE_16K		0x4000UL
+#define TWIG_32M		0x2000000UL
 
 struct payload_seg {
 	uint64_t vmaddr, vmsize, file_off, file_size;
@@ -217,7 +218,16 @@ static const char *boot_payload(const struct payload *p, const char *src)
 
 	con_str("STEP", "6 boot_args");
 	uintptr_t ba_pa = (adt_pa + p->adt_size + PAGE_16K - 1) & ~(PAGE_16K - 1);
-	uintptr_t top = ba_pa + PAGE_16K;
+	/*
+	 * topOfKernelData: pad to a 32 MiB (L2 twig) boundary plus 64 MiB.
+	 * arm_vm_physmap_init() block-aligns each physical-aperture segment and
+	 * can waste up to one twig per segment; physmap_end only leaves slack
+	 * equal to [segLOWEST, topOfKernelData). iBoot kernelcaches are large
+	 * enough to hide this; our ~20 MiB kernel is not, so the
+	 * "ptov ... <= physmap_end" assert fires (seen in QEMU). Memory below
+	 * top is simply not handed to the VM.
+	 */
+	uintptr_t top = ((ba_pa + PAGE_16K + TWIG_32M - 1) & ~(TWIG_32M - 1)) + 2 * TWIG_32M;
 
 	zero64(ba_pa, PAGE_16K);
 	volatile struct boot_args *ba = (volatile struct boot_args *)ba_pa;
@@ -228,7 +238,9 @@ static const char *boot_payload(const struct payload *p, const char *src)
 	ba->memSize = p->mem_size;
 	ba->topOfKernelData = top;
 	ba->Video.v_baseAddr = FB_BASE;
-	ba->Video.v_display = 1;
+	/* v_display=0: PE_create_console() picks kPETextMode, so the XNU
+	 * video console prints the kernel log (-v) instead of a boot logo. */
+	ba->Video.v_display = 0;
 	ba->Video.v_rowBytes = FB_STRIDE;
 	ba->Video.v_width = FB_W;
 	ba->Video.v_height = FB_H;
