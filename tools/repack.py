@@ -33,6 +33,11 @@ def main():
     cmdline = None
     if '--cmdline' in sys.argv:
         cmdline = sys.argv[sys.argv.index('--cmdline') + 1]
+    ramdisk_ext = None
+    if '--ramdisk-ext' in sys.argv:
+        # emu-only: ramdisk is NOT embedded; QEMU '-device loader' places it at
+        # the printed PA. We only reserve [kend, kend+size) and describe it in the ADT.
+        ramdisk_ext = sys.argv[sys.argv.index('--ramdisk-ext') + 1]
     ramdisk_path = None
     if '--ramdisk' in sys.argv:
         ramdisk_path = sys.argv[sys.argv.index('--ramdisk') + 1]
@@ -55,6 +60,17 @@ def main():
         struct.pack_into('<%dI' % len(new), p, o, *new); print(f'  {name}: applied @ {va:#x}')
 
     a = open(adt_path, 'rb').read()
+
+    if ramdisk_ext:
+        import os
+        rd_size = (os.path.getsize(ramdisk_ext) + PAGE - 1) & ~(PAGE - 1)
+        rd_va = (kend + PAGE - 1) & ~(PAGE - 1)
+        rd_pa = rd_va - virt + phys
+        a = add_ramdisk_to_adt(a, rd_pa, rd_size)
+        kend = rd_va + rd_size
+        struct.pack_into('<Q', p, 0x10 + 8 * 4, kend)
+        open(out + '.ramdisk-pa', 'w').write(f'{rd_pa:#x} {os.path.abspath(ramdisk_ext)}\n')
+        print(f'  ramdisk-ext: pa={rd_pa:#x} size={rd_size:#x} va={rd_va:#x} (load with QEMU -device loader)')
 
     if ramdisk_path:
         # Rebuild payload: copy patched kernel segments, append ramdisk, new ADT.

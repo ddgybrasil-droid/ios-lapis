@@ -128,7 +128,7 @@ PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))
 _mdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-mockfs')
 _mb = open(_os.path.join(_mdir, 'mockfs.bin'), 'rb').read()
 _mb += b'\0' * (((len(_mb) + 3) & ~3) - len(_mb))
-PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'e7600261481bd69aa5323228078e59cd4c36604aa80782506b7084590ea7db39',
+PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'ee7e533774458c40c98c31ce657f46c6093cbb45d9dac2171665ae8b1efa5861',
                 list(_st.unpack('<%dI' % (len(_mb) // 4), _mb))))
 _mw = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
            if l.endswith(' lapis_mountroot_wrap')][0], 16)
@@ -137,6 +137,11 @@ def _bl(src, dst):
     return 0x94000000 | (off & 0x3ffffff)
 PATCHES.append(('bsd_init-mockfs-mountroot', 0xfffffe00078a5a94, [0x97f52420],
                 [_bl(0xfffffe00078a5a94, _mw)]))
+# s11: `amfi` (AMFI kext interface ptr) -> read-only all-return-0 stub table in the
+# lapisfs blob (no code-signing policy, no entitlements; bring-up only).
+_ma = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
+           if l.endswith(' lapis_amfi_stub')][0], 16)
+PATCHES.append(('amfi-stub-interface', 0xfffffe0007277430, [0, 0], [_ma & 0xffffffff, _ma >> 32]))
 
 # s10: IOService::setRootMedia looks up the IOMedia metaclass (IOStorageFamily
 # kext). Without a kernelcache that class is absent and the call from

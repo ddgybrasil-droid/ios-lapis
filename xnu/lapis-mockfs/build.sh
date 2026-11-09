@@ -27,6 +27,16 @@ DS="
 --defsym=cluster_pagein=0xfffffe00075e07e0
 --defsym=buf_strategy=0xfffffe00075d6980
 --defsym=buf_vnode=0xfffffe00075d5e58
+--defsym=buf_blkno=0xfffffe00075d6514
+--defsym=buf_count=0xfffffe00075d5df8
+--defsym=buf_flags=0xfffffe00075d5dbc
+--defsym=buf_map=0xfffffe00075d673c
+--defsym=buf_unmap=0xfffffe00075d685c
+--defsym=buf_setresid=0xfffffe00075d5e20
+--defsym=buf_biodone=0xfffffe00075d6bec
+--defsym=buf_seterror=0xfffffe00075d5d70
+--defsym=memcpy=0xfffffe0007c48550
+--defsym=memset=0xfffffe0007c487a0
 --defsym=strncmp=0xfffffe0007574d90
 --defsym=IOLog=0xfffffe0007aa6fdc
 --defsym=vn_default_error=0xfffffe00075e8a10

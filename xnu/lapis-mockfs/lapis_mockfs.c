@@ -1,4 +1,10 @@
-/* Minimal mockfs for lapis: root + /dev + /launchd(=entire md device).
+/* lapisfs (s11): read-only multi-file fs over md0 (was: single-file mockfs).
+ * Image format (tools/ramdisk/mklapisfs.py), all little-endian:
+ *   0x00 "LAPISFS1"  0x08 u32 nent  0x0c u32 ver(2)  0x10 u64 ent_off  0x18 u64 str_off  0x20 u64 total
+ *   entry (32B): u32 parent, u16 type(1 dir,2 reg), u16 mode, u64 data_off, u64 size,
+ *                u32 name_off, u32 name_len.   entry 0 = root. data 16K aligned.
+ * Metadata is read straight from the md0 mapping (mdevgetrange returns a kernel VA);
+ * file data goes through cluster_read/cluster_pagein -> blockmap -> md0 strategy.
  * Registered at runtime via vfs_fsadd(VFS_TBLCANMOUNTROOT). The kernel's
  * built-in HFS/APFS are kexts, so without a kernelcache mockfs is the only
  * way to mountroot from rd=md0. Freestanding; no writable data sections. */
@@ -17,7 +23,6 @@ typedef uint32_t mode_t;
 
 enum { VNON=0, VREG=1, VDIR=2 };
 enum { LOOKUP=0 };
-enum { MOCKFS_ROOT=0, MOCKFS_DEV=1, MOCKFS_FILE=2 };
 enum {
 	VNFS_NOCACHE=1, VNFS_CANTCACHE=2,
 	VFS_TBLTHREADSAFE=1, VFS_TBLNOTYPENUM=8, VFS_TBL64BITREADY=0x20,
@@ -31,6 +36,8 @@ enum {
 #define ENOMEM 12
 #define ENOTSUP 45
 #define EIO 5
+#define ENOTDIR_ 20
+#define EISDIR_ 21
 
 #define DKIOCGETBLOCKSIZE  0x40046418u
 #define DKIOCGETBLOCKCOUNT 0x40086419u
@@ -118,18 +125,24 @@ struct vnop_strategy_args { void *a_desc; buf_t a_bp; };
 struct vnop_blockmap_args { void *a_desc; vnode_t a_vp; off_t a_foffset; size_t a_size; daddr64_t *a_bpn; size_t *a_run; void *a_poff; int a_flags; vfs_context_t a_context; };
 struct vnop_reclaim_args { void *a_desc; vnode_t a_vp; vfs_context_t a_context; };
 
+struct lfs_ent { uint32_t parent; uint16_t type, mode; uint64_t data_off, size; uint32_t name_off, name_len; };
 struct fsnode {
-	uint64_t size;
+	uint32_t idx;
 	uint8_t type;
 	mount_t mnt;
 	vnode_t vp;
-	struct fsnode *parent, *child_a, *child_b;
+	const struct lfs_ent *e;
 };
 struct mnt_data {
-	void *lock; /* unused (single CPU) */
-	struct fsnode *root;
-	uint64_t filesize;
+	const uint8_t *base;
+	uint32_t nent;
+	const struct lfs_ent *ents;
+	const char *strs;
+	struct fsnode **nodes;
+	uint64_t total;
 };
+enum { LFS_DIR = 1, LFS_REG = 2 };
+struct vnop_readlink_args { void *a_desc; vnode_t a_vp; void *a_uio; vfs_context_t a_context; };
 
 /* kernel imports */
 extern void *IOMallocZero(size_t);
@@ -152,6 +165,12 @@ extern int mdevgetrange(int, uint64_t *, uint64_t *);
 extern int cluster_read(vnode_t, void *, off_t, int);
 extern int cluster_pagein(vnode_t, upl_t, uint64_t, off_t, size_t, off_t, int);
 extern int buf_strategy(vnode_t, void *);
+extern daddr64_t buf_blkno(buf_t);
+extern uint32_t buf_count(buf_t), buf_flags(buf_t);
+extern int buf_map(buf_t, char **), buf_unmap(buf_t);
+extern void buf_setresid(buf_t, uint32_t), buf_biodone(buf_t), buf_seterror(buf_t, int);
+extern void *memcpy(void *, const void *, size_t), *memset(void *, int, size_t);
+#define B_READ_ 0x1
 extern vnode_t buf_vnode(buf_t);
 extern int strncmp(const char *, const char *, size_t);
 extern int IOLog(const char *, ...);
@@ -181,48 +200,44 @@ extern char vnop_blktooff_desc, vnop_offtoblk_desc, vnop_blockmap_desc;
 #define MOCKFS_REGISTERED ((int *)0xfffffe0007d260a8)               /* _ktest_temp2 */
 #define MOCKFS_VFSHANDLE  ((void **)0xfffffe0007d260b0)             /* _ktest_temp3 */
 
-static struct fsnode *node_new(mount_t mp, uint8_t type, uint64_t size)
-{
-	struct fsnode *n = IOMallocZero(sizeof(*n));
-	if (!n) return 0;
-	n->type = type; n->mnt = mp; n->size = size;
-	return n;
-}
 
-static int node_adopt(struct fsnode *p, struct fsnode *c)
-{
-	if (!p || !c || c->parent) return EINVAL;
-	if (!p->child_a) { p->child_a = c; c->parent = p; return 0; }
-	if (!p->child_b) { p->child_b = c; c->parent = p; return 0; }
-	return ENOMEM;
-}
+/* Apple arm64 ABI passes variadic args on the stack; GCC uses registers.
+ * lapis_log(fmt, a, b, c): put a,b,c in stack slots and call IOLog. */
+extern int lapis_log(const char *fmt, uint64_t a, uint64_t b, uint64_t c);
+__asm__(
+"	.text\n	.global lapis_log\n	.type lapis_log,%function\n"
+"lapis_log:\n"
+"	stp x29, x30, [sp, #-16]!\n	mov x29, sp\n"
+"	sub sp, sp, #32\n	stp x1, x2, [sp]\n	str x3, [sp, #16]\n"
+"	bl IOLog\n"
+"	add sp, sp, #32\n	ldp x29, x30, [sp], #16\n	ret\n");
 
-static struct fsnode *child_by_type(struct fsnode *p, uint8_t t)
+static int node_get(struct mnt_data *md, mount_t mp, uint32_t idx, vnode_t dvp, vnode_t *vpp)
 {
-	if (p->child_a && p->child_a->type == t) return p->child_a;
-	if (p->child_b && p->child_b->type == t) return p->child_b;
-	return 0;
-}
-
-static int node_vnode(struct fsnode *n, vnode_t *vpp)
-{
+	struct fsnode *n = md->nodes[idx];
 	struct vnode_fsparam p;
 	int err;
+	if (!n) {
+		n = IOMallocZero(sizeof(*n));
+		if (!n) return ENOMEM;
+		n->idx = idx; n->mnt = mp; n->e = &md->ents[idx]; n->type = (uint8_t)n->e->type;
+		md->nodes[idx] = n;
+	}
 	if (n->vp) {
 		err = vnode_get(n->vp);
 		if (!err) *vpp = n->vp;
 		return err;
 	}
-	p.vnfs_mp = n->mnt;
-	p.vnfs_vtype = (n->type == MOCKFS_FILE) ? VREG : VDIR;
-	p.vnfs_str = "mockfs";
-	p.vnfs_dvp = (n->type == MOCKFS_ROOT) ? 0 : (n->parent ? n->parent->vp : 0);
+	p.vnfs_mp = mp;
+	p.vnfs_vtype = (n->type == LFS_REG) ? VREG : VDIR;
+	p.vnfs_str = "lapisfs";
+	p.vnfs_dvp = idx ? dvp : 0;
 	p.vnfs_fsnode = n;
 	p.vnfs_vops = *MOCKFS_VNODEOP_P;
-	p.vnfs_markroot = (n->type == MOCKFS_ROOT);
+	p.vnfs_markroot = (idx == 0);
 	p.vnfs_marksystem = 0;
 	p.vnfs_rdev = 0;
-	p.vnfs_filesize = (off_t)n->size;
+	p.vnfs_filesize = (off_t)n->e->size;
 	p.vnfs_cnp = 0;
 	p.vnfs_flags = VNFS_CANTCACHE | VNFS_NOCACHE;
 	err = vnode_create(VNCREATE_FLAVOR, sizeof(p), &p, &n->vp);
@@ -230,34 +245,26 @@ static int node_vnode(struct fsnode *n, vnode_t *vpp)
 	return err;
 }
 
-static uint64_t device_size(vnode_t rvp)
-{
-	uint64_t base = 0, sz = 0;
-	(void)rvp;
-	if (mdevgetrange(0, &base, &sz) == 0 && sz && sz < (1ull << 30))
-		return sz;
-	/* Fallback: our launchd.macho ramdisk is one 16K page. */
-	return 0x4000;
-}
-
 static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ctx)
 {
 	struct mnt_data *md;
-	struct fsnode *root, *dev, *file;
-	uint64_t sz;
-	(void)data; (void)ctx;
-	sz = device_size(rvp);
-	IOLog("LAPIS mockfs: mounting md root, size=0x%llx\n", (unsigned long long)sz);
+	uint64_t base = 0, sz = 0;
+	const uint8_t *b;
+	(void)rvp; (void)data; (void)ctx;
+	if (mdevgetrange(0, &base, &sz) != 0 || sz < 0x4000) return EINVAL;
+	b = (const uint8_t *)base;
+	if (strncmp((const char *)b, "LAPISFS1", 8) || *(const uint32_t *)(b + 12) != 2) { IOLog("LAPIS lapisfs: bad magic on md0\n"); return EINVAL; }
 	md = IOMallocZero(sizeof(*md));
-	root = node_new(mp, MOCKFS_ROOT, 0);
-	dev  = node_new(mp, MOCKFS_DEV, 0);
-	file = node_new(mp, MOCKFS_FILE, sz);
-	if (!md || !root || !dev || !file) return ENOMEM;
-	node_adopt(root, dev);
-	node_adopt(root, file);
-	md->root = root;
-	md->filesize = sz;
+	if (!md) return ENOMEM;
+	md->base = b;
+	md->nent = *(const uint32_t *)(b + 8);
+	md->ents = (const struct lfs_ent *)(b + *(const uint64_t *)(b + 16));
+	md->strs = (const char *)(b + *(const uint64_t *)(b + 24));
+	md->total = *(const uint64_t *)(b + 32);   /* v2 header; md0's own size wraps at 4 GiB */
+	md->nodes = IOMallocZero(sizeof(void *) * md->nent);
+	if (!md->nodes) return ENOMEM;
 	vfs_setfsprivate(mp, md);
+	lapis_log("LAPIS lapisfs: mounted md0 va=%llx image=%llx entries=%llu\n", base, md->total, md->nent);
 	return 0;
 }
 
@@ -269,9 +276,8 @@ static int mockfs_unmount(mount_t mp, int flags, vfs_context_t ctx)
 
 static int mockfs_root(mount_t mp, vnode_t *vpp, vfs_context_t ctx)
 {
-	struct mnt_data *md = vfs_fsprivate(mp);
 	(void)ctx;
-	return node_vnode(md->root, vpp);
+	return node_get(vfs_fsprivate(mp), mp, 0, 0, vpp);
 }
 
 static int mockfs_sync(mount_t mp, int w, vfs_context_t ctx) { (void)mp;(void)w;(void)ctx; return 0; }
@@ -279,20 +285,20 @@ static int mockfs_init(void *v) { (void)v; return 0; }
 
 static int mockfs_lookup(struct vnop_lookup_args *ap)
 {
-	struct fsnode *fsn = vnode_fsnode(ap->a_dvp);
-	struct fsnode *tgt = 0;
+	struct fsnode *d = vnode_fsnode(ap->a_dvp);
+	struct mnt_data *md = vfs_fsprivate(d->mnt);
 	struct componentname *cn = ap->a_cnp;
-	char held;
-	int r = ENOENT;
-	if (cn->cn_nameiop != LOOKUP || fsn->type != MOCKFS_ROOT) return ENOENT;
-	held = cn->cn_nameptr[cn->cn_namelen];
-	cn->cn_nameptr[cn->cn_namelen] = 0;
-	if (!strncmp(cn->cn_nameptr, "sbin", 5)) tgt = fsn;
-	else if (!strncmp(cn->cn_nameptr, "dev", 4)) tgt = child_by_type(fsn, MOCKFS_DEV);
-	else if (!strncmp(cn->cn_nameptr, "launchd", 8)) tgt = child_by_type(fsn, MOCKFS_FILE);
-	cn->cn_nameptr[cn->cn_namelen] = held;
-	if (tgt) r = node_vnode(tgt, ap->a_vpp);
-	return r;
+	uint32_t i, nl = (uint32_t)cn->cn_namelen;
+	if (d->type != LFS_DIR) return ENOTDIR_;
+	if (nl == 1 && cn->cn_nameptr[0] == '.') return node_get(md, d->mnt, d->idx, ap->a_dvp, ap->a_vpp);
+	if (nl == 2 && cn->cn_nameptr[0] == '.' && cn->cn_nameptr[1] == '.')
+		return node_get(md, d->mnt, d->e->parent, ap->a_dvp, ap->a_vpp);
+	for (i = 1; i < md->nent; i++) {
+		const struct lfs_ent *e = &md->ents[i];
+		if (e->parent == d->idx && e->name_len == nl && !strncmp(md->strs + e->name_off, cn->cn_nameptr, nl))
+			return node_get(md, d->mnt, i, ap->a_dvp, ap->a_vpp);
+	}
+	return ENOENT;
 }
 
 static int mockfs_getattr(struct vnop_getattr_args *ap)
@@ -302,24 +308,24 @@ static int mockfs_getattr(struct vnop_getattr_args *ap)
 	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
 	char *vap = (char *)ap->a_vap;
 	uint64_t *supported = (uint64_t *)(vap + 0);
-	*(uint64_t *)(vap + 24) = 1;            *supported |= VA_nlink;
-	*(uint64_t *)(vap + 32) = fsn->size;    *supported |= VA_total_size;
-	*(uint64_t *)(vap + 40) = fsn->size;    *supported |= VA_total_alloc;
-	*(uint64_t *)(vap + 48) = fsn->size;    *supported |= VA_data_size;
-	*(uint64_t *)(vap + 56) = fsn->size;    *supported |= VA_data_alloc;
-	*(uint32_t *)(vap + 68) = 0;            *supported |= (1ULL << 7);  /* va_uid root */
-	*(uint32_t *)(vap + 72) = 0;            *supported |= (1ULL << 8);  /* va_gid wheel */
-	*(uint16_t *)(vap + 76) = (fsn->type == MOCKFS_FILE) ? 0755 : 0755;
-	*supported |= VA_mode;
-	*(uint64_t *)(vap + 176) = fsn->type + 2; *supported |= VA_fileid;
+	uint64_t sz = fsn->e->size;
+	*(uint64_t *)(vap + 24) = (fsn->type == LFS_DIR) ? 2 : 1; *supported |= VA_nlink;
+	*(uint64_t *)(vap + 32) = sz;    *supported |= VA_total_size;
+	*(uint64_t *)(vap + 40) = sz;    *supported |= VA_total_alloc;
+	*(uint64_t *)(vap + 48) = sz;    *supported |= VA_data_size;
+	*(uint64_t *)(vap + 56) = sz;    *supported |= VA_data_alloc;
+	*(uint32_t *)(vap + 68) = 0;     *supported |= (1ULL << 7);  /* va_uid root */
+	*(uint32_t *)(vap + 72) = 0;     *supported |= (1ULL << 8);  /* va_gid wheel */
+	*(uint16_t *)(vap + 76) = fsn->e->mode & 07777; *supported |= VA_mode;
+	*(uint64_t *)(vap + 176) = fsn->idx + 2; *supported |= VA_fileid;
 	return 0;
 }
 
 static int mockfs_read(struct vnop_read_args *ap)
 {
 	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
-	if (vnode_vtype(ap->a_vp) != VREG) return ENOTSUP;
-	return cluster_read(ap->a_vp, ap->a_uio, (off_t)fsn->size, ap->a_ioflag);
+	if (vnode_vtype(ap->a_vp) != VREG) return EISDIR_;
+	return cluster_read(ap->a_vp, ap->a_uio, (off_t)fsn->e->size, ap->a_ioflag);
 }
 
 static int mockfs_reclaim(struct vnop_reclaim_args *ap)
@@ -329,38 +335,58 @@ static int mockfs_reclaim(struct vnop_reclaim_args *ap)
 	return 0;
 }
 
+/* md0 can't address >4 GiB (memdev computes uint32 mdSize << 12), so file I/O
+ * bypasses the md strategy and copies straight from the ramdisk mapping. */
 static int mockfs_strategy(struct vnop_strategy_args *ap)
 {
-	vnode_t dvp = vfs_devvp(vnode_mount(buf_vnode(ap->a_bp)));
-	int r;
-	if (!dvp) return EIO;
-	r = buf_strategy(dvp, ap);
-	vnode_put(dvp);
-	return r;
+	buf_t bp = ap->a_bp;
+	struct fsnode *f = vnode_fsnode(buf_vnode(bp));
+	struct mnt_data *md = vfs_fsprivate(f->mnt);
+	uint32_t blk = vfs_devblocksize(f->mnt);
+	uint64_t off, cnt, n;
+	char *va;
+	if (!blk) blk = 512;
+	off = (uint64_t)buf_blkno(bp) * blk;
+	cnt = buf_count(bp);
+	if (!(buf_flags(bp) & B_READ_) || buf_map(bp, &va)) {
+		buf_seterror(bp, EIO); buf_biodone(bp); return EIO;
+	}
+	n = (off < md->total) ? md->total - off : 0;
+	if (n > cnt) n = cnt;
+	if (n) memcpy(va, md->base + off, n);
+	if (n < cnt) memset(va + n, 0, cnt - n);
+	buf_unmap(bp);
+	buf_setresid(bp, 0);
+	buf_biodone(bp);
+	return 0;
 }
 
 static int mockfs_pagein(struct vnop_pagein_args *ap)
 {
 	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
 	return cluster_pagein(ap->a_vp, ap->a_pl, ap->a_pl_offset, ap->a_f_offset,
-	                      ap->a_size, (off_t)fsn->size, ap->a_flags);
+	                      ap->a_size, (off_t)fsn->e->size, ap->a_flags);
 }
 
 static int mockfs_blockmap(struct vnop_blockmap_args *ap)
 {
 	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
 	uint32_t blk = vfs_devblocksize(fsn->mnt);
+	uint64_t sz = fsn->e->size;
 	if (!blk) blk = 512;
 	if (vnode_vtype(ap->a_vp) != VREG) return ENOTSUP;
-	*ap->a_bpn = ap->a_foffset / blk;
+	*ap->a_bpn = (fsn->e->data_off + (uint64_t)ap->a_foffset) / blk;
 	if (ap->a_run) {
-		uint64_t remain = (fsn->size > (uint64_t)ap->a_foffset)
-		                  ? fsn->size - (uint64_t)ap->a_foffset : 0;
+		/* data is 16K-aligned and padded, so whole pages past EOF are in-image */
+		uint64_t end = (sz + 0x3fff) & ~0x3fffull;
+		uint64_t remain = (end > (uint64_t)ap->a_foffset) ? end - (uint64_t)ap->a_foffset : 0;
 		*ap->a_run = remain < ap->a_size ? (size_t)remain : ap->a_size;
 	}
 	if (ap->a_poff) *(int*)ap->a_poff = 0;
 	return 0;
 }
+
+static int lfs_zero(void *ap) { (void)ap; return 0; }
 
 static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_default_desc,  (int(*)(void*))vn_default_error },
@@ -369,14 +395,14 @@ static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_open_desc,     (int(*)(void*))nop_open },
 	{ &vnop_mknod_desc,    (int(*)(void*))err_mknod },
 	{ &vnop_close_desc,    (int(*)(void*))nop_close },
-	{ &vnop_access_desc,   (int(*)(void*))err_access },
+	{ &vnop_access_desc,   (int(*)(void*))lfs_zero },
 	{ &vnop_getattr_desc,  (int(*)(void*))mockfs_getattr },
 	{ &vnop_setattr_desc,  (int(*)(void*))err_setattr },
 	{ &vnop_read_desc,     (int(*)(void*))mockfs_read },
 	{ &vnop_write_desc,    (int(*)(void*))err_write },
 	{ &vnop_ioctl_desc,    (int(*)(void*))err_ioctl },
 	{ &vnop_select_desc,   (int(*)(void*))err_select },
-	{ &vnop_mmap_desc,     (int(*)(void*))err_mmap },
+	{ &vnop_mmap_desc,     (int(*)(void*))lfs_zero },
 	{ &vnop_fsync_desc,    (int(*)(void*))nop_fsync },
 	{ &vnop_remove_desc,   (int(*)(void*))err_remove },
 	{ &vnop_link_desc,     (int(*)(void*))err_link },
@@ -386,7 +412,7 @@ static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_symlink_desc,  (int(*)(void*))err_symlink },
 	{ &vnop_readdir_desc,  (int(*)(void*))err_readdir },
 	{ &vnop_readlink_desc, (int(*)(void*))err_readlink },
-	{ &vnop_inactive_desc, (int(*)(void*))err_inactive },
+	{ &vnop_inactive_desc, (int(*)(void*))lfs_zero },
 	{ &vnop_reclaim_desc,  (int(*)(void*))mockfs_reclaim },
 	{ &vnop_strategy_desc, (int(*)(void*))mockfs_strategy },
 	{ &vnop_pathconf_desc, (int(*)(void*))err_pathconf },
@@ -400,7 +426,6 @@ static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_blockmap_desc, (int(*)(void*))mockfs_blockmap },
 	{ 0, 0 }
 };
-
 static const struct vnodeopv_desc mockfs_opv_desc = {
 	.opv_desc_vector_p = MOCKFS_VNODEOP_P,
 	.opv_desc_ops = mockfs_entries
@@ -430,15 +455,22 @@ int lapis_mountroot_wrap(void)
 		vfe.vfe_vopcnt = 1;
 		vfe.vfe_opvdescs = mockfs_opv_descs;
 		vfe.vfe_fstypenum = 0;
-		vfe.vfe_fsname[0]='m'; vfe.vfe_fsname[1]='o'; vfe.vfe_fsname[2]='c';
-		vfe.vfe_fsname[3]='k'; vfe.vfe_fsname[4]='f'; vfe.vfe_fsname[5]='s';
+		vfe.vfe_fsname[0]='l'; vfe.vfe_fsname[1]='a'; vfe.vfe_fsname[2]='p';
+		vfe.vfe_fsname[3]='i'; vfe.vfe_fsname[4]='s'; vfe.vfe_fsname[5]='f'; vfe.vfe_fsname[6]='s';
 		vfe.vfe_flags = VFS_TBLTHREADSAFE | VFS_TBLNOTYPENUM | VFS_TBL64BITREADY | VFS_TBLCANMOUNTROOT;
 		if (vfs_fsadd(&vfe, MOCKFS_VFSHANDLE))
-			IOLog("LAPIS mockfs: vfs_fsadd FAILED\n");
+			IOLog("LAPIS lapisfs: vfs_fsadd FAILED\n");
 		else {
-			IOLog("LAPIS mockfs: registered\n");
+			IOLog("LAPIS lapisfs: registered\n");
 			*MOCKFS_REGISTERED = 1;
 		}
 	}
 	return _vfs_mountroot();
 }
+
+/* s11: AMFI is a kext (absent). bsd/osfmk call amfi->X(...) through the global
+ * `amfi` (0xfffffe0007277430), often without NULL checks. Point it (static
+ * binpatch) at this read-only table: every slot returns 0 (KERN_SUCCESS /
+ * false / NULL). Bring-up only: no code-signing policy, no entitlements. */
+static long lapis_amfi_ret0(void) { return 0; }
+const void *const lapis_amfi_stub[256] = { [0 ... 255] = (const void *)lapis_amfi_ret0 };

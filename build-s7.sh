@@ -13,13 +13,19 @@ make -s -C shim -f /dev/null 2>/dev/null || true
 python3 tools/mkadt.py $OUT/lapis.adt ${PROFILE:+--profile $PROFILE}
 xnu/lapis-exc/build.sh && xnu/lapis-crypto/build.sh >/dev/null && xnu/lapis-mockfs/build.sh >/dev/null
 RD_ARGS=()
-if [ -n "${RAMDISK:-}" ]; then
+rm -f $OUT/Image.ramdisk-pa
+if [ -n "${RAMDISK_EXT:-}" ]; then
+  # emu only: big lapisfs image loaded by QEMU at the PA in $OUT/<img>.ramdisk-pa
+  RD_ARGS=(--ramdisk-ext "$RAMDISK_EXT")
+  CMDLINE="${CMDLINE:-debug=0xc cpus=1 keepsyms=1 -v} rd=md0 ${CMDLINE_EXTRA:-}"
+elif [ -n "${RAMDISK:-}" ]; then
   RD_ARGS=(--ramdisk "$RAMDISK")
-  CMDLINE="${CMDLINE:-debug=0xc cpus=1 keepsyms=1 -v} rd=md0"
+  CMDLINE="${CMDLINE:-debug=0xc cpus=1 keepsyms=1 -v} rd=md0 ${CMDLINE_EXTRA:-}"
 fi
 python3 tools/repack.py "$BASE" shim/out/Image $OUT/lapis.adt $OUT/Image ${EXTRA:+--extra $EXTRA} --cmdline "${CMDLINE:-debug=0xc cpus=1 keepsyms=1 -v}" "${RD_ARGS[@]}"
 python3 tools/empty_cpio_gz.py > $OUT/ramdisk.bin
 python3 tools/mkbootimg_v4.py --kernel $OUT/Image --ramdisk $OUT/ramdisk.bin --cmdline "console=null" \
 	--os-version 15.0.0 --os-patch-level 2025-01 -o $OUT/${NAME:-lapis-xnu-s7}.img
+if [ -f $OUT/Image.ramdisk-pa ]; then cp $OUT/Image.ramdisk-pa $OUT/${NAME:-lapis-xnu-s7}.img.ramdisk-pa; else rm -f $OUT/${NAME:-lapis-xnu-s7}.img.ramdisk-pa; fi
 python3 tools/verify_bootimg.py $OUT/${NAME:-lapis-xnu-s7}.img | tail -1
 sha256sum $OUT/${NAME:-lapis-xnu-s7}.img
