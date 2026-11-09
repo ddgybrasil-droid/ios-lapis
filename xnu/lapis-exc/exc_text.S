@@ -176,6 +176,7 @@ font:
  * corecrypto kext without a kernelcache) the crypto_random_* wrappers use
  * the kernel's own early DRBG (read_erandom_generate) instead of jumping
  * through NULL.  First seen: vm_map_store_crypto_init (STARTUP EARLY_BOOT).
+ * Falls back per slot too: the built-in lapis_crypto table leaves 40-43 NULL.
  * NOTE: the early DRBG has no lock; fine with cpus=1 (bring-up only).
  */
 	.macro CRSTUB off, tmp
@@ -183,6 +184,7 @@ font:
 	ldr	x8, [x8, :lo12:k_g_crypto_funcs]
 	cbz	x8, 1f
 	ldr	\tmp, [x8, #\off]
+	cbz	\tmp, 1f                 /* provider without this slot (lapis_crypto) */
 	br	\tmp
 1:
 	.endm

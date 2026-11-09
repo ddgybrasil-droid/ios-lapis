@@ -99,3 +99,26 @@ PATCHES.append(('bzero-no-dczva', 0xfffffe0007c48744, [0xd50b7423], [_b(0xfffffe
 # s10: LapisPlatformExpert::start -> also ml_set_max_cpus(1) (platform-kext duty)
 PATCHES.append(('lapispe-set-max-cpus', 0xfffffe0007b6d01c, [_b(0xfffffe0007b6d01c, 0xfffffe0007aa6fdc, True)],
                 [_b(0xfffffe0007b6d01c, _sym('lapis_pe_cpus'), True)]))
+# s10: aux blob (vector-table NOP padding) + pthread_functions -> built-in stub table
+_aux = open(_bin.replace('exc_text.bin', 'aux_text.bin'), 'rb').read()
+_aux += b'\0' * (-len(_aux) & 3)
+PATCHES.append(('aux-blob', 0xfffffe000756a800, [0xd503201f] * (len(_aux) // 4),
+                list(_st.unpack('<%dI' % (len(_aux) // 4), _aux))))
+def _asym(n):
+    return int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _bin.replace('exc_text.bin', 'aux_text.elf')], text=True).splitlines()
+                if l.endswith(' ' + n)][0], 16)
+_pf = _asym('lapis_pthread_functions')
+PATCHES.append(('pthread_functions-builtin-stub', 0xfffffe000724c538, [0, 0], [_pf & 0xffffffff, _pf >> 32]))
+# s10: lapis_crypto (built-in corecrypto stand-in) over the sysctl-only
+# _vm_parameter_validation_kern_test (39600 bytes); entry now returns ENOTSUP.
+PATCHES.append(('vm_param_test-entry-enotsup', 0xfffffe000743aa04, [0xa9ba6ffc, 0xa90167fa, 0xa9025ff8],
+                [0x528005a0, 0xd65f03c0, 0xd503201f]))
+_cdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-crypto')
+_cb = open(_os.path.join(_cdir, 'crypto.bin'), 'rb').read()
+_cb += b'\0' * (39588 - len(_cb))
+PATCHES.append(('lapis-crypto-provider', 0xfffffe000743aa10, '38cd1512da1382cffb2f9c3b1d629204b0825728ced36fcc76b84308d256feee',
+                list(_st.unpack('<%dI' % (39588 // 4), _cb))))
+_ct = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_cdir, 'crypto.elf')], text=True).splitlines()
+           if l.endswith(' lapis_crypto_functions')][0], 16)
+PATCHES.append(('g_crypto_funcs-builtin', 0xfffffe0007277400, [0, 0], [_ct & 0xffffffff, _ct >> 32]))
+PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))

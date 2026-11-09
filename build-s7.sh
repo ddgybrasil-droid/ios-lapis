@@ -11,7 +11,7 @@ make -s -C shim -f /dev/null 2>/dev/null || true
   aarch64-linux-gnu-objcopy -O binary out/shim.elf out/Image
   size=$(aarch64-linux-gnu-nm out/shim.elf | awk '$3=="_end"{print $1}'); truncate -s $((16#$size)) out/Image )
 python3 tools/mkadt.py $OUT/lapis.adt ${PROFILE:+--profile $PROFILE}
-xnu/lapis-exc/build.sh >/dev/null
+xnu/lapis-exc/build.sh && xnu/lapis-crypto/build.sh >/dev/null
 python3 tools/repack.py "$BASE" shim/out/Image $OUT/lapis.adt $OUT/Image ${EXTRA:+--extra $EXTRA} --cmdline "${CMDLINE:-debug=0xc cpus=1 keepsyms=1 -v}"
 python3 tools/empty_cpio_gz.py > $OUT/ramdisk.bin
 python3 tools/mkbootimg_v4.py --kernel $OUT/Image --ramdisk $OUT/ramdisk.bin --cmdline "console=null" \

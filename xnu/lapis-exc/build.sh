@@ -7,3 +7,9 @@ aarch64-linux-gnu-objcopy -O binary -j .text exc_text.elf exc_text.bin
 ls -l exc_text.bin
 # the blob is placed at 0xfffffe000756e788: link address must match exactly
 aarch64-linux-gnu-nm exc_text.elf | grep -q '^fffffe000756e788 T _start$' || { echo "exc_text: _start not at 0x756e788"; exit 1; }
+# aux blob in the vector-table padding (0x756a800..0x756b000)
+aarch64-linux-gnu-gcc -c -nostdlib -o aux_text.o aux_text.S
+aarch64-linux-gnu-ld -Ttext=0xfffffe000756a800 -e _astart --no-warn-rwx-segments -o aux_text.elf aux_text.o
+aarch64-linux-gnu-objcopy -O binary -j .text aux_text.elf aux_text.bin
+[ $(stat -c %s aux_text.bin) -le 2048 ] || { echo "aux_text too big"; exit 1; }
+ls -l aux_text.bin

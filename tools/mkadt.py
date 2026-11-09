@@ -103,6 +103,10 @@ def build(profile, seed=None):
         ('boot-manifest-hash', BOOT_MANIFEST_HASH),
         ('crypto-hash-method', cstr('sha2-384')),
         ('display-scale', u32(2)),
+        # s10: the shim never locks CTRR/KTRR (and can't at EL1 under Gunyah):
+        # 0 -> ml_unsafe_kernel_text() true.  Without the property its init
+        # never runs and sdt_init asserts (seen in QEMU).
+        ('kernel-ctrr-to-be-enabled', u32(0)),
         # unique-chip-id omitted on purpose: with it (8 bytes) + chip-id,
         # IOPlatformExpertDevice::generatePlatformUUID() calls SHA1Init(),
         # which dereferences g_crypto_funcs (registered by the corecrypto
