@@ -115,10 +115,53 @@ PATCHES.append(('vm_param_test-entry-enotsup', 0xfffffe000743aa04, [0xa9ba6ffc, 
                 [0x528005a0, 0xd65f03c0, 0xd503201f]))
 _cdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-crypto')
 _cb = open(_os.path.join(_cdir, 'crypto.bin'), 'rb').read()
-_cb += b'\0' * (39588 - len(_cb))
-PATCHES.append(('lapis-crypto-provider', 0xfffffe000743aa10, '38cd1512da1382cffb2f9c3b1d629204b0825728ced36fcc76b84308d256feee',
-                list(_st.unpack('<%dI' % (39588 // 4), _cb))))
+_cb += b'\0' * (((len(_cb) + 15) & ~15) - len(_cb))
+PATCHES.append(('lapis-crypto-provider', 0xfffffe000743aa10, 'fb6678bc94edbdf00e7484110c85e8af8a62265d625cc4390c02fe99bcd52742',
+                list(_st.unpack('<%dI' % (len(_cb) // 4), _cb))))
 _ct = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_cdir, 'crypto.elf')], text=True).splitlines()
            if l.endswith(' lapis_crypto_functions')][0], 16)
 PATCHES.append(('g_crypto_funcs-builtin', 0xfffffe0007277400, [0, 0], [_ct & 0xffffffff, _ct >> 32]))
 PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))
+
+# s10: mockfs (built-in, since HFS/APFS are kexts) over leftover of the same
+# reclaim region; bsd_init's vfs_mountroot call redirected to register+mount.
+_mdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-mockfs')
+_mb = open(_os.path.join(_mdir, 'mockfs.bin'), 'rb').read()
+_mb += b'\0' * (((len(_mb) + 3) & ~3) - len(_mb))
+PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'e7600261481bd69aa5323228078e59cd4c36604aa80782506b7084590ea7db39',
+                list(_st.unpack('<%dI' % (len(_mb) // 4), _mb))))
+_mw = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
+           if l.endswith(' lapis_mountroot_wrap')][0], 16)
+def _bl(src, dst):
+    off = (dst - src) // 4
+    return 0x94000000 | (off & 0x3ffffff)
+PATCHES.append(('bsd_init-mockfs-mountroot', 0xfffffe00078a5a94, [0x97f52420],
+                [_bl(0xfffffe00078a5a94, _mw)]))
+
+# s10: IOService::setRootMedia looks up the IOMedia metaclass (IOStorageFamily
+# kext). Without a kernelcache that class is absent and the call from
+# IOFindBSDRoot(rd=md0, service=NULL) asserts. No-op for bring-up; mockfs does
+# not need IOMedia matching.
+PATCHES.append(('setRootMedia-noop', 0xfffffe0007abebd8, [0xa9bd57f6], [0xd65f03c0]))
+
+# s10: AMFI is NULL (no kext). IOCurrentTaskHasEntitlement/IOTaskHasEntitlement
+# dereference amfi+448 and fault. Deny (return false) for bring-up. An earlier
+# always-allow stub made arcade_prepare() arm AST_ARCADE on launchd, whose failed
+# fairplayd upcall then killed pid 1.
+PATCHES.append(('IOCurrentTaskHasEntitlement-deny', 0xfffffe0007b4991c, [0xa9be4ff4],
+                [0x52800000, 0xd65f03c0]))  # mov w0,#0; ret
+PATCHES.append(('IOTaskHasEntitlement-deny', 0xfffffe0007b49988, [0xa9be4ff4],
+                [0x52800000, 0xd65f03c0]))
+
+# s10 ramdisk: remaining IO*Entitlement helpers also deref NULL AMFI. Return 0 (false/NULL):
+# deny-by-default for string/integer/object/vnode queries (bring-up only, NOT a security model).
+PATCHES.append(('IOCurrentTaskHasStringEntitlement-zero', 0xfffffe0007b49824, [0xa9be4ff4, 0xa9017bfd], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOTaskHasStringEntitlement-zero', 0xfffffe0007b4989c, [0xa9be4ff4, 0xa9017bfd], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOTaskGetIntegerEntitlement-zero', 0xfffffe0007b499fc, [0xd10103ff, 0xa90157f6], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOCurrentTaskGetEntitlement-zero', 0xfffffe0007b49b14, [0xaa0003e1, 0xd2800000], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOTaskGetEntitlement-zero', 0xfffffe0007b49b20, [0xd10103ff, 0xa90157f6], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOTaskHasEntitlementAsBooleanOrObject-zero', 0xfffffe0007b49c60, [0xd10103ff, 0xa90157f6], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOVnodeHasEntitlement-zero', 0xfffffe0007b49d84, [0xa9be4ff4, 0xa9017bfd], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOVnodeGetBooleanEntitlement-zero', 0xfffffe0007b49df4, [0xa9be4ff4, 0xa9017bfd], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOVnodeGetIntegerEntitlement-zero', 0xfffffe0007b49e6c, [0xa9be4ff4, 0xa9017bfd], [0xd2800000, 0xd65f03c0]))
+PATCHES.append(('IOVnodeGetEntitlement-zero', 0xfffffe0007b49ee0, [0xa9bd57f6, 0xa9014ff4], [0xd2800000, 0xd65f03c0]))
