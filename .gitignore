@@ -1,0 +1,12 @@
+# Large Qualcomm firmware blobs from PixelOS dump (keep manifest + readmes only)
+hw/firmware/**
+!hw/firmware/MANIFEST.sha256
+!hw/firmware/**/*.md
+!hw/firmware/**/*.txt
+!hw/firmware/**/
+
+# Local build / emu outputs (never commit)
+out/
+out-emu/
+out-test/
+**/__pycache__/

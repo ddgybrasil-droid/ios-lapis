@@ -1,0 +1,19 @@
+# Toolchain (Debian bookworm/trixie box that builds this project)
+
+qemu-system-aarch64 10.0.13 (Debian 1:10.0.13+ds-0+deb13u1) — STOCK, no custom patches.
+  Machine: -M virt,virtualization=off,secure=off,gic-version=3
+  CPU: -cpu max ; RAM: 43G memory-backend-ram reserve=off
+  UFS: -device ufs -device ufs-lu -drive if=none,format=raw
+
+Cross compiler: aarch64-linux-gnu-gcc (Debian) + aarch64-linux-gnu-ld/objcopy/nm
+Python 3.13 with no special packages (stdlib only for build scripts)
+gdb-multiarch (for KGDB=1 msgbuf dump)
+
+BASE kernel we binary-patch (NOT rebuilt from source):
+  /workspace/ios-lapis/emu/out/lapis-xnu-s6/Image
+  sha256: fc334c3320059de3203b5e84d26a191ff07260f2a3fc9354f77ac74b5c4d3dac
+  size: 19744976
+  Included as lapis-xnu-s6.Image.xz
+
+IPSW: iPadOS 26.5 / 23F77 (iPad16,3) — extract at /workspace/ios-lapis/ipsw/extract/
+  Only launchd+dyld shipped in this handoff (see ipsw-bins/, rd/hw-min-23F77.lfs).
