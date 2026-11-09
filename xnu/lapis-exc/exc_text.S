@@ -365,6 +365,20 @@ h_vc_on:
 	strb	w10, [x9, :lo12:k_early_disabled]
 	dsb	sy
 	b	k_pe_init_printf
+/* s9: bzero's DC ZVA loop -> plain stores. DC ZVA on any Device-type mapping
+ * (ml_io_map*, WCOMB outside gDram: /pram panic region, framebuffer) is an
+ * architectural alignment fault (ESR 0x96000061 seen on SM8650); QEMU TCG and
+ * Apple cores don't fault. Same semantics: zero [x3, x3+64*n), x2 -= 64*n. */
+	.global bzero_zva_loop
+bzero_zva_loop:
+1:	stp	xzr, xzr, [x3]
+	stp	xzr, xzr, [x3, #16]
+	stp	xzr, xzr, [x3, #32]
+	stp	xzr, xzr, [x3, #48]
+	add	x3, x3, #0x40
+	subs	x2, x2, #0x40
+	b.hi	1b
+	b	k_bzero_tail
 s_8:	.asciz	"TTBR0 restored after arm_vm_init"
 	.balign 4
 	.ltorg

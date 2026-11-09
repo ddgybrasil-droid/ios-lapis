@@ -65,6 +65,10 @@ def build(profile, seed=None):
     mem_size = hx(mem['mem_size'])
     panic_log = hx(mem.get('panic_log_size', '0x100000'))
     panic_base = phys_base + mem_size - panic_log
+    # s9: like iBoot, dram-size spans all of DRAM *including* the /pram panic
+    # carve-out (XNU is_dram_addr() -> pram maps Normal-NC via WCOMB, not
+    # Device-GRE). boot_args memSize (mkpayload) still excludes /pram.
+    dram_size = mem_size
     mem_size -= panic_log
 
     gicd, gicd_sz = hx(gic['gicd_base']), hx(gic['gicd_size'])
@@ -90,7 +94,7 @@ def build(profile, seed=None):
     chosen = node('chosen', [
         ph(),
         ('dram-base', u64(phys_base)),
-        ('dram-size', u64(mem_size)),
+        ('dram-size', u64(dram_size)),
         ('random-seed', seed),
         ('debug-enabled', u32(1)),
         ('embedded-panic-log-size', u32(panic_log)),

@@ -94,3 +94,5 @@ for _site, _tgt, _h in ((0xfffffe0007bcead8, 0xfffffe0007b6f810, 'h_after_vm'),
     PATCHES.append(('arm_init-crumb-' + _h, _site, [_b(_site, _tgt, True)], [_b(_site, _sym(_h), True)]))
 PATCHES.append(('pe_init_iokit-vcattach-mute-early', 0xfffffe0007b70318,
                 [_b(0xfffffe0007b70318, 0xfffffe0007b6f0f8, True)], [_b(0xfffffe0007b70318, _sym('h_vc_on'), True)]))
+# s9: bzero DC ZVA loop -> stp loop (device-type-safe); see exc_text.S
+PATCHES.append(('bzero-no-dczva', 0xfffffe0007c48744, [0xd50b7423], [_b(0xfffffe0007c48744, _sym('bzero_zva_loop'))]))

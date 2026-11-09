@@ -137,8 +137,15 @@ def adt_dram(adt_blob):
     """Kernel-managed RAM <base, size> from the ADT's /chosen dram-base/dram-size."""
     root, _ = adt.parse(adt_blob)
     chosen = next(c for c in root.children if c.name == 'chosen')
-    return (struct.unpack('<Q', chosen.prop('dram-base'))[0],
-            struct.unpack('<Q', chosen.prop('dram-size'))[0])
+    base = struct.unpack('<Q', chosen.prop('dram-base'))[0]
+    size = struct.unpack('<Q', chosen.prop('dram-size'))[0]
+    # s9: dram-size includes the /pram panic carve-out; managed RAM stops below it.
+    pram = next((c for c in root.children if c.name == 'pram'), None)
+    if pram is not None and pram.prop('reg'):
+        pbase = struct.unpack_from('<Q', pram.prop('reg'))[0]
+        if base < pbase < base + size:
+            size = pbase - base
+    return base, size
 
 
 def build(kernel_path, adt_path, cmdline, ramdisk_path=None):
