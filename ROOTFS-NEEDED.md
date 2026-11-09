@@ -1,45 +1,34 @@
-# Rootfs files needed to push launchd past SIGSEGV
+# Launchd SIGSEGV — status (corrected)
 
-## Fault diagnosis (VERIFIED-emu)
+## What was wrong with the earlier diagnosis
 
-KGDB break on `_handle_user_abort` after spawn:
+KGDB: `ESR 0x82000007` Instr Abort / translation L3 at `FAR ≈ slide+0x30f0` is **dyld's entry**, not a missing dyld shared cache access (`0x180000000`).
 
-| Field | Value |
-|---|---|
-| ESR_EL1 | `0x82000007` — **Instruction Abort** from EL0, IFSC=`0x07` (Translation fault, level 3) |
-| ELR_EL1 / FAR_EL1 | `0x10……a40` (ASLR; e.g. `0x102477a40`) — unmapped page |
-| SPSR | EL0 |
-| Exit | `namespace 2 subcode 0xb` (OS_REASON_SIGNAL / SIGSEGV) |
+The user's full rootfs (4.9 GB, 283 entries, complete cache) still faults the same way. Cache slices are **not** the first blocker.
 
-Mini UFS root (`hw-min-23F77.lfs`) only has `/sbin/launchd` + `/usr/lib/dyld` and an **empty** `/System/Library/Caches/com.apple.dyld/`. Launchd is **arm64e**, `LC_LOAD_DYLIB` for:
+## VERIFIED-emu
 
-- `/usr/lib/libSystem.B.dylib`
-- `/usr/lib/libobjc.A.dylib`
-- `/usr/lib/libsandbox.1.dylib`
-- `/usr/lib/swift/libswiftCore.dylib`
-- `/usr/lib/swift/libswiftDarwin.dylib`
-- `/usr/lib/swift/libswiftDispatch.dylib`
-- `/usr/lib/swift/libswiftObjectiveC.dylib`
-- `/usr/lib/swift/libswift_Builtin_float.dylib`
-- `/usr/lib/swift/libswift_DarwinFoundation1.dylib`
+| Case | Result |
+|------|--------|
+| Static arm64 `/sbin/launchd` (`placeholder.lfs`) from md0 lapisfs | Runs in EL0 (`PC=0x100001000`, `PSTATE=EL0t`, `b .` loop) |
+| Real arm64e `launchd` + `/usr/lib/dyld` (`hw-min` or full root) md0 or UFS | Spawn OK → SIGSEGV at dyld entry (`slide+0x30f0`) |
 
-On iPadOS these live in the **dyld shared cache**, not as on-disk dylibs. dyld jumps into cache VAs → translation fault.
+So lapisfs **can** map executable pages for a plain arm64 main binary. The failure is specific to the **arm64e MH_DYLINKER (dyld) load/fault path**.
 
-Not a TPRO/PAC decode issue (that would be a different ESR EC). Not a missing syscall yet — we never reach launchd main.
+## What we tried (compiled + emu-tested)
 
-## What to send (25 MiB / file limit)
+- Prefer `buf_strategy(md0)` for strategy when the ramdisk holds the whole image (s10 style)
+- `ubc_msync(..., UBC_INVALIDATE)` on `VNOP_MMAP` so dyld page 0 is demand-paged (we then see `pagein idx=5 foff=0`)
+- Direct UPL fill + commit — hung when using kernel-only `UPL_COMMIT_CS_VALIDATED`
+- Stage small blk roots (≤48 MiB) fully into RAM for md0-parity I/O
+- CS-disable boot-args — no change
 
-**Best:** host or attach `rootfs-23F77.lfs` (~4.84 GiB) somehow (not via 25 MiB chat chunks).
+Page 0 of dyld is filled during load after invalidate, but EL0 still takes L3 translation at the entry VA (no further `pagein foff=0` on the user fault). Soft-fault of that resident/entry page into the user pmap is still broken for arm64e dyld.
 
-**Otherwise, phase 1 (small, so we can map which slices hold libSystem/swift):**
+## Cache slices (only if/when past dyld entry)
 
-| Path | Size |
-|---|---|
-| `/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64e` | 622592 |
-| `/System/Library/Caches/com.apple.dyld/dyld_shared_cache_arm64e.atlas` | 2754649 |
-| `/usr/lib/dyld` | 1333168 (already have) |
-| `/sbin/launchd` | 620432 (already have) |
+If a later failure is actually cache-related, the full image listing is in the attached dyld-cache directory. Slices are 50–235 MB each; split into ≤24 MB parts as needed. **Do not prioritize shipping cache until arm64e dyld executes its first instruction.**
 
-**Phase 2:** after atlas parse, we will name the exact `.NN` / `.dylddata` / `.dyldlinkedit` slices (many are 50–235 MiB → split into ≤25 MiB parts named `FILE.partNN`). Full unique cache list is in `rd/rootfs-23F77.UNIQUE-FILES.txt` (~4.84 GiB total).
+## SMP note
 
-Also useful later: `/System/Library/xpc/launchd.plist`, jetsam plists under `/System/Library/JetsamProperties/`.
+`random_cpu_init` panics when `prng_ready==0` (corecrypto PRNG never installs without the kext). Binpatch: `random_cpu_init` → `ret`. `read_random` already has a software fallback.

@@ -61,6 +61,10 @@ _pf = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _bin[
 assert _EXC_VA <= _pf < _EXC_VA + _EXC_LEN
 PATCHES.append(('read_random-erandom-fallback', 0xfffffe0007548bb4, [0xa9bb67fa],
                 [0x14000000 | (((_pf - 0xfffffe0007548bb4) >> 2) & 0x3ffffff)]))
+# Bring-up: corecrypto PRNG is never installed (no kext / prng_ready stays 0), so
+# ml_processor_register(cpu≥1) → random_cpu_init panics. read_random already has a
+# software fallback above; make random_cpu_init a no-op so secondaries can register.
+PATCHES.append(('random_cpu_init-nop', 0xfffffe0007548b60, [0xa9bf7bfd], [0xd65f03c0]))
 # s7: crypto_random_{generate,uniform,kmem_ctx_size,kmem_init} wrappers ->
 # corecrypto-less fallbacks in the blob (source: patch 0014).
 def _sym(n):
@@ -128,7 +132,7 @@ PATCHES.append(('crypto_init-true', 0xfffffe00072773f8, [0], [1]))
 _mdir = _os.path.join(_os.path.dirname(_bin), '..', 'lapis-mockfs')
 _mb = open(_os.path.join(_mdir, 'mockfs.bin'), 'rb').read()
 _mb += b'\0' * (((len(_mb) + 3) & ~3) - len(_mb))
-PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'ee04a60c915666a8fe5332930b3eda87263204ba90f196cbeacd946eee442648',
+PATCHES.append(('lapis-mockfs', 0xfffffe000743cac0, 'fc7d21cfea3e2394ef86a0a7a66ca09b35bfd19144ac7af164373a25c957b220',
                 list(_st.unpack('<%dI' % (len(_mb) // 4), _mb))))
 _mw = int([l.split()[0] for l in _sp.check_output(['aarch64-linux-gnu-nm', _os.path.join(_mdir, 'mockfs.elf')], text=True).splitlines()
            if l.endswith(' lapis_mountroot_wrap')][0], 16)

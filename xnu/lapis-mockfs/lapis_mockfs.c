@@ -140,6 +140,8 @@ struct mnt_data {
 	const char *strs;
 	struct fsnode **nodes;
 	uint64_t total;
+	uint64_t staged;   /* bytes valid in base[] (metadata or whole image) */
+	int use_blk;       /* 1 = file bytes come from LapisBlk->read */
 };
 enum { LFS_DIR = 1, LFS_REG = 2 };
 
@@ -183,7 +185,24 @@ extern uint32_t buf_count(buf_t), buf_flags(buf_t);
 extern int buf_map(buf_t, char **), buf_unmap(buf_t);
 extern void buf_setresid(buf_t, uint32_t), buf_biodone(buf_t), buf_seterror(buf_t, int);
 extern void *memcpy(void *, const void *, size_t), *memset(void *, int, size_t);
+extern int ubc_upl_map(upl_t, void **);
+extern int ubc_upl_unmap(upl_t);
+extern int ubc_upl_commit_range(upl_t, uint32_t, uint32_t, int);
+extern int ubc_upl_abort_range(upl_t, uint32_t, uint32_t, int);
+extern int ubc_msync(vnode_t, off_t, off_t, int *, int);
+extern void vnode_setnocache(vnode_t);
+#define UBC_INVALIDATE_ 0x04
+struct vnop_mmap_args { void *a_desc; vnode_t a_vp; int a_fflags; vfs_context_t a_context; };
 #define B_READ_ 0x1
+#define PAGE_MASK_16K 0x3fffu
+#define UPL_NOCOMMIT_ 0x2
+#define UPL_COMMIT_FREE_ON_EMPTY_ 0x1
+#define UPL_COMMIT_CLEAR_DIRTY_ 0x2
+#define UPL_COMMIT_CS_VALIDATED_ 0x40
+#define UPL_ABORT_ERROR_ 0x4
+#define UPL_ABORT_FREE_ON_EMPTY_ 0x8
+/* Stage whole blk images up to this size into kernel RAM (md0-parity path). */
+#define LFS_STAGE_ALL_MAX (48u << 20)
 extern vnode_t buf_vnode(buf_t);
 extern int strncmp(const char *, const char *, size_t);
 extern int IOLog(const char *, ...);
@@ -278,8 +297,7 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 		if (bo->state == 1 && bo->read && bo->root_size >= 0x4000) use_blk = 1;
 	}
 	if (use_blk) {
-		/* Stage the image header (and later file data) via bo->read into a
-		 * kernel buffer for metadata; file data goes through strategy. */
+		/* Stage header, then either the whole image (small) or metadata only. */
 		uint8_t *hdr = IOMallocZero(0x4000);
 		if (!hdr || bo->read(0, 0x4000, hdr)) { if (hdr) IOFree(hdr, 0x4000); IOLog("LAPIS lapisfs: blk header read FAILED\n"); return EIO; }
 		IOLog("LAPIS lapisfs: blk header OK\n");
@@ -288,21 +306,32 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 		}
 		md = IOMallocZero(sizeof(*md));
 		if (!md) { IOFree(hdr, 0x4000); return ENOMEM; }
-		md->base = hdr;   /* only the first page staged; strategy uses bo->read */
-		md->nent = *(const uint32_t *)(hdr + 8);
-		/* For blk roots we need the full metadata (ents+strs). Read them too. */
 		{
 			uint64_t ent_off = *(const uint64_t *)(hdr + 16);
 			uint64_t str_off = *(const uint64_t *)(hdr + 24);
 			uint64_t total = *(const uint64_t *)(hdr + 32);
-			uint64_t meta_end = str_off + 0x10000; /* generous; clamp */
-			if (meta_end > total) meta_end = total;
-			if (meta_end > 0x4000) {
-				uint8_t *full = IOMallocZero((size_t)meta_end);
-				if (!full) { IOFree(hdr, 0x4000); IOFree(md, sizeof(*md)); return ENOMEM; }
-				if (bo->read(0, meta_end, full)) { IOFree(full,(size_t)meta_end); IOFree(hdr,0x4000); IOFree(md,sizeof(*md)); return EIO; }
-				IOFree(hdr, 0x4000); hdr = full; md->base = hdr;
+			uint64_t stage = total;
+			int whole = 0;
+			/* Prefer a full in-RAM image for small roots so pagein/mmap match md0. */
+			if (total > 0 && total <= LFS_STAGE_ALL_MAX) whole = 1;
+			else {
+				stage = str_off + 0x10000;
+				if (stage > total) stage = total;
+				if (stage < 0x4000) stage = 0x4000;
 			}
+			{
+				uint8_t *full = IOMallocZero((size_t)stage);
+				if (!full) { IOFree(hdr, 0x4000); IOFree(md, sizeof(*md)); return ENOMEM; }
+				if (bo->read(0, stage, full)) {
+					IOFree(full, (size_t)stage); IOFree(hdr, 0x4000); IOFree(md, sizeof(*md));
+					return EIO;
+				}
+				IOFree(hdr, 0x4000); hdr = full;
+			}
+			md->base = hdr;
+			md->staged = stage;
+			md->use_blk = whole ? 0 : 1; /* whole image staged ⇒ memcpy path */
+			md->nent = *(const uint32_t *)(hdr + 8);
 			md->ents = (const struct lfs_ent *)(hdr + ent_off);
 			md->strs = (const char *)(hdr + str_off);
 			md->total = total;
@@ -310,9 +339,10 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 		md->nodes = IOMallocZero(sizeof(void *) * md->nent);
 		if (!md->nodes) return ENOMEM;
 		vfs_setfsprivate(mp, md);
-		/* Stash blkops pointer in reserved via a side channel: encode use_blk in nent top? 
-		 * Instead: strategy checks LAPIS_BLKOPS_VA->state. */
-		lapis_log("LAPIS lapisfs: mounted blk root size=%llx entries=%llu state=%llu\n", md->total, md->nent, (uint64_t)bo->state);
+		lapis_log("LAPIS lapisfs: mounted blk root size=%llx entries=%llu staged=%llx\n",
+		          md->total, md->nent, md->staged);
+		if (md->use_blk) IOLog("LAPIS lapisfs: blk file I/O via LapisBlk\n");
+		else IOLog("LAPIS lapisfs: blk image fully staged in RAM\n");
 		return 0;
 	}
 	if (mdevgetrange(0, &base, &sz) != 0 || sz < 0x4000) return EINVAL;
@@ -325,6 +355,8 @@ static int mockfs_mount(mount_t mp, vnode_t rvp, uint64_t data, vfs_context_t ct
 	md->ents = (const struct lfs_ent *)(b + *(const uint64_t *)(b + 16));
 	md->strs = (const char *)(b + *(const uint64_t *)(b + 24));
 	md->total = *(const uint64_t *)(b + 32);
+	md->staged = md->total; /* entire image mapped via md0 */
+	md->use_blk = 0;
 	md->nodes = IOMallocZero(sizeof(void *) * md->nent);
 	if (!md->nodes) return ENOMEM;
 	vfs_setfsprivate(mp, md);
@@ -399,46 +431,157 @@ static int mockfs_reclaim(struct vnop_reclaim_args *ap)
 	return 0;
 }
 
-/* md0 can't address >4 GiB (memdev computes uint32 mdSize << 12), so file I/O
- * bypasses the md strategy and copies straight from the ramdisk mapping. */
+/* Read `n` bytes at image offset `off` into `va`. Prefer staged RAM; else LapisBlk. */
+static int lfs_read_img(struct mnt_data *md, uint64_t off, uint64_t n, void *va)
+{
+	struct lapis_blkops *bo = LAPIS_BLKOPS_VA;
+	uint64_t avail, take;
+	if (!n) return 0;
+	if (off >= md->total) { memset(va, 0, (size_t)n); return 0; }
+	avail = md->total - off;
+	take = avail < n ? avail : n;
+	if (off + take <= md->staged && md->base) {
+		memcpy(va, md->base + off, (size_t)take);
+	} else if (md->use_blk && bo->magic == LAPIS_BLKOPS_MAGIC &&
+	           bo->state == 1 && bo->read) {
+		if (bo->read(off, take, va)) return EIO;
+	} else if (md->base && off < md->staged) {
+		/* Partial: staged prefix then zeros (should not happen for valid files). */
+		uint64_t s = md->staged - off;
+		if (s > take) s = take;
+		memcpy(va, md->base + off, (size_t)s);
+		if (s < take) memset((uint8_t *)va + s, 0, (size_t)(take - s));
+	} else {
+		return EIO;
+	}
+	if (take < n) memset((uint8_t *)va + take, 0, (size_t)(n - take));
+	return 0;
+}
+
+/*
+ * Strategy:
+ *  - Prefer buf_strategy(devvp) when the mount's block device covers the whole
+ *    lapisfs image (s10/s11 md0 case). That path is what makes cluster_pagein
+ *    wire executable pages; a hand memcpy into the buf left dyld's entry page
+ *    unmapped (EL0 Instr Abort / translation L3 at slide+0x30f0).
+ *  - Otherwise (UFS root while vfs_devvp is still the tiny placeholder md0)
+ *    fill via lfs_read_img (staged RAM or LapisBlk).
+ */
 static int mockfs_strategy(struct vnop_strategy_args *ap)
 {
 	buf_t bp = ap->a_bp;
 	struct fsnode *f = vnode_fsnode(buf_vnode(bp));
 	struct mnt_data *md = vfs_fsprivate(f->mnt);
 	uint32_t blk = vfs_devblocksize(f->mnt);
-	uint64_t off, cnt, n;
+	uint64_t off, cnt;
 	char *va;
-	struct lapis_blkops *bo = LAPIS_BLKOPS_VA;
+	vnode_t dvp;
+
+	if (!md->use_blk) {
+		dvp = vfs_devvp(f->mnt);
+		if (dvp) {
+			/* md0 holding the full image: delegate like s10. */
+			int r = buf_strategy(dvp, ap);
+			vnode_put(dvp);
+			return r;
+		}
+	}
+
 	if (!blk) blk = 512;
 	off = (uint64_t)buf_blkno(bp) * blk;
 	cnt = buf_count(bp);
 	if (!(buf_flags(bp) & B_READ_) || buf_map(bp, &va)) {
 		buf_seterror(bp, EIO); buf_biodone(bp); return EIO;
 	}
-	n = (off < md->total) ? md->total - off : 0;
-	if (n > cnt) n = cnt;
-	if (n) {
-		/* If LapisBlk owns the root, file data lives on the disk — use its read. */
-		if (bo->magic == LAPIS_BLKOPS_MAGIC && bo->state == 1 && bo->read &&
-		    off + n > 0x10000) {          /* past the staged metadata window */
-			if (bo->read(off, n, va)) { buf_unmap(bp); buf_seterror(bp, EIO); buf_biodone(bp); return EIO; }
-		} else {
-			memcpy(va, md->base + off, (size_t)n);
-		}
+	if (lfs_read_img(md, off, cnt, va)) {
+		buf_unmap(bp); buf_seterror(bp, EIO); buf_biodone(bp); return EIO;
 	}
-	if (n < cnt) memset(va + n, 0, (size_t)(cnt - n));
 	buf_unmap(bp);
 	buf_setresid(bp, 0);
 	buf_biodone(bp);
 	return 0;
 }
 
+/*
+ * Pagein: use cluster_pagein when strategy can go through a real device
+ * (md0). For blk-backed / fully-staged-in-RAM roots where vfs_devvp is the
+ * tiny placeholder, fill the UPL directly — cluster_pagein+custom-strategy
+ * does not establish executable PTEs.
+ */
 static int mockfs_pagein(struct vnop_pagein_args *ap)
 {
 	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
-	return cluster_pagein(ap->a_vp, ap->a_pl, ap->a_pl_offset, ap->a_f_offset,
-	                      ap->a_size, (off_t)fsn->e->size, ap->a_flags);
+	struct mnt_data *md = vfs_fsprivate(fsn->mnt);
+	off_t foff = ap->a_f_offset;
+	size_t size = ap->a_size;
+	uint32_t ploff = (uint32_t)ap->a_pl_offset;
+	uint32_t sz32 = (uint32_t)size;
+	int flags = ap->a_flags;
+	uint64_t fsz = fsn->e->size;
+	void *va = 0;
+	uint64_t copy;
+	int err;
+	vnode_t dvp;
+
+	/* Trace pageins (bring-up). No .bss writes — blob is RO. */
+	lapis_log("LAPIS pagein idx=%llu foff=%llx sz=%llx\n",
+	          (uint64_t)fsn->idx, (uint64_t)foff, (uint64_t)size);
+
+	/* Prefer cluster_pagein when a real block device backs the image (md0). */
+	if (!md->use_blk && (dvp = vfs_devvp(fsn->mnt))) {
+		int r;
+		vnode_put(dvp);
+		r = cluster_pagein(ap->a_vp, ap->a_pl, ap->a_pl_offset, ap->a_f_offset,
+		                   ap->a_size, (off_t)fsz, ap->a_flags);
+		if (r) lapis_log("LAPIS cluster_pagein err=%x idx=%llu foff=%llx\n",
+		                 (uint64_t)(uint32_t)r, (uint64_t)fsn->idx, (uint64_t)foff);
+		return r;
+	}
+
+	/* Blk-backed / staged-in-RAM: fill UPL directly (no device strategy). */
+	if (foff < 0 || (foff & PAGE_MASK_16K) || (size & PAGE_MASK_16K) ||
+	    (ap->a_pl_offset & PAGE_MASK_16K) || size != sz32) {
+		if (!(flags & UPL_NOCOMMIT_))
+			ubc_upl_abort_range(ap->a_pl, ploff, sz32,
+			                    UPL_ABORT_FREE_ON_EMPTY_ | UPL_ABORT_ERROR_);
+		return EINVAL;
+	}
+	if ((uint64_t)foff >= fsz) {
+		if (!(flags & UPL_NOCOMMIT_))
+			ubc_upl_abort_range(ap->a_pl, ploff, sz32,
+			                    UPL_ABORT_FREE_ON_EMPTY_ | UPL_ABORT_ERROR_);
+		return EINVAL;
+	}
+
+	err = ubc_upl_map(ap->a_pl, &va);
+	if (err || !va) {
+		lapis_log("LAPIS pagein map FAIL err=%x va=%llx foff=%llx\n",
+		          (uint64_t)(uint32_t)err, (uint64_t)(uintptr_t)va, (uint64_t)foff);
+		if (!(flags & UPL_NOCOMMIT_))
+			ubc_upl_abort_range(ap->a_pl, ploff, sz32,
+			                    UPL_ABORT_FREE_ON_EMPTY_ | UPL_ABORT_ERROR_);
+		return err ? err : EIO;
+	}
+
+	memset((uint8_t *)va + ploff, 0, size);
+	copy = fsz - (uint64_t)foff;
+	if (copy > size) copy = size;
+	err = copy ? lfs_read_img(md, fsn->e->data_off + (uint64_t)foff, copy,
+	                          (uint8_t *)va + ploff) : 0;
+	ubc_upl_unmap(ap->a_pl);
+
+	if (err) {
+		if (!(flags & UPL_NOCOMMIT_))
+			ubc_upl_abort_range(ap->a_pl, ploff, sz32,
+			                    UPL_ABORT_FREE_ON_EMPTY_ | UPL_ABORT_ERROR_);
+		lapis_log("LAPIS pagein FAIL foff=%llx sz=%llx err=%x\n",
+		          (uint64_t)foff, (uint64_t)size, (uint64_t)(uint32_t)err);
+		return err;
+	}
+	if (!(flags & UPL_NOCOMMIT_))
+		ubc_upl_commit_range(ap->a_pl, ploff, sz32,
+		                     UPL_COMMIT_FREE_ON_EMPTY_ | UPL_COMMIT_CLEAR_DIRTY_);
+	return 0;
 }
 
 static int mockfs_blockmap(struct vnop_blockmap_args *ap)
@@ -459,7 +602,44 @@ static int mockfs_blockmap(struct vnop_blockmap_args *ap)
 	return 0;
 }
 
+struct vnop_blktooff_args { void *a_desc; vnode_t a_vp; daddr64_t a_lblkno; off_t *a_offset; };
+struct vnop_offtoblk_args { void *a_desc; vnode_t a_vp; off_t a_offset; daddr64_t *a_lblkno; };
+
+static int mockfs_blktooff(struct vnop_blktooff_args *ap)
+{
+	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
+	uint32_t blk = vfs_devblocksize(fsn->mnt);
+	if (!blk) blk = 512;
+	*ap->a_offset = (off_t)ap->a_lblkno * blk;
+	return 0;
+}
+
+static int mockfs_offtoblk(struct vnop_offtoblk_args *ap)
+{
+	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
+	uint32_t blk = vfs_devblocksize(fsn->mnt);
+	if (!blk) blk = 512;
+	*ap->a_lblkno = (daddr64_t)((uint64_t)ap->a_offset / blk);
+	return 0;
+}
+
 static int lfs_zero(void *ap) { (void)ap; return 0; }
+
+/*
+ * mach_loader vn_rdwr's the Mach-O header into UBC (file page 0). For dyld that
+ * same page holds the entry (0x30f0). Those UBC pages were observed resident
+ * but never mapped into the user address space, while later pages correctly
+ * demand-paged — EL0 then died at dyld entry with translation L3. Invalidate
+ * on mmap so page 0 is demand-paged like the rest.
+ */
+static int mockfs_mmap(struct vnop_mmap_args *ap)
+{
+	struct fsnode *fsn = vnode_fsnode(ap->a_vp);
+	if (fsn && fsn->type == LFS_REG && fsn->e->size)
+		(void)ubc_msync(ap->a_vp, 0, (off_t)fsn->e->size, 0, UBC_INVALIDATE_);
+	IOLog("LAPIS mmap invalidate\n");
+	return 0;
+}
 
 static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_default_desc,  (int(*)(void*))vn_default_error },
@@ -475,7 +655,7 @@ static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_write_desc,    (int(*)(void*))err_write },
 	{ &vnop_ioctl_desc,    (int(*)(void*))err_ioctl },
 	{ &vnop_select_desc,   (int(*)(void*))err_select },
-	{ &vnop_mmap_desc,     (int(*)(void*))lfs_zero },
+	{ &vnop_mmap_desc,     (int(*)(void*))mockfs_mmap },
 	{ &vnop_fsync_desc,    (int(*)(void*))nop_fsync },
 	{ &vnop_remove_desc,   (int(*)(void*))err_remove },
 	{ &vnop_link_desc,     (int(*)(void*))err_link },
@@ -494,8 +674,8 @@ static const struct vnodeopv_entry_desc mockfs_entries[] = {
 	{ &vnop_pagein_desc,   (int(*)(void*))mockfs_pagein },
 	{ &vnop_pageout_desc,  (int(*)(void*))err_pageout },
 	{ &vnop_copyfile_desc, (int(*)(void*))err_copyfile },
-	{ &vnop_blktooff_desc, (int(*)(void*))err_blktooff },
-	{ &vnop_offtoblk_desc, (int(*)(void*))err_offtoblk },
+	{ &vnop_blktooff_desc, (int(*)(void*))mockfs_blktooff },
+	{ &vnop_offtoblk_desc, (int(*)(void*))mockfs_offtoblk },
 	{ &vnop_blockmap_desc, (int(*)(void*))mockfs_blockmap },
 	{ 0, 0 }
 };

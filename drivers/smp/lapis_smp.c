@@ -211,11 +211,16 @@ static void smp_register_range(unsigned lo, unsigned hi)
 static void smp_late_thread(void *a, int w)
 {
 	(void)a;(void)w;
-	/* random_cpu_init() Asserts if ml_processor_register(cpu≥1) runs during
-	 * early IOKit matching. Defer secondaries until entropy is up. */
-	unsigned delay = (unsigned)drv_bootarg("lapis_smp_delay_ms", 35000);
-	LOG("deferring cpus 1..%u by %u ms (avoid random_cpu_init Assert)", g_want - 1, delay);
+	/* random_cpu_init is binpatched to ret (prng never installs without the
+	 * corecrypto kext). Still defer briefly so BSP / IOKit settle. */
+	unsigned delay = (unsigned)drv_bootarg("lapis_smp_delay_ms", 2000);
+	LOG("deferring cpus 1..%u by %u ms", g_want - 1, delay);
 	if (delay) IOSleep(delay);
+	{
+		/* prng_ready @ fixed VA — informational only after the nop patch. */
+		volatile int *prng_ready = (volatile int *)0xfffffe00071a40c8ull;
+		LOG("prng_ready=%d before secondary register", *prng_ready);
+	}
 	if (g_want > 1) smp_register_range(1, g_want);
 	LOG("late done: real_ncpus=%u brought_up≈%u", real_ncpus, brought_up);
 }

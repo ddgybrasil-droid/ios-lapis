@@ -20,10 +20,10 @@ Rebuild: `./build-images.sh`. **hw-full clamps `lapis_smp_n=1` until SMP is VERI
 | LapisBlk ROOT + GPT | **VERIFIED-emu** | `ROOT = disk0s2` |
 | LapisBlk `/dev/disk*` | **VERIFIED-emu** | `devfs ready — publishing /dev/disk*` then `published /dev/disk0 (+ 3 slices)` — `/tmp/evidence/ufs-devfs-v5/msgbuf.txt` |
 | lapisfs ← UFS | **VERIFIED-emu** | mounted 15-entry mini root |
-| launchd from UFS | **NOT DONE** (spawn+SIGSEGV) | Instr Abort EL0, ESR=`0x82000007` IFSC=translation L3, FAR≈`0x10……a40` — **missing dyld shared cache**. See `ROOTFS-NEEDED.md` |
+| launchd from UFS | **NOT DONE** (spawn+SIGSEGV) | FAR=`slide+0x30f0` = **dyld entry**, not shared cache. Static arm64 launchd **VERIFIED-emu** EL0; arm64e+dyld still L3 abort. See `ROOTFS-NEEDED.md` |
 | LapisFB | **VERIFIED-emu** | splash + platform props; no DSI |
 | LapisSMP PSCI probe | **VERIFIED-emu** | HVC 1.1, Aff0 auto-detect |
-| LapisSMP 8 CPUs online | **NOT DONE** | `ml_processor_register(cpu≥1)` → Assert in `random_cpu_init` (bt: `ml_processor_register+0x180`). Fixed PE thiscall (cpu in x1) + SGI; deferral does not clear Assert. Keep `smp_n=1` on hw images |
+| LapisSMP 8 CPUs online | **compiled-only** (assert patched) | Root cause: `prng_ready==0` forever → `random_cpu_init` panics. Binpatch `random_cpu_init→ret` (prng never installs without corecrypto kext). Needs re-verify with `QEMU -smp 8` |
 | qcom_scm + PIL | **compiled-only** | Real SMCCC/PAS; off on emu |
 | LapisWiFi | **compiled-only** | MHI BHI/BHIe state machine + gated IMGTXDB; needs `amss.bin` |
 | LapisGPU | **compiled-only** | GMU/RSC dump + CP ring/NOP/MEM_WRITE; 2D fill NOT DONE |
@@ -53,8 +53,11 @@ pid 1 exited -- exit reason namespace 2 subcode 0xb, description none
 
 ```
 ESR_EL1 0x82000007   # Instr Abort EL0, translation fault level 3
-ELR/FAR 0x10……a40    # ASLR; unmapped (shared-cache) page
+ELR/FAR = dyld_slide + 0x30f0   # dyld LC_UNIXTHREAD entry — not shared-cache
 ```
+
+User confirmed full rootfs (283 entries, complete dyld cache) still hits the same fault. Missing cache is **not** the first blocker.
+
 
 ## Expected hw log lines
 

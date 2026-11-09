@@ -25,6 +25,12 @@ DS="
 --defsym=mdevgetrange=0xfffffe00075cb8e0
 --defsym=cluster_read=0xfffffe00075e2f18
 --defsym=cluster_pagein=0xfffffe00075e07e0
+--defsym=ubc_upl_map=0xfffffe0007938700
+--defsym=ubc_upl_unmap=0xfffffe000793873c
+--defsym=ubc_upl_commit_range=0xfffffe00079387ac
+--defsym=ubc_upl_abort_range=0xfffffe0007937db8
+--defsym=ubc_msync=0xfffffe00079381a8
+--defsym=vnode_setnocache=0xfffffe000761e0b0
 --defsym=buf_strategy=0xfffffe00075d6980
 --defsym=buf_vnode=0xfffffe00075d5e58
 --defsym=buf_blkno=0xfffffe00075d6514
