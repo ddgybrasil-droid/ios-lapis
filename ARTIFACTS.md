@@ -2,15 +2,13 @@
 
 Cloud agent artifacts directory: `/opt/cursor/artifacts/`
 
-| File | sha256 | size |
-|---|---|---|
-| `lapis-xnu-hw-safe.img` | `050768555f0be27424c6e93e09930fa6b16a0788fabeaf2aca86e10a8c88c3a3` | 21 MiB |
-| `lapis-xnu-hw-full.img` | `1c5f29132b737245b8eeae239308fc7dfc2e5fafc80a636c1da36b85e7eeef08` | 21 MiB |
-| `lapis-xnu-emu.img` | `578665d876cf934a160162665e332ac586b1775e169e89fda86a153fbf54760c` | 19 MiB |
-| `ufs-launchd-v4-msgbuf.txt` | `fb79e902dc904aff4795dc348efa3fd825e44a14594bff217f2a6c794db50095` | evidence |
-| `smp-secondary-hang-msgbuf.txt` | `087dd00f82e491be7f0324ccd58bd18ba1684b0a84e79e8574ab842e38614892` | evidence |
-| `md0-launchd-msgbuf.txt` | `e0ac49fac1c1444916dfbaa572b647861e555ef88a5f2b95158cde2faab03f23` | evidence |
+| File | sha256 |
+|---|---|
+| `lapis-xnu-hw-safe.img` | `380db99f7177a4496de298ab92ce4e648b4912d5e404c960ecc548be8163b3bb` |
+| `lapis-xnu-hw-full.img` | `e2387a152324d468dfb0ee20120e32d6d3bbe3a014fc10923cdd7670c7d0c65d` |
+| `lapis-xnu-emu.img` | `b81aec59860f33b81af8b54b9bfc04fbc78bd77b1ce35cdf6d289d8c731f84d8` |
+| `ufs-devfs-v5-msgbuf.txt` | `b291d5d51cad31e58d688285c3f20c14fccf85b082631f20e2a63c8e51f11c0f` |
+| `smp-assert-msgbuf.txt` | `e614564e5a126c38c88e35634ebc735b017824352da3b3197e51f38b275c060b` |
+| `launchd-fault-kgdb.txt` | `f247fd47301a261f5fe766cf252c56c0c6c00e0fafbafa26a7896b64d0c9177e` |
 
-Local rebuild outputs (gitignored): `out/lapis-xnu-hw-{safe,full}.img`, `out-emu/lapis-xnu-emu.img`.
-
-Images are too large for a normal git commit; fetch from the cloud agent artifacts / PR attachments.
+See also `ROOTFS-NEEDED.md` for the dyld shared-cache file list.
