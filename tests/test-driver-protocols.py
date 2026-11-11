@@ -10,6 +10,7 @@ TESTS = (
     "tests/test-pmic-glink-batt.c",
     "tests/test-sdhci-csd.c",
     "tests/test-wifi-audio-wire.c",
+    "tests/test-mdt-hfi.c",
 )
 
 def main():
@@ -32,10 +33,19 @@ def main():
     audio = open(os.path.join(ROOT, "drivers/audio/lapis_audio.c"), encoding="utf-8").read()
     if "graph payload is empty" not in audio:
         sys.exit("audio no longer refuses an empty APM graph")
+    gpu = open(os.path.join(ROOT, "drivers/gpu/lapis_gpu.c"), encoding="utf-8").read()
+    if "queue is not allocated" not in gpu or "CP submission refused" not in gpu:
+        sys.exit("gpu no longer refuses HFI and CP submission")
+    mdt = open(os.path.join(ROOT, "drivers/scm/mdt_image.c"), encoding="utf-8").read()
+    if "smc #" in mdt.lower() or "qcom_scm_" in mdt:
+        sys.exit("mdt parser issues an SMC")
     for src in TESTS:
         bin_path = os.path.join("/tmp", os.path.basename(src) + ".bin")
-        subprocess.check_call(["gcc", "-Wall", "-Wextra", "-Werror", "-std=c11",
-                               os.path.join(ROOT, src), "-o", bin_path])
+        cmd = ["gcc", "-Wall", "-Wextra", "-Werror", "-std=c11",
+               os.path.join(ROOT, src), "-o", bin_path]
+        if src.endswith("test-mdt-hfi.c"):
+            cmd.insert(-2, os.path.join(ROOT, "drivers/scm/mdt_image.c"))
+        subprocess.check_call(cmd)
         subprocess.check_call([bin_path])
     print("PASS driver protocols")
 
