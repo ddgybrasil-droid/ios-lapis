@@ -11,6 +11,7 @@ TESTS = (
     "tests/test-sdhci-csd.c",
     "tests/test-wifi-audio-wire.c",
     "tests/test-mdt-hfi.c",
+    "tests/test-gic-fb.c",
 )
 
 def main():
@@ -39,6 +40,12 @@ def main():
     mdt = open(os.path.join(ROOT, "drivers/scm/mdt_image.c"), encoding="utf-8").read()
     if "smc #" in mdt.lower() or "qcom_scm_" in mdt:
         sys.exit("mdt parser issues an SMC")
+    fb = open(os.path.join(ROOT, "drivers/fb/lapis_fb.c"), encoding="utf-8").read()
+    if 'drv_bootarg("lapis_fb", 1)' in fb or "FB OK" in fb:
+        sys.exit("framebuffer still paints by default or claims the panel is up")
+    gic = open(os.path.join(ROOT, "drivers/gic/lapis_gic.c"), encoding="utf-8").read()
+    if "lapis_gic_intid_count" not in gic or "lapis_gic_redist_awake" not in gic:
+        sys.exit("gic no longer uses the decoded INTID count and WAKER check")
     for src in TESTS:
         bin_path = os.path.join("/tmp", os.path.basename(src) + ".bin")
         cmd = ["gcc", "-Wall", "-Wextra", "-Werror", "-std=c11",
