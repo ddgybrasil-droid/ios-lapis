@@ -7,8 +7,7 @@ Host check: python3 tests/test-boot-image.py
 What this image is
 ------------------
 A patched copy of qemu/Image for local QEMU virt. It is not a flashable
-tablet firmware image. SpringBoard is not claimed. launchd / load_init_program
-are not reached yet (post-mount pageout-scan wait).
+tablet firmware image. SpringBoard is not claimed.
 
 Patches applied
 ---------------
@@ -16,14 +15,23 @@ Patches applied
    patches only; the intentional segment slide 0x175b0 is left alone).
 2. IOStartIOKit call in bsd_init replaced with `mov w0, #0`.
 3. vfs_mountroot NULL mount slot redirected to slid lapis_mount.
-4. rd=md0 kept; AMFI/debug timeout args added.
-5. VM pageout-scan enter: only the first CPU claims the scan count (stock
-   code incremented then aborted on non-first CPUs, leaking the count so
-   the unlock at runtime 0xfffffe0007576800 never cleared
-   0xfffffe0007d604fc).
-6. Stock `b .` at runtime 0xfffffe0007afdd90 (processor state 2 /
+4. rd=md0 kept; AMFI/debug args added; stock slto_us/tlto_us (1–2s) raised
+   to 3600s so QEMU TCG does not panic on ticket/spin lock timeouts.
+5. VM pageout-scan enter: first CPU only claims the count; the store that
+   publishes wait-lock 0xfffffe0007d604fc is NOPed so waiters do not spin at
+   0xfffffe0007576a58 while the owner runs the scan body (avoids a tickets
+   spinlock AB-BA with the scan wait).
+6. Ticket-lock timeout stubs (RT 0xfffffe0007ba0590..620) return instead of
+   panicking; QEMU TCG still trips them and callers retry the acquire.
+7. NULL vtable guard for RT 0xfffffe0007b49968 / 0xfffffe0007b499d0
+   (ldr [x8,#0x1c0] with x8==0 caused FAR 0x1c0 panic after mount).
+8. NULL ops guard for RT 0xfffffe000793a084 (ldr [x9,#0x1a0] FAR 0x1a0).
+9. Stock `b .` at runtime 0xfffffe0007afdd90 (processor state 2 /
    PROCESSOR_OFFLINE_RUNNING) redirected to the normal state-dispatch
    path at 0xfffffe0007afdd9c.
+10. CS/AMFI boot-arg ADD immediates corrected (stock points mid-cstring);
+    CSM gate skipped; cs_enforcement __DATA default forced to 0; invalid-page
+    CS kill softened. Stock left cs_enforcement=1 so init died under CS.
 
 Verified in QEMU (this tree)
 ----------------------------
@@ -31,23 +39,17 @@ Verified in QEMU (this tree)
     -M virt,...,memory-backend=ram0 -m 43G \
     -object memory-backend-ram,id=ram0,size=43G,reserve=off,prealloc=off
   With -m 8G the early stub stops in the exception dump WFE at 0x40201910.
-- Kernel past Image4 panic.
-- LapisSMP / LapisUFS / LapisBlk messages on the FB.
-- lapisfs mounts the embedded md0 ramdisk (~1.98 MiB, launchd present on
-  disk): framebuffer shows
-    LAPIS lapisfs: mounted root size=1e4000 entries=15 disk=0
-- After that mount, CPUs still rendezvous on the pageout-scan wait at
-  runtime 0xfffffe0007576a58 while the scan owner has not been observed
-  reaching the unlock store. gdb breakpoints: mount trampoline and
-  mount_success hit; load_init_program (RT 0xfffffe00078cda4c) does not.
-- Forcing the wait lock clear (or a mount-done skip of the WFE) advances
-  CPUs to machine_idle without calling load_init_program — so unblocking
-  the wait alone is not enough; bsd_init never reaches the init-load call
-  on this path yet.
+- Kernel past Image4 panic; lapisfs mounts md0; NULL vtable FAR sites guarded.
+- load_init_program at RT 0xfffffe00078d7b18 is hit; cs_enforcement reads 0.
+- Msgbuf shows pid 1 is launchd, then:
+    initproc failed to start -- ... Library not loaded: /usr/lib/libSystem.B.dylib
+    Reason: tried: '/usr/lib/libSystem.B.dylib' (no such file, no dyld cache)
+  md0 (~1.98 MiB) has launchd/dyld but no shared cache; fullroot.img does.
 
 Not verified
 ------------
-- launchd as PID 1 / DSMOS / SpringBoard / UI.
+- launchd past libSystem (needs fullroot/UFS as root or a cache on md0).
+- DSMOS / SpringBoard / UI.
 - UFS LAPISFS1 as root (md0 wins the race; LapisBlk ROOT publishes later).
 - Tablet / TB520FU hardware.
 
