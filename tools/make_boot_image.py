@@ -8,16 +8,22 @@ MMU-off handoff. This script leaves the slide alone and:
 1. Patches trust_cache_runtime_init so Image4/AMFI NULL branches cannot panic.
 2. Skips IOStartIOKit in bsd_init (waits forever without a full IOKit stack).
 3. When vfs_mountroot sees a NULL vfstable mount slot, calls slid lapis_mount.
-4. Keeps rd=md0 so the root-device waiter does not block; lapisfs mounts md0
-   (and will use LapisBlk UFS when that publishes).
+4. Keeps rd=md0 so the root-device waiter does not block; lapisfs mounts md0.
+5. Fixes a refcount leak in the VM pageout-scan enter path: non-first CPUs
+   used to increment the scan count and return without decrementing, so the
+   lock at runtime 0xfffffe0007d604fc stayed set (count stuck at ncpus-1).
+6. Breaks a stock `b .` hang at runtime 0xfffffe0007afdd90 (processor state 2)
+   by falling through to the normal state-dispatch path.
+
+After root mount the boot CPU can still stall in the pageout-scan wait at
+0xfffffe0007576a58 if the scan owner never reaches the unlock store; launchd
+is not claimed yet. SpringBoard is not claimed.
 
 Trampolines sit in a NOP sled at runtime 0xfffffe000756ac30, not inside
 ExceptionVectorsBase.
 
 QEMU needs ~43G guest RAM (memory-backend reserve=off). 8G hits an early
-stub exception. After lapisfs mounts the embedded md0 ramdisk, all CPUs stop
-in an MP rendezvous spinlock (runtime 0xfffffe0007576a58); launchd is not
-reached yet. SpringBoard is not claimed.
+stub exception.
 """
 
 from __future__ import annotations
@@ -67,6 +73,12 @@ MOUNT_SUCCESS = 0xFFFFFE00076062F4
 MOUNT_FAIL = 0xFFFFFE0007606270
 IOSTARTIOKIT_BL = IOSTARTIOKIT_BL_RT + SLIDE
 
+SCAN_ENTER_LDR = 0xFFFFFE000758D948
+SCAN_BUSY_RET_RT = 0xFFFFFE000757675C
+PROC_STATE2_HANG = 0xFFFFFE0007B15340
+PROC_STATE2_HANG_EXPECT = 0x14000000  # b .
+PROC_STATE2_HANG_REPL = 0x14000003  # b .+12 -> dispatch
+
 
 def _movz_x(rd: int, imm16: int, shift: int = 0) -> int:
     hw = {0: 0, 16: 1, 32: 2, 48: 3}[shift]
@@ -88,6 +100,13 @@ def _cbz(rt: int, from_va: int, to_va: int, width64: bool = True) -> int:
     off = (to_va - from_va) >> 2
     assert -(1 << 18) <= off < (1 << 18)
     op = 0xB4000000 if width64 else 0x34000000
+    return op | ((off & 0x7FFFF) << 5) | rt
+
+
+def _cbnz(rt: int, from_va: int, to_va: int, width64: bool = False) -> int:
+    off = (to_va - from_va) >> 2
+    assert -(1 << 18) <= off < (1 << 18)
+    op = 0xB5000000 if width64 else 0x35000000
     return op | ((off & 0x7FFFF) << 5) | rt
 
 
@@ -167,12 +186,50 @@ def patch_lapisfs_mount(blob: bytearray) -> None:
     struct.pack_into("<I", blob, cbz_off, _cbz(8, MOUNTROOT_CBZ, cave))
 
 
+def patch_scan_refcount(blob: bytearray) -> None:
+    """Only the first CPU claims the pageout scan; non-first must not bump the count."""
+    expect = (
+        0xB9417AE8,
+        0x11000508,
+        0xB9017AE8,
+        0xB9417AE8,
+        0x7100051F,
+        0x54001D81,
+    )
+    enter_rt = SCAN_ENTER_LDR - SLIDE
+    busy_rt = SCAN_BUSY_RET_RT
+    repl = (
+        0xB9417AE8,
+        _cbnz(8, enter_rt + 4, busy_rt, width64=False),
+        0x52800028,
+        0xB9017AE8,
+        NOP,
+        NOP,
+    )
+    for i, (exp, word) in enumerate(zip(expect, repl)):
+        off = va_off(SCAN_ENTER_LDR + 4 * i)
+        cur = struct.unpack_from("<I", blob, off)[0]
+        if cur != exp:
+            raise SystemExit(f"{SCAN_ENTER_LDR + 4 * i:#x}: expected {exp:#x}, found {cur:#x}")
+        struct.pack_into("<I", blob, off, word)
+
+
+def patch_proc_state2_hang(blob: bytearray) -> None:
+    off = va_off(PROC_STATE2_HANG)
+    cur = struct.unpack_from("<I", blob, off)[0]
+    if cur != PROC_STATE2_HANG_EXPECT:
+        raise SystemExit(f"{PROC_STATE2_HANG:#x}: expected {PROC_STATE2_HANG_EXPECT:#x}, found {cur:#x}")
+    struct.pack_into("<I", blob, off, PROC_STATE2_HANG_REPL)
+
+
 def build(source: pathlib.Path = SOURCE, output: pathlib.Path = OUTPUT) -> str:
     blob = bytearray(source.read_bytes())
     patch_cmdline(blob)
     patch_checks(blob)
     patch_skip_iostartiokit(blob)
     patch_lapisfs_mount(blob)
+    patch_scan_refcount(blob)
+    patch_proc_state2_hang(blob)
     output.write_bytes(blob)
     return hashlib.sha256(blob).hexdigest()
 
@@ -184,6 +241,8 @@ def main() -> None:
         patch_checks(blob)
         patch_skip_iostartiokit(blob)
         patch_lapisfs_mount(blob)
+        patch_scan_refcount(blob)
+        patch_proc_state2_hang(blob)
         print("check ok", len(blob))
         return
     digest = build()

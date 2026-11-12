@@ -7,8 +7,8 @@ Host check: python3 tests/test-boot-image.py
 What this image is
 ------------------
 A patched copy of qemu/Image for local QEMU virt. It is not a flashable
-tablet firmware image. SpringBoard is not claimed. launchd is not reached
-yet (post-mount MP rendezvous hang).
+tablet firmware image. SpringBoard is not claimed. launchd / load_init_program
+are not reached yet (post-mount pageout-scan wait).
 
 Patches applied
 ---------------
@@ -17,6 +17,13 @@ Patches applied
 2. IOStartIOKit call in bsd_init replaced with `mov w0, #0`.
 3. vfs_mountroot NULL mount slot redirected to slid lapis_mount.
 4. rd=md0 kept; AMFI/debug timeout args added.
+5. VM pageout-scan enter: only the first CPU claims the scan count (stock
+   code incremented then aborted on non-first CPUs, leaking the count so
+   the unlock at runtime 0xfffffe0007576800 never cleared
+   0xfffffe0007d604fc).
+6. Stock `b .` at runtime 0xfffffe0007afdd90 (processor state 2 /
+   PROCESSOR_OFFLINE_RUNNING) redirected to the normal state-dispatch
+   path at 0xfffffe0007afdd9c.
 
 Verified in QEMU (this tree)
 ----------------------------
@@ -25,13 +32,18 @@ Verified in QEMU (this tree)
     -object memory-backend-ram,id=ram0,size=43G,reserve=off,prealloc=off
   With -m 8G the early stub stops in the exception dump WFE at 0x40201910.
 - Kernel past Image4 panic.
-- LapisSMP 8 CPUs, LapisUFS/LapisBlk bring-up continues on the FB.
+- LapisSMP / LapisUFS / LapisBlk messages on the FB.
 - lapisfs mounts the embedded md0 ramdisk (~1.98 MiB, launchd present on
   disk): framebuffer shows
     LAPIS lapisfs: mounted root size=1e4000 entries=15 disk=0
-- After that mount, all 8 CPUs stop in an MP rendezvous spinlock wait at
-  runtime 0xfffffe0007576a58 (lock word 0xfffffe0007d604fc = 1). Clearing
-  the lock from gdb advances to machine_idle without load_init_program.
+- After that mount, CPUs still rendezvous on the pageout-scan wait at
+  runtime 0xfffffe0007576a58 while the scan owner has not been observed
+  reaching the unlock store. gdb breakpoints: mount trampoline and
+  mount_success hit; load_init_program (RT 0xfffffe00078cda4c) does not.
+- Forcing the wait lock clear (or a mount-done skip of the WFE) advances
+  CPUs to machine_idle without calling load_init_program — so unblocking
+  the wait alone is not enough; bsd_init never reaches the init-load call
+  on this path yet.
 
 Not verified
 ------------
