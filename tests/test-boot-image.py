@@ -22,6 +22,8 @@ def test_source_untouched_and_patches_apply():
     boot.patch_checks(blob)
     boot.patch_skip_iostartiokit(blob)
     boot.patch_lapisfs_mount(blob)
+    boot.patch_scan_refcount(blob)
+    boot.patch_proc_state2_hang(blob)
     cmd = blob[boot.CMDLINE_OFF : boot.CMDLINE_OFF + boot.CMDLINE_LEN]
     text = cmd.split(b"\x00", 1)[0].decode("ascii")
     assert "rd=md0" in text
@@ -39,6 +41,12 @@ def test_source_untouched_and_patches_apply():
     assert first == boot._movz_x(8, boot.LAPIS_MOUNT_RT & 0xFFFF, 0)
     cave_rt = boot.MOUNTROOT_CAVE - boot.SLIDE
     assert cave_rt >= 0xFFFFFE000756AC00
+    enter_rt = boot.SCAN_ENTER_LDR - boot.SLIDE
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SCAN_ENTER_LDR + 4))[0] == boot._cbnz(
+        8, enter_rt + 4, boot.SCAN_BUSY_RET_RT, width64=False
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SCAN_ENTER_LDR + 8))[0] == 0x52800028
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.PROC_STATE2_HANG))[0] == boot.PROC_STATE2_HANG_REPL
 
 
 if __name__ == "__main__":
