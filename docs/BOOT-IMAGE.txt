@@ -1,0 +1,54 @@
+QEMU boot image (Image.ipados)
+==============================
+
+Built by: tools/make_boot_image.py from the published qemu/Image.
+Host check: python3 tests/test-boot-image.py
+
+What this image is
+------------------
+A patched copy of qemu/Image for local QEMU virt. It is not a flashable
+tablet firmware image. SpringBoard is not claimed. launchd is not reached
+yet (post-mount MP rendezvous hang).
+
+Patches applied
+---------------
+1. trust_cache_runtime_init Image4/AMFI NULL panic bypassed (instruction
+   patches only; the intentional segment slide 0x175b0 is left alone).
+2. IOStartIOKit call in bsd_init replaced with `mov w0, #0`.
+3. vfs_mountroot NULL mount slot redirected to slid lapis_mount.
+4. rd=md0 kept; AMFI/debug timeout args added.
+
+Verified in QEMU (this tree)
+----------------------------
+- Requires ~43G guest RAM:
+    -M virt,...,memory-backend=ram0 -m 43G \
+    -object memory-backend-ram,id=ram0,size=43G,reserve=off,prealloc=off
+  With -m 8G the early stub stops in the exception dump WFE at 0x40201910.
+- Kernel past Image4 panic.
+- LapisSMP 8 CPUs, LapisUFS/LapisBlk bring-up continues on the FB.
+- lapisfs mounts the embedded md0 ramdisk (~1.98 MiB, launchd present on
+  disk): framebuffer shows
+    LAPIS lapisfs: mounted root size=1e4000 entries=15 disk=0
+- After that mount, all 8 CPUs stop in an MP rendezvous spinlock wait at
+  runtime 0xfffffe0007576a58 (lock word 0xfffffe0007d604fc = 1). Clearing
+  the lock from gdb advances to machine_idle without load_init_program.
+
+Not verified
+------------
+- launchd as PID 1 / DSMOS / SpringBoard / UI.
+- UFS LAPISFS1 as root (md0 wins the race; LapisBlk ROOT publishes later).
+- Tablet / TB520FU hardware.
+
+QEMU command
+------------
+  qemu-system-aarch64 -nodefaults -display none \
+    -M virt,virtualization=off,secure=off,gic-version=3,memory-backend=ram0 \
+    -m 43G -object memory-backend-ram,id=ram0,size=43G,reserve=off,prealloc=off \
+    -cpu max -smp 8 \
+    -drive if=none,id=ufsdisk,file=/path/to/fullroot.img,format=raw,readonly=on \
+    -device ufs,id=ufs0 -device ufs-lu,drive=ufsdisk,lun=0 \
+    -kernel qemu/Image.ipados -no-reboot
+
+fullroot.img is the 5 GiB LAPISFS GPT image; do not commit it.
+
+SHA-256 of Image.ipados is printed by tools/make_boot_image.py.

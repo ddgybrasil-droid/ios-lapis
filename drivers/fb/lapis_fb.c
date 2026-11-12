@@ -1,0 +1,112 @@
+
+/*
+ * LapisFB - framebuffer console on the ABL splash surface.
+ *   phys 0xD5100000, 2944x1840 XRGB8888, stride 11776, landscape.
+ * Does NOT touch DSI / MDSS. The physical address is not confirmed on the
+ * device, so painting stays off unless lapis_fb=1 is set explicitly.
+ */
+#include "../include/kern.h"
+#include "fb_geom.h"
+
+#define LOG(fmt, ...) klog("LapisFB: " fmt "\n", ##__VA_ARGS__)
+#define FB_PA     0xD5100000ull
+#define FB_W      2944u
+#define FB_H      1840u
+#define FB_STRIDE 11776u
+
+static vm_offset_t fb;
+static unsigned cols, rows;
+enum { CW = 8, CH = 16, SCALE = 2 };
+
+/* Tiny 8x16 font for hex digits + a few letters (same style as the early reporter). */
+static const uint8_t FONT[16][16] = {
+	/* 0 */ {0x3c,0x66,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0x66,0x3c,0,0},
+	/* 1 */ {0x18,0x38,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x3c,0,0},
+	/* 2 */ {0x3c,0x66,0xc3,0x03,0x03,0x06,0x0c,0x18,0x30,0x60,0xc0,0xc0,0xc3,0xff,0,0},
+	/* 3 */ {0x3c,0x66,0xc3,0x03,0x03,0x06,0x1c,0x06,0x03,0x03,0x03,0xc3,0x66,0x3c,0,0},
+	/* 4 */ {0x06,0x0e,0x1e,0x36,0x66,0xc6,0xc6,0xff,0x06,0x06,0x06,0x06,0x06,0x06,0,0},
+	/* 5 */ {0xff,0xc0,0xc0,0xc0,0xc0,0xfc,0x66,0x03,0x03,0x03,0x03,0xc3,0x66,0x3c,0,0},
+	/* 6 */ {0x3c,0x66,0xc3,0xc0,0xc0,0xc0,0xfc,0x66,0xc3,0xc3,0xc3,0xc3,0x66,0x3c,0,0},
+	/* 7 */ {0xff,0xc3,0x03,0x06,0x06,0x0c,0x0c,0x18,0x18,0x30,0x30,0x30,0x30,0x30,0,0},
+	/* 8 */ {0x3c,0x66,0xc3,0xc3,0x66,0x3c,0x66,0xc3,0xc3,0xc3,0xc3,0xc3,0x66,0x3c,0,0},
+	/* 9 */ {0x3c,0x66,0xc3,0xc3,0xc3,0xc3,0x66,0x3f,0x03,0x03,0x03,0xc3,0x66,0x3c,0,0},
+	/* A */ {0x18,0x3c,0x66,0xc3,0xc3,0xc3,0xff,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0,0},
+	/* B */ {0xfe,0xc3,0xc3,0xc3,0xc3,0xfe,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xfe,0,0},
+	/* C */ {0x3c,0x66,0xc3,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc3,0x66,0x3c,0,0},
+	/* D */ {0xfc,0x66,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x63,0x66,0xfc,0,0},
+	/* E */ {0xff,0xc0,0xc0,0xc0,0xc0,0xfc,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xff,0,0},
+	/* F */ {0xff,0xc0,0xc0,0xc0,0xc0,0xfc,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0,0},
+};
+
+static void put_px(unsigned x, unsigned y, uint32_t c)
+{
+	if (x >= FB_W || y >= FB_H || !fb) return;
+	*(volatile uint32_t *)(fb + y * FB_STRIDE + x * 4) = c;
+}
+
+static void draw_glyph(unsigned x0, unsigned y0, int gi, uint32_t fg, uint32_t bg)
+{
+	if (gi < 0 || gi > 15) return;
+	for (unsigned row = 0; row < 16; row++) {
+		uint8_t bits = FONT[gi][row];
+		for (unsigned col = 0; col < 8; col++) {
+			uint32_t c = (bits & (0x80 >> col)) ? fg : bg;
+			for (unsigned sy = 0; sy < SCALE; sy++)
+				for (unsigned sx = 0; sx < SCALE; sx++)
+					put_px(x0 + col * SCALE + sx, y0 + row * SCALE + sy, c);
+		}
+	}
+}
+
+static void draw_banner(void)
+{
+	/* top status strip */
+	for (unsigned y = 0; y < 48; y++)
+		for (unsigned x = 0; x < FB_W; x++)
+			put_px(x, y, 0x00101828);
+	/* colour chips so a photo can be compared with the unverified splash */
+	static const uint32_t chips[] = { 0x00e74c3c, 0x002ecc71, 0x003498db, 0x00f1c40f, 0x009b59b6 };
+	for (unsigned i = 0; i < 5; i++)
+		for (unsigned y = 8; y < 40; y++)
+			for (unsigned x = 0; x < 64; x++)
+				put_px(80 + i * 80 + x, y, chips[i]);
+	/* hex "FB" marker using the font */
+	draw_glyph(16, 8, 0xF, 0x00ffffff, 0x00101828);
+	draw_glyph(16 + CW * SCALE + 4, 8, 0xB, 0x00ffffff, 0x00101828);
+}
+
+static void fb_thread(void *arg, int wr)
+{
+	(void)arg; (void)wr;
+	uint64_t bytes = 0;
+	if (!drv_bootarg("lapis_fb", 0)) {
+		LOG("splash writes off; %#llx is unverified and DSI/MDSS is not programmed", FB_PA);
+		return;
+	}
+	if (lapis_fb_geometry(FB_W, FB_H, FB_STRIDE, &bytes)) {
+		LOG("splash geometry refused");
+		return;
+	}
+	fb = ml_io_map((vm_offset_t)FB_PA, (vm_offset_t)bytes);
+	if (!fb) { LOG("ml_io_map(%#llx) failed", FB_PA); return; }
+	cols = FB_W / (CW * SCALE); rows = FB_H / (CH * SCALE);
+	LOG("unverified splash %#llx mapped va %#lx, %ux%u stride %u, cells %ux%u; DSI/MDSS not programmed",
+	    FB_PA, (unsigned long)fb, FB_W, FB_H, FB_STRIDE, cols, rows);
+	draw_banner();
+	{
+		void *plat = k_IOService_getPlatform();
+		k_IORE_setPropertyNum(plat, "lapis-fb-pa", FB_PA, 64);
+		k_IORE_setPropertyNum(plat, "lapis-fb-w", FB_W, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-h", FB_H, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-stride", FB_STRIDE, 32);
+		k_IORE_setPropertyNum(plat, "lapis-fb-bytes", bytes, 64);
+		k_IORE_setPropertyStr(plat, "lapis-fb-format", "XRGB8888");
+		/* Publish a stable path userspace / kexts can look up. */
+		k_IORE_setPropertyStr(plat, "lapis-fb-service", "LapisFB");
+	}
+	LOG("pixels written at the unverified splash address; the panel was not programmed");
+}
+
+void lapis_fb_start(void) { drv_thread(fb_thread, NULL); }
+
+
