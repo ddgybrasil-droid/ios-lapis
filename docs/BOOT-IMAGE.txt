@@ -17,19 +17,23 @@ Patches applied
 3. vfs_mountroot NULL mount slot redirected to slid lapis_mount.
 4. rd=md0 kept; AMFI/debug args added; stock slto_us/tlto_us (1–2s) raised
    to 3600s so QEMU TCG does not panic on ticket/spin lock timeouts.
-5. VM pageout-scan enter: first CPU only claims the count; the store that
+5. Mount trampoline kicks LapisBlk/UFS (stock starts them after
+   mountroot), then lapis_mount waits forever for LapisBlk ROOT=1
+   (status at 0xfffffe0007daf000) instead of racing to md0. The wait
+   loop delays 10ms per poll so those threads can run on CPU0.
+6. VM pageout-scan enter: first CPU only claims the count; the store that
    publishes wait-lock 0xfffffe0007d604fc is NOPed so waiters do not spin at
    0xfffffe0007576a58 while the owner runs the scan body (avoids a tickets
    spinlock AB-BA with the scan wait).
-6. Ticket-lock timeout stubs (RT 0xfffffe0007ba0590..620) return instead of
+7. Ticket-lock timeout stubs (RT 0xfffffe0007ba0590..620) return instead of
    panicking; QEMU TCG still trips them and callers retry the acquire.
-7. NULL vtable guard for RT 0xfffffe0007b49968 / 0xfffffe0007b499d0
+8. NULL vtable guard for RT 0xfffffe0007b49968 / 0xfffffe0007b499d0
    (ldr [x8,#0x1c0] with x8==0 caused FAR 0x1c0 panic after mount).
-8. NULL ops guard for RT 0xfffffe000793a084 (ldr [x9,#0x1a0] FAR 0x1a0).
-9. Stock `b .` at runtime 0xfffffe0007afdd90 (processor state 2 /
-   PROCESSOR_OFFLINE_RUNNING) redirected to the normal state-dispatch
-   path at 0xfffffe0007afdd9c.
-10. CS/AMFI boot-arg ADD immediates corrected (stock points mid-cstring);
+9. NULL ops guard for RT 0xfffffe000793a084 (ldr [x9,#0x1a0] FAR 0x1a0).
+10. Stock `b .` at runtime 0xfffffe0007afdd90 (processor state 2 /
+    PROCESSOR_OFFLINE_RUNNING) redirected to the normal state-dispatch
+    path at 0xfffffe0007afdd9c.
+11. CS/AMFI boot-arg ADD immediates corrected (stock points mid-cstring);
     CSM gate skipped; cs_enforcement __DATA default forced to 0; invalid-page
     CS kill softened. Stock left cs_enforcement=1 so init died under CS.
 
@@ -41,16 +45,20 @@ Verified in QEMU (this tree)
   With -m 8G the early stub stops in the exception dump WFE at 0x40201910.
 - Kernel past Image4 panic; lapisfs mounts md0; NULL vtable FAR sites guarded.
 - load_init_program at RT 0xfffffe00078d7b18 is hit; cs_enforcement reads 0.
-- Msgbuf shows pid 1 is launchd, then:
+- Msgbuf shows pid 1 is launchd, then (pre-wait-forever patch, md0 root):
     initproc failed to start -- ... Library not loaded: /usr/lib/libSystem.B.dylib
     Reason: tried: '/usr/lib/libSystem.B.dylib' (no such file, no dyld cache)
   md0 (~1.98 MiB) has launchd/dyld but no shared cache; fullroot.img does.
+- With LapisBlk/UFS kick + wait-forever + 10ms yield, lapis_mount takes
+  LapisBlk ROOT and mounts fullroot:
+    MOUNTED size=135958000 entries=11b disk=1 (5193957376 bytes, 283 entries).
+  initproc still fails the same libSystem / “no dyld cache” check — dyld does
+  not map the split cache under /System/Library/Caches/com.apple.dyld yet.
 
 Not verified
 ------------
-- launchd past libSystem (needs fullroot/UFS as root or a cache on md0).
+- launchd past libSystem (dyld shared cache map on fullroot).
 - DSMOS / SpringBoard / UI.
-- UFS LAPISFS1 as root (md0 wins the race; LapisBlk ROOT publishes later).
 - Tablet / TB520FU hardware.
 
 QEMU command
