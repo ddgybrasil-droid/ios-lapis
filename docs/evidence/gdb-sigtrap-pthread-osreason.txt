@@ -1,0 +1,15 @@
+The target architecture is set to "aarch64".
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x0000000040000000 in ?? ()
+Breakpoint 1 at 0xfffffe000743d9a0
+Breakpoint 2 at 0xfffffe00079884c8
+Breakpoint 3 at 0xfffffe000797f9e4
+Breakpoint 4 at 0xfffffe00078dd854
+GO
+MOUNTED
+MWL
+[Switching to Thread 1.2]
+OS_REASON ns=2 code=5 lr=fffffe00078f8de0
+msgbuf dumped
+[Inferior 1 (process 1) detached]

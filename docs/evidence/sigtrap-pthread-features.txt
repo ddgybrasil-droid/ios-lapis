@@ -1,0 +1,40 @@
+# SIGTRAP 0x5 → libpthread features (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local) after:
+  tools/patch_fullroot_container_init.py
+  tools/patch_fullroot_pthread_features.py
+cpu: max,pauth-impdef=on
+
+## before
+- msgbuf: `pid 1 exited -- exit reason namespace 2 subcode 0x5`
+- GDB BRK: pc in dyld_shared_cache_arm64e.31 `_pthread_workqueue_supported`
+  (`brk #0xb001`), string
+  `BUG IN LIBPTHREAD: libpthread has not been initialized`
+- Cause: `__pthread_supported_features` stayed 0 because
+  `__bsdthread_register` returned ≤0 under TCG; libdispatch then called
+  `_pthread_workqueue_supported` which BRKs when the mask is 0.
+
+## patch
+1. `.31` TEXT: rewrite `_pthread_workqueue_supported` (VA 0x1e26248d0) to
+   `movz/movk w0, #0x4000001e; ret` (required feature bits).
+2. `.33.dylddata`: seed `__pthread_supported_features` at VA 0x1ec3dc01c
+   to `0x4000001e`.
+
+Tool: tools/patch_fullroot_pthread_features.py
+
+Required bits (libpthread kern_internal.h):
+  FINEPRIO|BSDTHREADCTL|SETSELF|QOS_MAINTENANCE|QOS_DEFAULT
+
+## after
+- No BRK at the libpthread "has not been initialized" stub
+  (docs/evidence/gdb-sigtrap-pthread-brk.txt: first BRK is `esr=f2000001`
+  = `brk #0x1`, pc in cache `.01`, not `.31` / `#0xb001`).
+- Callee at the new site does `autda` + `blraa` then `retab` — PAC on
+  unsigned Auth64 pointers; still OS_REASON_SIGNAL ns=2 / 0x5 form.
+- msgbuf: no `libpthread has not been initialized` (see
+  docs/evidence/msgbuf-sigtrap-pthread-features.txt).
+
+## apply
+  python3 tools/patch_fullroot_container_init.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_pthread_features.py /path/to/fullroot.img

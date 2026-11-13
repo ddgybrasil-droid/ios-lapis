@@ -68,11 +68,15 @@ Verified in QEMU (this tree)
   longer prints `unknown pointer_format 12` / SIGBUS 0xa.
 - fullroot DSC patch (tools/patch_fullroot_container_init.py) skips the fatal
   `sandbox_get_container_expected` check in `_container_init`. Launchd then
-  dies with OS_REASON_SIGNAL subcode 0x5 (SIGTRAP) — next wall.
+  died with OS_REASON_SIGNAL subcode 0x5 (SIGTRAP) at libpthread
+  `_pthread_workqueue_supported` (`__pthread_supported_features` == 0).
+- fullroot DSC patch (tools/patch_fullroot_pthread_features.py) forces the
+  required feature mask (`0x4000001e`). Past that BRK; next wall is PAC
+  (`autda`/`blraa` on unsigned Auth64 pointers → `brk #0x1`).
 
 Not verified
 ------------
-- launchd past SIGTRAP after libSystem _container_init.
+- launchd past PAC auth on unsigned Auth64 / shared-cache pointers.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
