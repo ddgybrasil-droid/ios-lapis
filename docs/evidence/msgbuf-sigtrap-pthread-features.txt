@@ -1,0 +1,3 @@
+[    0.761536]: Allowing spawn of iOS binary launchd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+[    1.055519]: CODE SIGNING: cs_invalid_page(0x1efe98000): p=1[launchd] final status 0x0, allowing (remove VALID) page
+[    1.318973]: pid 1 exited -- exit reason namespace 2 subcode 0x5, description none
