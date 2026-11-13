@@ -46,9 +46,14 @@ def test_source_untouched_and_patches_apply():
     assert iokit == boot.MOVZ_W0_0
     cbz = struct.unpack_from("<I", blob, boot.va_off(boot.MOUNTROOT_CBZ))[0]
     assert cbz == boot._cbz(8, boot.MOUNTROOT_CBZ, boot.MOUNTROOT_CAVE)
-    first = struct.unpack_from("<I", blob, boot.va_off(boot.MOUNTROOT_CAVE))[0]
-    assert first == boot._movz_x(8, boot.LAPIS_MOUNT_RT & 0xFFFF, 0)
-    cave_rt = boot.MOUNTROOT_CAVE - boot.SLIDE
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.MOUNTROOT_CAVE))[0] == boot._b(
+        boot.MOUNTROOT_CAVE, boot.LAPIS_MOUNT_CAVE
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_MOUNT_CAVE + 12))[0] == boot._movz_x(
+        8, boot.LAPIS_MOUNT_RT & 0xFFFF, 0
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_KICK_CAVE))[0] == 0xA9BF7BFD
+    cave_rt = boot.LAPIS_MOUNT_CAVE - boot.SLIDE
     assert cave_rt >= 0xFFFFFE000756AC00
     enter_rt = boot.SCAN_ENTER_LDR - boot.SLIDE
     assert struct.unpack_from("<I", blob, boot.va_off(boot.SCAN_ENTER_LDR + 4))[0] == boot._cbnz(
@@ -72,6 +77,23 @@ def test_source_untouched_and_patches_apply():
     )
     for va, _expect, repl in boot.AMFI_BOOTARG_ADDS:
         assert struct.unpack_from("<I", blob, boot.va_off(va))[0] == repl
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_WAIT_ENTRY))[0] == boot._b(
+        boot.LAPIS_WAIT_ENTRY - boot.SLIDE, boot.LAPIS_WAIT_TARGET_RT
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_WAIT_TIMEOUT))[0] == boot.LAPIS_WAIT_TIMEOUT_REPL
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_FALLBACK_BNE))[0] == boot._b_cond(
+        boot.LAPIS_FALLBACK_BNE - boot.SLIDE, boot.LAPIS_WAIT_TARGET_RT, 1
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_FALLBACK_CBZ))[0] == boot._cbz(
+        0, boot.LAPIS_FALLBACK_CBZ - boot.SLIDE, boot.LAPIS_WAIT_TARGET_RT, width64=True
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_FALLBACK_BLS))[0] == boot._b_cond(
+        boot.LAPIS_FALLBACK_BLS - boot.SLIDE, boot.LAPIS_WAIT_TARGET_RT, 9
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_WAIT_SPIN))[0] == 0x52800140
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_WAIT_SPIN + 4))[0] == boot._b(
+        boot.LAPIS_WAIT_SPIN - boot.SLIDE + 4, boot.LAPIS_DELAY_RT, link=True
+    )
 
 
 if __name__ == "__main__":

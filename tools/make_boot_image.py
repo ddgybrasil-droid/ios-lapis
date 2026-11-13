@@ -8,20 +8,24 @@ MMU-off handoff. This script leaves the slide alone and:
 1. Patches trust_cache_runtime_init so Image4/AMFI NULL branches cannot panic.
 2. Skips IOStartIOKit in bsd_init (waits forever without a full IOKit stack).
 3. When vfs_mountroot sees a NULL vfstable mount slot, calls slid lapis_mount.
-4. Keeps rd=md0 so the root-device waiter does not block; lapisfs mounts md0.
-5. Fixes pageout-scan enter: only the first CPU claims the scan count (stock
+4. Keeps rd=md0 so the root-device waiter does not block; lapis_mount still
+   prefers LapisBlk ROOT (fullroot/UFS) once published.
+5. Before lapis_mount, kicks LapisBlk/UFS (stock starts them after
+   mountroot, so a plain wait deadlocks). Then lapis_mount waits forever
+   for LapisBlk status ROOT=1 instead of racing to md0.
+6. Fixes pageout-scan enter: only the first CPU claims the scan count (stock
    leaked the count on non-first CPUs), and the wait-lock store that publishes
    0xfffffe0007d604fc is NOPed (avoids scan-wait / tickets AB-BA).
-6. Raises slto_us/tlto_us to 3600s (stock 1–2s is too tight for TCG).
-7. Ticket-lock timeout stubs at runtime 0xfffffe0007ba0590..0xfffffe0007ba0620
+7. Raises slto_us/tlto_us to 3600s (stock 1–2s is too tight for TCG).
+8. Ticket-lock timeout stubs at runtime 0xfffffe0007ba0590..0xfffffe0007ba0620
    return instead of calling panic (TCG still trips them; callers retry).
-8. Guards NULL vtable loads at runtime 0xfffffe0007b49968 / 0xfffffe0007b499d0
+9. Guards NULL vtable loads at runtime 0xfffffe0007b49968 / 0xfffffe0007b499d0
    (ldr x8,[x8,#0x1c0] with x8==0 → FAR 0x1c0 panic after mount).
-9. Guards NULL ops object at runtime 0xfffffe000793a084
+10. Guards NULL ops object at runtime 0xfffffe000793a084
    (ldr x8,[x9,#0x1a0] with x9==0 → FAR 0x1a0).
-10. Breaks a stock `b .` hang at runtime 0xfffffe0007afdd90 (processor state 2)
-   by falling through to the normal state-dispatch path.
-11. Fixes cs_enforcement_disable / AMFI boot-arg ADD immediates (stock points
+11. Breaks a stock `b .` hang at runtime 0xfffffe0007afdd90 (processor state 2)
+    by falling through to the normal state-dispatch path.
+12. Fixes cs_enforcement_disable / AMFI boot-arg ADD immediates (stock points
     mid-cstring), skips the CSM gate that blocked clearing cs_enforcement, and
     softens the invalid-page CS kill so init can survive under TCG.
 
@@ -83,8 +87,46 @@ PATCHES = (
 )
 
 LAPIS_MOUNT_RT = 0xFFFFFE000743D4E8
+# lapis_mount wait-for-LapisBlk-ROOT sites (file VA = RT + SLIDE).
+# Stock: b.eq wait only if magic==LKBL; else md0. Outer wait uses movz
+# w0,#0x1388 then falls back to md0 on state!=1 / null disk / tiny size.
+LAPIS_WAIT_ENTRY = 0xFFFFFE000743D544 + SLIDE  # b.eq #743d590
+LAPIS_WAIT_ENTRY_EXPECT = 0x54000260
+LAPIS_WAIT_TARGET_RT = 0xFFFFFE000743D590
+LAPIS_WAIT_TIMEOUT = 0xFFFFFE000743D594 + SLIDE  # movz w0,#0x1388
+LAPIS_WAIT_TIMEOUT_EXPECT = 0x52827100
+LAPIS_WAIT_TIMEOUT_REPL = 0x12800000  # movn w0,#0 → outer count ~forever
+LAPIS_FALLBACK_BNE = 0xFFFFFE000743D5E0 + SLIDE  # b.ne #743d548 (md0)
+LAPIS_FALLBACK_BNE_EXPECT = 0x54FFFB41
+LAPIS_FALLBACK_CBZ = 0xFFFFFE000743D5E8 + SLIDE  # cbz x0, #743d548
+LAPIS_FALLBACK_CBZ_EXPECT = 0xB4FFFB00
+LAPIS_FALLBACK_BLS = 0xFFFFFE000743D5F8 + SLIDE  # b.ls #743d548
+LAPIS_FALLBACK_BLS_EXPECT = 0x54FFFA89
+# Tight inner spin (RT 0xfffffe000743d580) — replace with delay so
+# LapisBlk/UFS kernel threads can run on the same CPU.
+LAPIS_WAIT_SPIN = 0xFFFFFE000743D580 + SLIDE
+LAPIS_WAIT_SPIN_EXPECT = (
+    0xF9404FE1,  # ldr x1, [sp, #0x98]
+    0x91000421,  # add x1, x1, #1
+    0xF9004FE1,  # str x1, [sp, #0x98]
+    0x14000007,  # b #743d5a8
+)
+LAPIS_DELAY_RT = 0xFFFFFE0007AA6FB4  # delay_ms(w0)
+# Free NOPs after null-ops trampoline (RT 0xfffffe000756ac68).
+# Kick subroutine then mount trampoline live here so they do not collide
+# with the 4-insn null-ops guard at RT 0xfffffe000756ac58.
+LAPIS_KICK_CAVE = 0xFFFFFE000756AC68 + SLIDE
+LAPIS_MOUNT_CAVE = 0xFFFFFE000756ACA0 + SLIDE
+LAPIS_STATUS_RT = 0xFFFFFE0007DAF000
+LAPIS_EARLY_INIT_RT = 0xFFFFFE00075144F0
+LAPIS_EARLY_INIT2_RT = 0xFFFFFE00075118AC
+LAPIS_BLK_INIT_RT = 0xFFFFFE000750D5C0
+LAPIS_GIC_START_RT = 0xFFFFFE000750E8A4
+LAPIS_UFS_START_RT = 0xFFFFFE000750B89C
 IOSTARTIOKIT_BL_RT = 0xFFFFFE00078A58F4
 MOUNTROOT_CBZ = 0xFFFFFE0007606258
+# Legacy short cave (RT 0xfffffe000756ac30); kept for the cbz landing
+# bounce into LAPIS_MOUNT_CAVE so older docs still match the sled base.
 MOUNTROOT_CAVE = 0xFFFFFE00075821E0
 MOUNT_SUCCESS = 0xFFFFFE00076062F4
 MOUNT_FAIL = 0xFFFFFE0007606270
@@ -158,10 +200,21 @@ def _movk_x(rd: int, imm16: int, shift: int = 0) -> int:
     return 0xF2800000 | (hw << 21) | ((imm16 & 0xFFFF) << 5) | rd
 
 
+def _movn_x(rd: int, imm16: int, shift: int = 0) -> int:
+    hw = {0: 0, 16: 1, 32: 2, 48: 3}[shift]
+    return 0x92800000 | (hw << 21) | ((imm16 & 0xFFFF) << 5) | rd
+
+
 def _b(from_va: int, to_va: int, link: bool = False) -> int:
     off = (to_va - from_va) >> 2
     assert -(1 << 25) <= off < (1 << 25)
     return (0x94000000 if link else 0x14000000) | (off & 0x3FFFFFF)
+
+
+def _b_cond(from_va: int, to_va: int, cond: int) -> int:
+    off = (to_va - from_va) >> 2
+    assert -(1 << 18) <= off < (1 << 18)
+    return 0x54000000 | ((off & 0x7FFFF) << 5) | (cond & 0xF)
 
 
 def _cbz(rt: int, from_va: int, to_va: int, width64: bool = True) -> int:
@@ -242,28 +295,130 @@ def patch_skip_iostartiokit(blob: bytearray) -> None:
     struct.pack_into("<I", blob, off, MOVZ_W0_0)
 
 
-def patch_lapisfs_mount(blob: bytearray) -> None:
-    cave = MOUNTROOT_CAVE
+def patch_lapis_driver_kick(blob: bytearray) -> None:
+    """Start LapisBlk/UFS before mountroot waits for ROOT.
+
+    Stock Lapis platform init runs after vfs_mountroot returns. Waiting in
+    lapis_mount for ROOT without kicking drivers deadlocks (status stays 0).
+    If LapisBlk magic is already set, skip. Functions take no PE object.
+    """
+    cave_rt = LAPIS_KICK_CAVE - SLIDE
+    # Indices: 0 stp, 1 mov, 2-4 status ptr, 5 ldr, 6 cbnz, 7-11 bls, 12 ldp, 13 ret
+    epilogue_rt = cave_rt + 4 * 12
     seq = [
+        0xA9BF7BFD,  # stp x29, x30, [sp, #-0x10]!
+        0x910003FD,  # mov x29, sp
+        _movn_x(8, 0xFFF, 0),
+        _movk_x(8, 0x7DA, 16),
+        _movk_x(8, 0xFE00, 32),
+        0xB9400108,  # ldr w8, [x8]
+        _cbnz(8, cave_rt + 4 * 6, epilogue_rt, width64=False),
+        _b(cave_rt + 4 * 7, LAPIS_EARLY_INIT_RT, link=True),
+        _b(cave_rt + 4 * 8, LAPIS_EARLY_INIT2_RT, link=True),
+        _b(cave_rt + 4 * 9, LAPIS_BLK_INIT_RT, link=True),
+        _b(cave_rt + 4 * 10, LAPIS_GIC_START_RT, link=True),
+        _b(cave_rt + 4 * 11, LAPIS_UFS_START_RT, link=True),
+        0xA8C17BFD,  # ldp x29, x30, [sp], #0x10
+        0xD65F03C0,  # ret
+    ]
+    assert len(seq) == 14
+    # Kick is 14 insns (ends at RT +0x38); mount cave sits at +0x38.
+    assert (LAPIS_MOUNT_CAVE - LAPIS_KICK_CAVE) // 4 == 14
+    _write_seq(blob, LAPIS_KICK_CAVE, seq)
+
+
+def patch_lapisfs_mount(blob: bytearray) -> None:
+    patch_lapis_driver_kick(blob)
+    # Short bounce at the historical sled base → real trampoline after kick.
+    bounce = [_b(MOUNTROOT_CAVE, LAPIS_MOUNT_CAVE)]
+    _write_seq(blob, MOUNTROOT_CAVE, bounce)
+    cave = LAPIS_MOUNT_CAVE
+    seq = [
+        0xA9BF7BFD,  # stp x29, x30, [sp, #-0x10]!
+        0x910003FD,  # mov x29, sp
+        _b(cave + 4 * 2, LAPIS_KICK_CAVE, link=True),
         _movz_x(8, LAPIS_MOUNT_RT & 0xFFFF, 0),
         _movk_x(8, (LAPIS_MOUNT_RT >> 16) & 0xFFFF, 16),
         _movk_x(8, (LAPIS_MOUNT_RT >> 32) & 0xFFFF, 32),
         _movk_x(8, (LAPIS_MOUNT_RT >> 48) & 0xFFFF, 48),
-        0xAA1C03E0,
-        0xAA1303E2,
-        0xD63F0100,
-        0xAA0003F8,
-        _cbz(0, cave + 4 * 8, MOUNT_SUCCESS, width64=False),
-        _b(cave + 4 * 9, MOUNT_FAIL),
-        NOP,
-        NOP,
+        0xAA1C03E0,  # mov x0, x28
+        0xAA1303E2,  # mov x2, x19
+        0xD63F0100,  # blr x8
+        0xAA0003F8,  # mov x24, x0
+        0xA8C17BFD,  # ldp x29, x30, [sp], #0x10
+        _cbz(0, cave + 4 * 12, MOUNT_SUCCESS, width64=False),
+        _b(cave + 4 * 13, MOUNT_FAIL),
     ]
     _write_seq(blob, cave, seq)
     cbz_off = va_off(MOUNTROOT_CBZ)
     cur = struct.unpack_from("<I", blob, cbz_off)[0]
     if (cur & 0xFF00001F) != 0xB4000008:
         raise SystemExit(f"{MOUNTROOT_CBZ:#x}: expected cbz x8, found {cur:#x}")
-    struct.pack_into("<I", blob, cbz_off, _cbz(8, MOUNTROOT_CBZ, cave))
+    struct.pack_into("<I", blob, cbz_off, _cbz(8, MOUNTROOT_CBZ, MOUNTROOT_CAVE))
+    patch_lapis_mount_wait_root(blob)
+
+
+def patch_lapis_mount_wait_root(blob: bytearray) -> None:
+    """Wait forever for LapisBlk ROOT=1 instead of racing to md0.
+
+    Under QEMU TCG, vfs_mountroot calls lapis_mount before LapisBlk publishes
+    magic LKBL / state==1. Stock then mounts the tiny md0 ramdisk (no dyld
+    cache / libSystem). Always enter the wait loop, stretch the outer
+    timeout, and on state!=1 / missing disk / tiny size retry the wait
+    rather than falling back to md0.
+    """
+    wait_rt = LAPIS_WAIT_TARGET_RT
+    patches = (
+        (
+            LAPIS_WAIT_ENTRY,
+            LAPIS_WAIT_ENTRY_EXPECT,
+            _b(LAPIS_WAIT_ENTRY - SLIDE, wait_rt),
+        ),
+        (
+            LAPIS_WAIT_TIMEOUT,
+            LAPIS_WAIT_TIMEOUT_EXPECT,
+            LAPIS_WAIT_TIMEOUT_REPL,
+        ),
+        (
+            LAPIS_FALLBACK_BNE,
+            LAPIS_FALLBACK_BNE_EXPECT,
+            _b_cond(LAPIS_FALLBACK_BNE - SLIDE, wait_rt, 1),  # ne
+        ),
+        (
+            LAPIS_FALLBACK_CBZ,
+            LAPIS_FALLBACK_CBZ_EXPECT,
+            _cbz(0, LAPIS_FALLBACK_CBZ - SLIDE, wait_rt, width64=True),
+        ),
+        (
+            LAPIS_FALLBACK_BLS,
+            LAPIS_FALLBACK_BLS_EXPECT,
+            _b_cond(LAPIS_FALLBACK_BLS - SLIDE, wait_rt, 9),  # ls
+        ),
+    )
+    for va, expect, repl in patches:
+        off = va_off(va)
+        cur = struct.unpack_from("<I", blob, off)[0]
+        if cur != expect:
+            raise SystemExit(f"{va:#x}: expected {expect:#x}, found {cur:#x}")
+        struct.pack_into("<I", blob, off, repl)
+
+    # Replace the inner counter spin with delay(10ms) + recheck state so
+    # kicked LapisBlk/UFS threads are scheduled instead of starving on CPU0.
+    spin_rt = LAPIS_WAIT_SPIN - SLIDE
+    spin_repl = (
+        0x52800140,  # movz w0, #0xa
+        _b(spin_rt + 4, LAPIS_DELAY_RT, link=True),
+        _b(spin_rt + 8, 0xFFFFFE000743D59C),  # b wait_recheck
+        NOP,
+    )
+    for i, (exp, word) in enumerate(zip(LAPIS_WAIT_SPIN_EXPECT, spin_repl)):
+        off = va_off(LAPIS_WAIT_SPIN + 4 * i)
+        cur = struct.unpack_from("<I", blob, off)[0]
+        if cur != exp:
+            raise SystemExit(
+                f"{LAPIS_WAIT_SPIN + 4 * i:#x}: expected {exp:#x}, found {cur:#x}"
+            )
+        struct.pack_into("<I", blob, off, word)
 
 
 def patch_scan_refcount(blob: bytearray) -> None:
