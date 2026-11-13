@@ -67,6 +67,10 @@ def test_source_untouched_and_patches_apply():
     assert struct.unpack_from("<I", blob, boot.va_off(0xFFFFFE0007B49B80 + boot.SLIDE))[0] == boot.NOP
     assert struct.unpack_from("<I", blob, boot.va_off(boot.NULL_OPS_LDR))[0] != boot.NULL_OPS_LDR_EXPECT
     assert struct.unpack_from("<I", blob, boot.va_off(boot.VTABLE_CAVE))[0] != boot.NOP
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.NULL_OPS_ZERO_CAVE))[0] == boot.MOVZ_W0_0
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.NULL_OPS_ZERO_CAVE + 4))[0] == boot._b(
+        boot.NULL_OPS_ZERO_CAVE - boot.SLIDE + 4, boot.NULL_OPS_RET_RT
+    )
     assert struct.unpack_from("<I", blob, boot.va_off(boot.PROC_STATE2_HANG))[0] == boot.PROC_STATE2_HANG_REPL
     assert struct.unpack_from("<I", blob, boot.va_off(boot.CS_ENFORCE_DISABLE_ADD))[0] == boot.CS_ENFORCE_DISABLE_ADD_REPL
     assert struct.unpack_from("<I", blob, boot.va_off(boot.CS_ENFORCE_CSM_CBZ))[0] == boot.NOP
@@ -74,6 +78,9 @@ def test_source_untouched_and_patches_apply():
     assert struct.unpack_from("<I", blob, boot.va_off(boot.CS_ENFORCEMENT_DATA))[0] == 0
     assert struct.unpack_from("<I", blob, boot.va_off(boot.CS_INVALID_PAGE_CBZ))[0] == boot._b(
         boot.CS_INVALID_PAGE_CBZ - boot.SLIDE, boot.CS_INVALID_PAGE_SOFT_RT
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.UBC_CS_NONPLATFORM_TBZ))[0] == boot._b(
+        boot.UBC_CS_NONPLATFORM_TBZ - boot.SLIDE, boot.UBC_CS_NONPLATFORM_CONT_RT
     )
     for va, _expect, repl in boot.AMFI_BOOTARG_ADDS:
         assert struct.unpack_from("<I", blob, boot.va_off(va))[0] == repl

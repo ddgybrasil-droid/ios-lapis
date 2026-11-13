@@ -52,12 +52,22 @@ Verified in QEMU (this tree)
 - With LapisBlk/UFS kick + wait-forever + 10ms yield, lapis_mount takes
   LapisBlk ROOT and mounts fullroot:
     MOUNTED size=135958000 entries=11b disk=1 (5193957376 bytes, 283 entries).
-  initproc still fails the same libSystem / “no dyld cache” check — dyld does
-  not map the split cache under /System/Library/Caches/com.apple.dyld yet.
+  On fullroot, dyld opens dyld_shared_cache_arm64e, preads the header, and
+  calls F_ADDFILESIGS_RETURN. ubc_cs_blob_add reached _accelerate_entitlement_queries
+  (RT 0xfffffe000793a064); with IOKit skipped the ops object is NULL. The
+  null-ops guard at 0xfffffe000793a084 used to return into the epilogue with
+  the blob pointer still in w0, which ubc_cs_blob_add treated as EPERM → dyld
+  "code signature registration for shared cache failed". The guard now returns
+  w0=0. The non-platform-binary EPERM gate at 0xfffffe0007938ff0 is also
+  softened.
+- With those fixes, GDB on fullroot shows: UBC_CS_BLOB_ADD_RET w0=0, many
+  subcache lookups/mmaps, SR_MAP2, then MAP_WITH_LINKING. Msgbuf no longer
+  says "no dyld cache" / libSystem missing; initproc now panics with
+  OS_REASON_DYLD namespace 2 subcode 0xb (next wall after cache map).
 
 Not verified
 ------------
-- launchd past libSystem (dyld shared cache map on fullroot).
+- launchd past dyld exit reason 0xb after shared-cache map/link.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
