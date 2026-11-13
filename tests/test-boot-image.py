@@ -26,6 +26,7 @@ def test_source_untouched_and_patches_apply():
     boot.patch_ticket_timeout_return(blob)
     boot.patch_null_vtable_guard(blob)
     boot.patch_cs_enforcement_disable(blob)
+    boot.patch_slide_auth_pointers(blob)
     boot.patch_proc_state2_hang(blob)
     cmd = blob[boot.CMDLINE_OFF : boot.CMDLINE_OFF + boot.CMDLINE_LEN]
     text = cmd.split(b"\x00", 1)[0].decode("ascii")
@@ -81,6 +82,23 @@ def test_source_untouched_and_patches_apply():
     )
     assert struct.unpack_from("<I", blob, boot.va_off(boot.UBC_CS_NONPLATFORM_TBZ))[0] == boot._b(
         boot.UBC_CS_NONPLATFORM_TBZ - boot.SLIDE, boot.UBC_CS_NONPLATFORM_CONT_RT
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_PAGE_V5_TBNZ))[0] == boot._b(
+        boot.SLIDE_PAGE_V5_TBNZ - boot.SLIDE, boot.SLIDE_AUTH_V5_CAVE - boot.SLIDE
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_PAGE_V3_TBNZ))[0] == boot._b(
+        boot.SLIDE_PAGE_V3_TBNZ - boot.SLIDE, boot.SLIDE_AUTH_V3_CAVE - boot.SLIDE
+    )
+    v5_rt = boot.SLIDE_AUTH_V5_CAVE - boot.SLIDE
+    v3_rt = boot.SLIDE_AUTH_V3_CAVE - boot.SLIDE
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V5_CAVE))[0] == boot._tbz(
+        9, 0x3F, v5_rt, v5_rt + 8, nz=True
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V5_CAVE + 8))[0] == boot.AND_X10_X9_34
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V3_CAVE + 8))[0] == boot.MOV_W10_W9
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V3_CAVE + 12))[0] == boot.LDR_X11_X20_16
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V3_CAVE + 28))[0] == boot._b(
+        v3_rt + 28, boot.SLIDE_PAGE_V3_NEXT_RT
     )
     for va, _expect, repl in boot.AMFI_BOOTARG_ADDS:
         assert struct.unpack_from("<I", blob, boot.va_off(va))[0] == repl

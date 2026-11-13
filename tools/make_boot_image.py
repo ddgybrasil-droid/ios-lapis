@@ -32,6 +32,14 @@ MMU-off handoff. This script leaves the slide alone and:
     softens the invalid-page CS kill so init can survive under TCG.
 13. Softens ubc_cs_blob_add's non-platform-binary EPERM gate (RT
     0xfffffe0007938ff0) so other F_ADDFILESIGS callers still succeed.
+14. Converts arm64e authenticated rebase encodings in
+    vm_shared_region_slide_page (formats 3/5): stock skips bit63 entries and
+    leaves chain words like 0x86be… in DATA; QEMU then SIGSEGVs on them
+    (OS_REASON_SIGNAL / 0xb). Format 5: 34-bit runtimeOffset + value_add +
+    slide (no high8). Format 3: 32-bit offset + auth_value_add + slide.
+    Pointers are left unsigned (kernel JOP key not wired under TCG); with
+    pauth-impdef this clears the raw-encoding SEGV and advances to a later
+    SIGBUS (0xa) in dyld.
 
 load_init_program lives at RT 0xfffffe00078d7b18 (prints
 "attempting to load /sbin/launchd"). SpringBoard is not claimed.
@@ -152,11 +160,30 @@ RET = 0xD65F03C0
 # then more after LAPIS_MOUNT_CAVE (14 insns from RT 0xfffffe000756aca0).
 VTABLE_CAVE = 0xFFFFFE000756AC58 + SLIDE
 NULL_OPS_ZERO_CAVE = 0xFFFFFE000756ACD8 + SLIDE  # after mount trampoline
+# Auth-rebase convert caves for vm_shared_region_slide_page (after zero cave).
+SLIDE_AUTH_V5_CAVE = 0xFFFFFE000756ACE0 + SLIDE
+SLIDE_AUTH_V3_CAVE = 0xFFFFFE000756ACF8 + SLIDE
 # ldr x8,[x9,#0x1a0] with x9==0 (file VA = RT+SLIDE).
 NULL_OPS_LDR = 0xFFFFFE000793A084 + SLIDE
 NULL_OPS_LDR_EXPECT = 0xF940D128
 NULL_OPS_RESUME_RT = 0xFFFFFE000793A088  # existing cbz x8
 NULL_OPS_RET_RT = 0xFFFFFE000793A0B0  # epilogue (success when w0==0)
+# slide_page: tbnz x9,#0x3f skips authenticated chain entries (leave raw).
+SLIDE_PAGE_V5_TBNZ = 0xFFFFFE00074E2988 + SLIDE  # tbnz x9,#0x3f,#2974
+SLIDE_PAGE_V5_TBNZ_EXPECT = 0xB7FFFF69
+SLIDE_PAGE_V5_PLAIN_RT = 0xFFFFFE00074E298C
+SLIDE_PAGE_V5_NEXT_RT = 0xFFFFFE00074E2974
+SLIDE_PAGE_V3_TBNZ = 0xFFFFFE00074E2A50 + SLIDE  # tbnz x9,#0x3f,#2a38
+SLIDE_PAGE_V3_TBNZ_EXPECT = 0xB7FFFF49
+SLIDE_PAGE_V3_PLAIN_RT = 0xFFFFFE00074E2A54
+SLIDE_PAGE_V3_NEXT_RT = 0xFFFFFE00074E2A38
+MOV_W10_W9 = 0x2A0903EA
+AND_X10_X9_34 = 0x9240852A  # and x10, x9, #0x3ffffffff (v5 runtimeOffset)
+LDR_X11_X20_16 = 0xF9400A8B  # ldr x11, [x20, #16] (auth_value_add / value_add)
+ADD_X10_X10_X11 = 0x8B0B014A  # add x10, x10, x11
+ADD_X10_X10_X8 = 0x8B08014A  # add x10, x10, x8
+ADD_X10_X8_X10 = 0x8B0A010A
+STR_X10_X19 = 0xF900026A
 PROC_STATE2_HANG = 0xFFFFFE0007B15340
 PROC_STATE2_HANG_EXPECT = 0x14000000  # b .
 PROC_STATE2_HANG_REPL = 0x14000003  # b .+12 -> dispatch
@@ -244,6 +271,16 @@ def _cbnz(rt: int, from_va: int, to_va: int, width64: bool = False) -> int:
     assert -(1 << 18) <= off < (1 << 18)
     op = 0xB5000000 if width64 else 0x35000000
     return op | ((off & 0x7FFFF) << 5) | rt
+
+
+def _tbz(rt: int, bit: int, from_va: int, to_va: int, nz: bool = False) -> int:
+    off = (to_va - from_va) >> 2
+    assert -(1 << 13) <= off < (1 << 13)
+    assert 0 <= bit < 64
+    b5 = (bit >> 5) & 1
+    b40 = bit & 0x1F
+    op = 0x37000000 if nz else 0x36000000
+    return op | (b5 << 31) | (b40 << 19) | ((off & 0x3FFF) << 5) | rt
 
 
 def va_off(va: int) -> int:
@@ -573,6 +610,57 @@ def patch_cs_enforcement_disable(blob: bytearray) -> None:
     )
 
 
+def patch_slide_auth_pointers(blob: bytearray) -> None:
+    """Convert arm64e auth rebase chain words instead of skipping them.
+
+    vm_shared_region_slide_page formats 3/5 do `tbnz x9,#0x3f,next` and leave
+    authenticated encodings (bit63) untouched. On fullroot that surfaces as
+    FAR=0x86be… (chain encoding) → EXC_BAD_ACCESS → initproc signal 0xb.
+
+    dyld_cache_slide_pointer5 auth: runtimeOffset:34 + value_add + slide
+    (x8 already holds value_add+slide on the v5 path; do not OR high8).
+    dyld_cache_slide_pointer3 auth: offset32 + auth_value_add + slide
+    (x8 is slide only; load auth_value_add from [x20,#16]).
+
+    Values are stored unsigned: signing needs the shared-region JOP key, which
+    TCG does not provide the same way as hardware.
+    """
+    v5_rt = SLIDE_AUTH_V5_CAVE - SLIDE
+    v3_rt = SLIDE_AUTH_V3_CAVE - SLIDE
+    # tbnz auth → convert (local); else long-b to stock plain path.
+    v5_seq = [
+        _tbz(9, 0x3F, v5_rt, v5_rt + 8, nz=True),
+        _b(v5_rt + 4, SLIDE_PAGE_V5_PLAIN_RT),
+        AND_X10_X9_34,
+        ADD_X10_X8_X10,
+        STR_X10_X19,
+        _b(v5_rt + 20, SLIDE_PAGE_V5_NEXT_RT),
+    ]
+    v3_seq = [
+        _tbz(9, 0x3F, v3_rt, v3_rt + 8, nz=True),
+        _b(v3_rt + 4, SLIDE_PAGE_V3_PLAIN_RT),
+        MOV_W10_W9,
+        LDR_X11_X20_16,
+        ADD_X10_X10_X11,
+        ADD_X10_X10_X8,
+        STR_X10_X19,
+        _b(v3_rt + 28, SLIDE_PAGE_V3_NEXT_RT),
+    ]
+    assert len(v5_seq) == 6 and len(v3_seq) == 8
+    _write_seq(blob, SLIDE_AUTH_V5_CAVE, v5_seq)
+    _write_seq(blob, SLIDE_AUTH_V3_CAVE, v3_seq)
+
+    for site, expect, cave in (
+        (SLIDE_PAGE_V5_TBNZ, SLIDE_PAGE_V5_TBNZ_EXPECT, v5_rt),
+        (SLIDE_PAGE_V3_TBNZ, SLIDE_PAGE_V3_TBNZ_EXPECT, v3_rt),
+    ):
+        off = va_off(site)
+        cur = struct.unpack_from("<I", blob, off)[0]
+        if cur != expect:
+            raise SystemExit(f"{site:#x}: expected {expect:#x}, found {cur:#x}")
+        struct.pack_into("<I", blob, off, _b(site - SLIDE, cave))
+
+
 def patch_null_vtable_guard(blob: bytearray) -> None:
     """Neutralize NULL vtable/ops loads that panic after mount (skipped IOKit).
 
@@ -645,6 +733,7 @@ def build(source: pathlib.Path = SOURCE, output: pathlib.Path = OUTPUT) -> str:
     patch_ticket_timeout_return(blob)
     patch_null_vtable_guard(blob)
     patch_cs_enforcement_disable(blob)
+    patch_slide_auth_pointers(blob)
     patch_proc_state2_hang(blob)
     output.write_bytes(blob)
     return hashlib.sha256(blob).hexdigest()
@@ -661,6 +750,7 @@ def main() -> None:
         patch_ticket_timeout_return(blob)
         patch_null_vtable_guard(blob)
         patch_cs_enforcement_disable(blob)
+        patch_slide_auth_pointers(blob)
         patch_proc_state2_hang(blob)
         print("check ok", len(blob))
         return

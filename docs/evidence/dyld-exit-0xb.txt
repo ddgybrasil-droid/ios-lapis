@@ -1,0 +1,32 @@
+# dyld exit 0xb → auth slide convert (QEMU+GDB)
+
+Image.ipados sha256 efa22ad00af640ba50e8d6cdd2adb2541401e76b4483b9347e08fd3bb4b98902
+fullroot.img (local, not committed)
+cpu: max,pauth-impdef=on
+
+## before (stock skip of bit63 auth rebases)
+- FAR=0x86be6afc6dd63d80 (raw dyld_cache_slide_pointer5 auth encoding)
+- EXC_BAD_ACCESS → OS_REASON_SIGNAL ns=2 code=0xb (SIGSEGV)
+- slide_page visits ~2 auth-bearing pages then dies
+
+## patch
+vm_shared_region_slide_page formats 3/5: replace `tbnz x9,#63,next` with a
+cave that materializes the target instead of leaving the chain word raw.
+
+- v5: `and x10,x9,#0x3ffffffff; add x10,x8,x10; str [x19]`
+  (runtimeOffset:34 + value_add+slide already in x8; no high8)
+- v3: `mov w10,w9; ldr x11,[x20,#16]; add; add x8; str`
+  (offset32 + auth_value_add + slide)
+
+## after
+- V5AUTH converts: 12474
+- slide_page calls: 13+, pages with work: 10+
+- SR_MAP2 return 0, MWL return 0 (unchanged)
+- EXC_BAD_ACCESS code1≈0x100…ae14 (launchd-ASLR range), not 0x86be…
+- OS_REASON_SIGNAL ns=2 code=0xa (SIGBUS) — new wall after clearing 0xb
+- PC in shared cache near libdyld (autda / object walk); FAR in main binary space
+
+## notes
+- `-cpu max,pauth=off` → SIGILL on AUT* (dac10…) during LOAD_INIT; keep pauth.
+- PACIA/PACDA in the cave with EL1 keys did not change the 0xa outcome (JOP key
+  not matched); left pointers unsigned for TCG.
