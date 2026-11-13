@@ -22,12 +22,16 @@ MMU-off handoff. This script leaves the slide alone and:
 9. Guards NULL vtable loads at runtime 0xfffffe0007b49968 / 0xfffffe0007b499d0
    (ldr x8,[x8,#0x1c0] with x8==0 → FAR 0x1c0 panic after mount).
 10. Guards NULL ops object at runtime 0xfffffe000793a084
-   (ldr x8,[x9,#0x1a0] with x9==0 → FAR 0x1a0).
+   (ldr x8,[x9,#0x1a0] with x9==0 → FAR 0x1a0). The null path returns w0=0
+   (success) so ubc_cs_blob_add / F_ADDFILESIGS for the dyld shared cache
+   does not treat the leftover blob pointer as EPERM.
 11. Breaks a stock `b .` hang at runtime 0xfffffe0007afdd90 (processor state 2)
     by falling through to the normal state-dispatch path.
 12. Fixes cs_enforcement_disable / AMFI boot-arg ADD immediates (stock points
     mid-cstring), skips the CSM gate that blocked clearing cs_enforcement, and
     softens the invalid-page CS kill so init can survive under TCG.
+13. Softens ubc_cs_blob_add's non-platform-binary EPERM gate (RT
+    0xfffffe0007938ff0) so other F_ADDFILESIGS callers still succeed.
 
 load_init_program lives at RT 0xfffffe00078d7b18 (prints
 "attempting to load /sbin/launchd"). SpringBoard is not claimed.
@@ -144,13 +148,15 @@ TICKET_TIMEOUT_STUBS = (
     (0xFFFFFE0007BA0620 + SLIDE, 0xD10143FF),
 )
 RET = 0xD65F03C0
-# Free NOPs after lapis_mount trampoline (RT 0xfffffe000756ac58).
+# Free NOPs: 4 insns at RT 0xfffffe000756ac58 (before LAPIS_KICK at +0x10),
+# then more after LAPIS_MOUNT_CAVE (14 insns from RT 0xfffffe000756aca0).
 VTABLE_CAVE = 0xFFFFFE000756AC58 + SLIDE
+NULL_OPS_ZERO_CAVE = 0xFFFFFE000756ACD8 + SLIDE  # after mount trampoline
 # ldr x8,[x9,#0x1a0] with x9==0 (file VA = RT+SLIDE).
 NULL_OPS_LDR = 0xFFFFFE000793A084 + SLIDE
 NULL_OPS_LDR_EXPECT = 0xF940D128
 NULL_OPS_RESUME_RT = 0xFFFFFE000793A088  # existing cbz x8
-NULL_OPS_RET_RT = 0xFFFFFE000793A0B0  # mov w0,#1; epilogue
+NULL_OPS_RET_RT = 0xFFFFFE000793A0B0  # epilogue (success when w0==0)
 PROC_STATE2_HANG = 0xFFFFFE0007B15340
 PROC_STATE2_HANG_EXPECT = 0x14000000  # b .
 PROC_STATE2_HANG_REPL = 0x14000003  # b .+12 -> dispatch
@@ -176,6 +182,15 @@ CS_INVALID_PAGE_SOFT_RT = 0xFFFFFE0007473700
 # Always take the clear path when the disable helper does run.
 CS_ENFORCE_BOOTARG_CBZ = 0xFFFFFE0007BF4698 + SLIDE  # cbz w8, skip_disable
 CS_ENFORCE_BOOTARG_CBZ_EXPECT = 0x34000128
+
+# ubc_cs_blob_add (RT 0xfffffe0007938e8c): after mac_vnode_check_signature
+# succeeds, a non-platform blob with stack-flag bit0 set takes an unconditional
+# EPERM path (tbz w24,#0,cont → else mov w22,#1). Dyld's F_ADDFILESIGS_RETURN
+# for dyld_shared_cache_arm64e hits this on fullroot → "code signature
+# registration for shared cache failed". Branch straight to the continue path.
+UBC_CS_NONPLATFORM_TBZ = 0xFFFFFE0007938FF0 + SLIDE  # tbz w24,#0,#9020
+UBC_CS_NONPLATFORM_TBZ_EXPECT = 0x36000198
+UBC_CS_NONPLATFORM_CONT_RT = 0xFFFFFE0007939020
 
 # AMFI config PE_parse name ADDs (RT 0xfffffe000791a9d8..); stock off-by-N.
 AMFI_BOOTARG_ADDS = (
@@ -544,6 +559,19 @@ def patch_cs_enforcement_disable(blob: bytearray) -> None:
         _b(CS_INVALID_PAGE_CBZ - SLIDE, CS_INVALID_PAGE_SOFT_RT),
     )
 
+    off = va_off(UBC_CS_NONPLATFORM_TBZ)
+    cur = struct.unpack_from("<I", blob, off)[0]
+    if cur != UBC_CS_NONPLATFORM_TBZ_EXPECT:
+        raise SystemExit(
+            f"{UBC_CS_NONPLATFORM_TBZ:#x}: expected {UBC_CS_NONPLATFORM_TBZ_EXPECT:#x}, found {cur:#x}"
+        )
+    struct.pack_into(
+        "<I",
+        blob,
+        off,
+        _b(UBC_CS_NONPLATFORM_TBZ - SLIDE, UBC_CS_NONPLATFORM_CONT_RT),
+    )
+
 
 def patch_null_vtable_guard(blob: bytearray) -> None:
     """Neutralize NULL vtable/ops loads that panic after mount (skipped IOKit).
@@ -585,13 +613,21 @@ def patch_null_vtable_guard(blob: bytearray) -> None:
 
     cave_rt = VTABLE_CAVE - SLIDE
     ops_tramp_rt = cave_rt
+    zero_rt = NULL_OPS_ZERO_CAVE - SLIDE
+    # x9==0 → zero cave (mov w0,#0; b epilogue). Must not enter the epilogue
+    # with the blob pointer still in w0 (non-zero → EPERM in ubc_cs_blob_add).
     seq = [
-        _cbz(9, ops_tramp_rt, ops_tramp_rt + 12),
+        _cbz(9, ops_tramp_rt, zero_rt),
         NULL_OPS_LDR_EXPECT,
         _b(ops_tramp_rt + 8, NULL_OPS_RESUME_RT),
-        _b(ops_tramp_rt + 12, NULL_OPS_RET_RT),
+        NOP,  # unused (kick cave starts at +0x10)
     ]
     _write_seq(blob, VTABLE_CAVE, seq)
+    _write_seq(
+        blob,
+        NULL_OPS_ZERO_CAVE,
+        [MOVZ_W0_0, _b(zero_rt + 4, NULL_OPS_RET_RT)],
+    )
     off = va_off(NULL_OPS_LDR)
     cur = struct.unpack_from("<I", blob, off)[0]
     if cur != NULL_OPS_LDR_EXPECT:

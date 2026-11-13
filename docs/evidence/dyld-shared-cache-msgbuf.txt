@@ -1,0 +1,5 @@
+fffffe0007bf6a74):  initproc failed to start -- exit reason namespace 2 subcode 0xb description: none
+Debugger message: panic
+Device: Not set yet
+Hardware Model: Not set yet
+ECID: 
