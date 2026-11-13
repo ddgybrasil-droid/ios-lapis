@@ -65,13 +65,14 @@ Verified in QEMU (this tree)
   says "no dyld cache" / libSystem missing.
 - Shared-cache auth slide convert clears OS_REASON_SIGNAL 0xb (raw chain FAR).
 - Dyld pager Auth64 nopac accepts pointer_format 12 (USERLAND24); msgbuf no
-  longer prints `unknown pointer_format 12` / SIGBUS 0xa. Launchd now dies in
-  `_container_init(): sandbox_get_container_expected() failed: -1`
-  (namespace 18 subcode 0x2).
+  longer prints `unknown pointer_format 12` / SIGBUS 0xa.
+- fullroot DSC patch (tools/patch_fullroot_container_init.py) skips the fatal
+  `sandbox_get_container_expected` check in `_container_init`. Launchd then
+  dies with OS_REASON_SIGNAL subcode 0x5 (SIGTRAP) — next wall.
 
 Not verified
 ------------
-- launchd past sandbox container init after dyld page-in linking.
+- launchd past SIGTRAP after libSystem _container_init.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
