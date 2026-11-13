@@ -71,12 +71,15 @@ Verified in QEMU (this tree)
   died with OS_REASON_SIGNAL subcode 0x5 (SIGTRAP) at libpthread
   `_pthread_workqueue_supported` (`__pthread_supported_features` == 0).
 - fullroot DSC patch (tools/patch_fullroot_pthread_features.py) forces the
-  required feature mask (`0x4000001e`). Past that BRK; next wall is PAC
+  required feature mask (`0x4000001e`). Past that BRK; next wall was PAC
   (`autda`/`blraa` on unsigned Auth64 pointers → `brk #0x1`).
+- fullroot DSC patch (tools/patch_fullroot_pac_strip.py --nop-brk1) strips
+  PAC ops to XPAC/BLR/RET and NOPs TEXT padding `brk #1`. GDB shows
+  nbrk=0; exit reason advances from subcode 0x5 to **0xb** (SIGSEGV).
 
 Not verified
 ------------
-- launchd past PAC auth on unsigned Auth64 / shared-cache pointers.
+- launchd past SIGSEGV 0xb after PAC strip (unmapped object-ish FAR).
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
