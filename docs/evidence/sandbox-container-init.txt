@@ -1,0 +1,28 @@
+# sandbox _container_init → DSC call-site nopac (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local, not committed) after tools/patch_fullroot_container_init.py
+cpu: max,pauth-impdef=on
+
+## before
+- msgbuf: `pid 1 exited -- exit reason namespace 18 subcode 0x2,
+  description _container_init(): sandbox_get_container_expected() failed: -1`
+- OS_REASON_LIBSYSTEM during libSystem initializer (_container_init)
+- sandbox_get_container_expected → __mac_syscall("Sandbox", 0x43) fails under TCG
+
+## patch
+In dyld_shared_cache_arm64e.31, _container_init call site VA 0x1e2776ea0:
+
+  add/add/bl/cbnz  →  strb 0,strb 0,mov w0,#0,nop
+
+So expected=0 and the following `cmp #1` / `b.ne epilogue` skips
+containerization. Tool: tools/patch_fullroot_container_init.py
+
+## after
+- GDB: MWL → AUTH64 fmt=12 (×2) — pager still works
+- msgbuf: no `sandbox_get_container_expected` / namespace 18
+- `CODE SIGNING: cs_invalid_page(...launchd) ... allowing`
+- `pid 1 exited -- exit reason namespace 2 subcode 0x5` (SIGTRAP) — new wall
+
+## apply
+  python3 tools/patch_fullroot_container_init.py /path/to/fullroot.img
