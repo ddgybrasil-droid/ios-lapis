@@ -27,6 +27,7 @@ def test_source_untouched_and_patches_apply():
     boot.patch_null_vtable_guard(blob)
     boot.patch_cs_enforcement_disable(blob)
     boot.patch_slide_auth_pointers(blob)
+    boot.patch_dyld_pager_auth64(blob)
     boot.patch_proc_state2_hang(blob)
     cmd = blob[boot.CMDLINE_OFF : boot.CMDLINE_OFF + boot.CMDLINE_LEN]
     text = cmd.split(b"\x00", 1)[0].decode("ascii")
@@ -100,6 +101,14 @@ def test_source_untouched_and_patches_apply():
     assert struct.unpack_from("<I", blob, boot.va_off(boot.SLIDE_AUTH_V3_CAVE + 28))[0] == boot._b(
         v3_rt + 28, boot.SLIDE_PAGE_V3_NEXT_RT
     )
+    disp_rt = boot.AUTH64_DISP_CAVE - boot.SLIDE
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.FIXUP_FMT_BNE))[0] == boot._b_cond(
+        boot.FIXUP_FMT_BNE - boot.SLIDE, disp_rt, 1
+    )
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.AUTH64_DISP_CAVE))[0] == 0x7100311F
+    assert struct.unpack_from("<I", blob, boot.va_off(boot.AUTH64_DISP_CAVE + 4 * 19))[0] == struct.unpack_from(
+        "<I", boot.AUTH64_FIXUP_BLOB, 0
+    )[0]
     for va, _expect, repl in boot.AMFI_BOOTARG_ADDS:
         assert struct.unpack_from("<I", blob, boot.va_off(va))[0] == repl
     assert struct.unpack_from("<I", blob, boot.va_off(boot.LAPIS_WAIT_ENTRY))[0] == boot._b(

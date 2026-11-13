@@ -62,12 +62,16 @@ Verified in QEMU (this tree)
   softened.
 - With those fixes, GDB on fullroot shows: UBC_CS_BLOB_ADD_RET w0=0, many
   subcache lookups/mmaps, SR_MAP2, then MAP_WITH_LINKING. Msgbuf no longer
-  says "no dyld cache" / libSystem missing; initproc now panics with
-  OS_REASON_DYLD namespace 2 subcode 0xb (next wall after cache map).
+  says "no dyld cache" / libSystem missing.
+- Shared-cache auth slide convert clears OS_REASON_SIGNAL 0xb (raw chain FAR).
+- Dyld pager Auth64 nopac accepts pointer_format 12 (USERLAND24); msgbuf no
+  longer prints `unknown pointer_format 12` / SIGBUS 0xa. Launchd now dies in
+  `_container_init(): sandbox_get_container_expected() failed: -1`
+  (namespace 18 subcode 0x2).
 
 Not verified
 ------------
-- launchd past dyld exit reason 0xb after shared-cache map/link.
+- launchd past sandbox container init after dyld page-in linking.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
