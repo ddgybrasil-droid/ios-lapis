@@ -40,12 +40,19 @@ MMU-off handoff. This script leaves the slide alone and:
     Pointers are left unsigned (kernel JOP key not wired under TCG); with
     pauth-impdef this clears the raw-encoding SEGV and advances to a later
     SIGBUS (0xa) in dyld.
+15. dyld pager (vm_dyld_pager / fixup_page): stock was built without
+    HAS_APPLE_PAC, so the pointer_format switch only accepts 2/3/6 and
+    prints "unknown pointer_format 12" for DYLD_CHAINED_PTR_ARM64E_USERLAND24
+    (launchd page-in linking) → KERN_FAILURE → SIGBUS 0xa. Route formats
+    1/9/12 into a freestanding fixupPageAuth64 that applies the chain with
+    identity signPointer (unsigned targets), Bergamota 0135-style.
 
 load_init_program lives at RT 0xfffffe00078d7b18 (prints
 "attempting to load /sbin/launchd"). SpringBoard is not claimed.
 
 Trampolines sit in a NOP sled at runtime 0xfffffe000756ac30, not inside
-ExceptionVectorsBase.
+ExceptionVectorsBase. Auth64 pager fixups use the larger NOP sled at
+runtime 0xfffffe000756d48c.
 
 QEMU needs ~43G guest RAM (memory-backend reserve=off). 8G hits an early
 stub exception.
@@ -163,6 +170,29 @@ NULL_OPS_ZERO_CAVE = 0xFFFFFE000756ACD8 + SLIDE  # after mount trampoline
 # Auth-rebase convert caves for vm_shared_region_slide_page (after zero cave).
 SLIDE_AUTH_V5_CAVE = 0xFFFFFE000756ACE0 + SLIDE
 SLIDE_AUTH_V3_CAVE = 0xFFFFFE000756ACF8 + SLIDE
+# dyld pager fixup_page switch: cmp w8,#2 / b.ne unknown-format.
+# Stock only handles formats 2/3/6 (no HAS_APPLE_PAC); format 12 → SIGBUS.
+FIXUP_FMT_CMP2 = 0xFFFFFE00074E529C + SLIDE  # cmp w8, #2
+FIXUP_FMT_CMP2_EXPECT = 0x7100091F
+FIXUP_FMT_BNE = 0xFFFFFE00074E52A0 + SLIDE  # b.ne unknown
+FIXUP_FMT_BNE_EXPECT = 0x54000601
+FIXUP_FMT_DEFAULT_RT = 0xFFFFFE00074E5360  # unknown pointer_format printf
+FIXUP_FMT_SUCCESS_RT = 0xFFFFFE00074E5460  # after successful fixupPage*
+# Large NOP sled for Auth64 dispatcher + body (733 insns free in stock).
+AUTH64_DISP_CAVE = 0xFFFFFE000756D48C + SLIDE
+# Freestanding fixupPageAuth64_nopac (.text), same ABI as fixupPage64.
+# Built with aarch64-linux-gnu-gcc -ffreestanding -fno-stack-protector -O2.
+AUTH64_FIXUP_BLOB = bytes.fromhex(
+    "6444248b490840b928104091e0ff9f524900098b842c40799f00006b20060054"
+    "4a9841a9840001abe3379f9abf000071e00304aa4a01869aa30600b583200091"
+    "1f0103eb8202005431000014e6040034460c40b9635c0012df00036b89050054"
+    "237963f8030000f9c50300b4a000048b84fc4ed39f3840eba10400543f0000eb"
+    "68040054032000917f0008eb08040054e40300aa030040f965fc73d366f87ed3"
+    "a5287dd343fdffb766020034470c40b9665c0012ff00066ba9020054e703062a"
+    "66c860d37f004ef2c3b46eb26610869a237967f8c300038b030000f985fcffb5"
+    "00008052c0035fd6461040f9c340238bddffff1766a8409263c873d3c6000a8b"
+    "631c4892c300038bd7ffff17a0008052c0035fd6"
+)
 # ldr x8,[x9,#0x1a0] with x9==0 (file VA = RT+SLIDE).
 NULL_OPS_LDR = 0xFFFFFE000793A084 + SLIDE
 NULL_OPS_LDR_EXPECT = 0xF940D128
@@ -661,6 +691,90 @@ def patch_slide_auth_pointers(blob: bytearray) -> None:
         struct.pack_into("<I", blob, off, _b(site - SLIDE, cave))
 
 
+def patch_dyld_pager_auth64(blob: bytearray) -> None:
+    """Accept arm64e chained formats 1/9/12 in the dyld pager (nopac).
+
+    Stock fixup_page only switches on formats 2/3/6 (no HAS_APPLE_PAC). Launchd
+    page-in linking uses DYLD_CHAINED_PTR_ARM64E_USERLAND24 (12); the default
+    path prints "unknown pointer_format 12" and returns KERN_FAILURE → SIGBUS
+    0xa on first DATA/DATA_CONST touch.
+
+    Redirect the format!=2 arm to a dispatcher that calls a freestanding
+    fixupPageAuth64 with identity signing (unsigned pointers under TCG).
+    """
+    disp_rt = AUTH64_DISP_CAVE - SLIDE
+    # Dispatcher layout (18 insns), then the compiled Auth64 body.
+    #  0: cmp w8,#12
+    #  1: b.eq do_off
+    #  2: cmp w8,#9
+    #  3: b.eq do_off
+    #  4: cmp w8,#1
+    #  5: b.eq do_va
+    #  6: b default
+    #  7: do_off: ldp x1,x0,[sp,#104]
+    #  8: ldr x2,[sp,#88]
+    #  9: mov x3,x28
+    # 10: mov w5,#1
+    # 11: bl auth
+    # 12: b success
+    # 13: do_va:  ldp x1,x0,[sp,#104]
+    # 14: ldr x2,[sp,#88]
+    # 15: mov x3,x28
+    # 16: mov w5,#0
+    # 17: bl auth
+    # 18: b success
+    # 19+: AUTH64_FIXUP_BLOB
+    auth_rt = disp_rt + 4 * 19
+    do_off = disp_rt + 4 * 7
+    do_va = disp_rt + 4 * 13
+    LDP_X1_X0_SP_104 = 0xA94683E1
+    LDR_X2_SP_88 = 0xF9402FE2
+    MOV_X3_X28 = 0xAA1C03E3
+    MOV_W5_1 = 0x52800025
+    MOV_W5_0 = 0x52800005
+    disp = [
+        0x7100311F,  # cmp w8, #12
+        _b_cond(disp_rt + 4, do_off, 0),  # b.eq
+        0x7100251F,  # cmp w8, #9
+        _b_cond(disp_rt + 12, do_off, 0),
+        0x7100051F,  # cmp w8, #1
+        _b_cond(disp_rt + 20, do_va, 0),
+        _b(disp_rt + 24, FIXUP_FMT_DEFAULT_RT),
+        LDP_X1_X0_SP_104,
+        LDR_X2_SP_88,
+        MOV_X3_X28,
+        MOV_W5_1,
+        _b(disp_rt + 4 * 11, auth_rt, link=True),
+        _b(disp_rt + 4 * 12, FIXUP_FMT_SUCCESS_RT),
+        LDP_X1_X0_SP_104,
+        LDR_X2_SP_88,
+        MOV_X3_X28,
+        MOV_W5_0,
+        _b(disp_rt + 4 * 17, auth_rt, link=True),
+        _b(disp_rt + 4 * 18, FIXUP_FMT_SUCCESS_RT),
+    ]
+    assert len(disp) == 19
+    _write_seq(blob, AUTH64_DISP_CAVE, disp)
+    body = list(struct.unpack(f"<{len(AUTH64_FIXUP_BLOB) // 4}I", AUTH64_FIXUP_BLOB))
+    _write_seq(blob, AUTH64_DISP_CAVE + 4 * 19, body)
+
+    for site, expect in (
+        (FIXUP_FMT_CMP2, FIXUP_FMT_CMP2_EXPECT),
+        (FIXUP_FMT_BNE, FIXUP_FMT_BNE_EXPECT),
+    ):
+        off = va_off(site)
+        cur = struct.unpack_from("<I", blob, off)[0]
+        if cur != expect:
+            raise SystemExit(f"{site:#x}: expected {expect:#x}, found {cur:#x}")
+    # Keep cmp #2; retarget b.ne to the dispatcher.
+    struct.pack_into(
+        "<I",
+        blob,
+        va_off(FIXUP_FMT_BNE),
+        _b_cond(FIXUP_FMT_BNE - SLIDE, disp_rt, 1),
+    )
+
+
 def patch_null_vtable_guard(blob: bytearray) -> None:
     """Neutralize NULL vtable/ops loads that panic after mount (skipped IOKit).
 
@@ -734,6 +848,7 @@ def build(source: pathlib.Path = SOURCE, output: pathlib.Path = OUTPUT) -> str:
     patch_null_vtable_guard(blob)
     patch_cs_enforcement_disable(blob)
     patch_slide_auth_pointers(blob)
+    patch_dyld_pager_auth64(blob)
     patch_proc_state2_hang(blob)
     output.write_bytes(blob)
     return hashlib.sha256(blob).hexdigest()
@@ -751,6 +866,7 @@ def main() -> None:
         patch_null_vtable_guard(blob)
         patch_cs_enforcement_disable(blob)
         patch_slide_auth_pointers(blob)
+        patch_dyld_pager_auth64(blob)
         patch_proc_state2_hang(blob)
         print("check ok", len(blob))
         return

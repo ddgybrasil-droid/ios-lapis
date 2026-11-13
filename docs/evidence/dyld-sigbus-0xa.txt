@@ -1,0 +1,29 @@
+# dyld SIGBUS 0xa → pager Auth64 nopac (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local, not committed)
+cpu: max,pauth-impdef=on
+
+## before (stock fixup_page without HAS_APPLE_PAC)
+- msgbuf: `fixup_page(): unknown pointer_format 12`
+- DYLD_CHAINED_PTR_ARM64E_USERLAND24 used by launchd page-in linking (MWL)
+- pager returns KERN_FAILURE → first DATA/DATA_CONST touch → SIGBUS
+- `pid 1 exited -- exit reason namespace 2 subcode 0xa, description none`
+
+## patch
+dyld pager `fixup_page` switch (RT 0xfffffe00074e529c) only accepted
+formats 2/3/6. Retarget the format!=2 arm to a cave that handles
+formats 1/9/12 via freestanding `fixupPageAuth64` with identity
+`signPointer` (unsigned targets under TCG), Bergamota 0135-style.
+
+## after
+- GDB: MWL → AUTH64_DISP fmt=12 (pageIndex=1) — cave hit
+- msgbuf: no `unknown pointer_format`
+- no namespace 2 / subcode 0xa
+- `pid 1 exited -- exit reason namespace 18 subcode 0x2,
+  description _container_init(): sandbox_get_container_expected() failed: -1`
+- New wall is sandbox container init (after dyld page-in linking), not SIGBUS
+
+## notes
+- Keep `-cpu max,pauth-impdef=on` (pauth=off → SIGILL on AUT*).
+- Shared-cache slide auth convert (PR #10) remains required before this path.
