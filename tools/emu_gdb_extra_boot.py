@@ -302,3 +302,46 @@ def on_rsetattr():
     except Exception as e: P('ERR rsetattr %s'%e)
     return False
 BP('ramfs_setattr',on_rsetattr,RAMFS_SETATTR)
+
+# --- user-space XPC lookup trace (chunk 16). QEMU gdbstub breakpoints are TCG breakpoints by
+# virtual address (no memory patching), so a bp on a dyld-shared-cache VA fires in every process.
+# The cache slide is per boot: taken from vm_shared_region_start_address() (unslid base 0x180000000).
+DSC_BASE=0x180000000
+DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0x1e2761b08,
+          'container_system_path_for_identifier':0x1e276a4e8}
+_dsc={'slide':None,'pend':{}}
+def _dsc_ret():
+    st=_dsc['pend'].pop(r('sp'),None)
+    if st is None or _dsc['slide'] is not None: return False
+    start=m64(st); slide=start-DSC_BASE
+    if not (0<=slide<0x40000000): return False
+    _dsc['slide']=slide; P('DSC_SLIDE start=%#x slide=%#x'%(start,slide))
+    for n,a in DSC_SYMS.items(): BP('u_'+n,_ufn(n),a+slide)
+    return False
+def on_vsrsa():
+    if _dsc['slide'] is None: _dsc['pend'][r('sp')]=r('x1'); RetBP2(r('x30'),_dsc_ret)
+    return False
+_rb2={}
+class _RetSite2(gdb.Breakpoint):
+    def __init__(s,addr,fn):
+        super().__init__('*%#x'%addr,internal=True); s.fn=fn
+    def stop(s): return s.fn()
+def RetBP2(addr,fn):
+    if addr not in _rb2: _rb2[addr]=_RetSite2(addr,fn)
+_xl_cnt={}
+def _ufn(n):
+    def fn():
+        p=cur_pname(); pn=p[0] if p else '?'
+        if n=='xpc_look_up_endpoint':
+            name=ustr(r('x0'),128)
+            k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
+            if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager')) and _xl_cnt[k]<=3:
+                P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x'%(pn,name,r('x1')&0xffffffff,r('x2'),r('x3')))
+                RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
+        elif n=='container_xpc_create_connection':
+            P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))
+        else:
+            P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
+        return False
+    return fn
+BP('_vm_shared_region_start_address',on_vsrsa)
