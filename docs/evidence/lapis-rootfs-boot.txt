@@ -64,3 +64,47 @@ Next blocker: mount-phase-1 exit(72) (EX_OSFILE): no /etc/fstab and no mount_lap
 18900:SYS_EXIT rval=72
 18935:SYS_EXIT rval=72
 20663:REBOOT_KERNEL howto=0xc00 msg='boot task failure: mount-phase-1 - exited due to exit(72)'
+
+## chunk 3: mount-phase-2
+built-in vfs table (vfstbllist @0xfffffe0007c85fd0): devfs, nullfs (+ lapisfs via vfs_fsadd) -> no writable fs, no tmpfs
+### boot15 (IPSW apfs_boot_util added)
+3152:SPAWN #1 path='/sbin/fsck'
+8736:SYS_EXIT rval=0
+8991:SPAWN #2 path='/sbin/mount'
+16483:SYS_EXIT rval=0
+16810:SPAWN #3 path='/usr/libexec/init_data_protection'
+26856:SYS_EXIT rval=0
+26923:SPAWN #4 path='/usr/libexec/mobile_obliterator'
+41957:SYS_EXIT rval=0
+42583:SPAWN #5 path='/usr/libexec/HorizonSetup'
+42829:SPAWN #6 path='/sbin/mount'
+54160:EXECVE #1 path='/System/Library/Filesystems/apfs.fs/apfs_boot_util'
+69022:SYS_EXIT rval=0
+69669:SPAWN #7 path='/usr/libexec/MSUEarlyBootTask'
+79997:SPAWN #8 path='/usr/local/bin/snapshottool'
+82403:SYS_EXIT rval=0
+82503:SPAWN #9 path='/usr/libexec/MobileAssetEarlyBootTask'
+82678:SPAWN #10 path='/usr/libexec/cc_fips_test'
+### boot16
+3048:SPAWN #1 path='/sbin/fsck'
+8741:SYS_EXIT rval=0
+9224:SPAWN #2 path='/sbin/mount'
+17090:SYS_EXIT rval=0
+17357:SPAWN #3 path='/usr/libexec/init_data_protection'
+26428:SYS_EXIT rval=0
+26495:SPAWN #4 path='/usr/libexec/mobile_obliterator'
+38541:SYS_EXIT rval=0
+38990:SPAWN #5 path='/usr/libexec/HorizonSetup'
+39115:SPAWN #6 path='/sbin/mount'
+50846:EXECVE #1 path='/System/Library/Filesystems/apfs.fs/apfs_boot_util'
+64032:SYS_EXIT rval=0
+64698:SPAWN #7 path='/usr/libexec/MSUEarlyBootTask'
+76398:SPAWN #8 path='/usr/local/bin/snapshottool'
+78635:SYS_EXIT rval=0
+79043:SPAWN #9 path='/usr/libexec/MobileAssetEarlyBootTask'
+79260:SPAWN #10 path='/usr/libexec/cc_fips_test'
+97942:SYS_EXIT rval=4294965222
+109603:REBOOT_KERNEL howto=0xc00 msg='boot task failure: fips - exited due to exit(230)'
+111233:SYS_EXIT rval=0
+111249:PANIC
+111250:PANIC2 fmt='%s at pc 0x%016llx, lr 0x%016llx (saved state: %p%s)\n\t  x0:  0x%016llx x1:  0x%016llx  x2:  0x%016llx  x3:  0x%016llx\n\t  x4:  0x%016llx x5:  0x%016llx  x6:  0x%016llx  x7:  0x%016llx\n\t  x8:  0x%016llx' x1=0xfffffe0007bcb970 x2=0x1 x3=0xf200bffc20402204 lr=0xfffffe0007bcf93c
