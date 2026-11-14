@@ -13,8 +13,11 @@ $CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-
 $CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align \
     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -Wall -Wno-unused-parameter \
     -c lapis_iomedia.c -o lapis_iomedia.o
+$CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align \
+    -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -Wall -Wno-unused-parameter \
+    -c lapis_sandbox.c -o lapis_sandbox.o
 DS=""
-OBJS="lapis_ramfs.o lapis_amfi.o lapis_iomedia.o"
+OBJS="lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_sandbox.o"
 DEF=$(aarch64-linux-gnu-nm --defined-only $OBJS | awk 'NF==3{print $3}' | sort -u)
 for s in $(aarch64-linux-gnu-nm -u $OBJS | awk 'NF==2{print $2}' | sort -u); do
   echo "$DEF" | grep -qx "$s" && continue
