@@ -1,0 +1,2 @@
+[    2.062756]: launchd[1] triggered unnest of range 0x1fc000000->0x200000000 of DYLD shared region in VM map 0x3b714ecf883535a9. While not abnormal for debuggers, this increases system memory footprint almost permanently (until the shared region is re-slid).
+[    3.321021]: pid 1 exited -- exit reason namespace 2 subcode 0xb, description none

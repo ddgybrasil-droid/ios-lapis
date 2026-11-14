@@ -1,0 +1,42 @@
+# PAC strip + brk#1 NOP → past SIGTRAP 0x5 (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local) after:
+  tools/patch_fullroot_container_init.py
+  tools/patch_fullroot_pthread_features.py
+  tools/patch_fullroot_pac_strip.py --nop-brk1
+cpu: max,pauth-impdef=on
+
+## before
+- After pthread features seed, launchd died OS_REASON_SIGNAL ns=2 / 0x5
+- GDB: first userspace BRK was `esr=f2000001` (`brk #0x1`), not libpthread
+  `#0xb001`. PAC auth on unsigned Auth64 pointers (`autda`/`blraa`/`retab`)
+  and/or landing in TEXT padding `brk #1`.
+
+## patch
+1. Rewrite PAC ops across DSC TEXT + `/usr/lib/dyld` + `/sbin/launchd`:
+   - sign hints → NOP; AUT* → XPACI/XPACD/XPACLRI
+   - RETAA/B → RET; BLRAA/BRAA → BLR/BR
+   - MOVK diversity immediately before BLRAA/BRAA → XPACI on addr reg
+   - BRK #0xc470..#0xc473 → NOP
+2. `--nop-brk1`: rewrite TEXT padding `brk #1` → NOP (~6.45M words).
+   Needed for bring-up: surgical patches at a guessed unslid PC did not
+   clear the trap (guest still executed `brk #1`); blanket nop does
+   (`nbrk=0`). Side effect: fallthrough into the next function is possible.
+
+Tool: tools/patch_fullroot_pac_strip.py
+Unit: tests/test-patch-fullroot-pac-strip.py
+
+## after
+- GDB: MOUNTED → MWL → OS_REASON ns=2 code=0xb with **nbrk=0**
+  (no userspace BRK / no SIGTRAP 0x5)
+  docs/evidence/gdb-pac-strip-osreason.txt
+- msgbuf: `pid 1 exited -- exit reason namespace 2 subcode 0xb`
+  docs/evidence/msgbuf-pac-strip.txt
+- Next wall: SIGSEGV 0xb (translation fault on an unmapped object-ish
+  pointer, FAR = x0+0x18, PC in the main binary ASLR range).
+
+## apply
+  python3 tools/patch_fullroot_container_init.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_pthread_features.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_pac_strip.py --nop-brk1 /path/to/fullroot.img
