@@ -2,9 +2,12 @@
 
 Patches: `patches/` = `git format-patch afc7b33..lapis-pthread` (local branch, not pushed).
 
-Kernels (`kernel/` / GitHub release `lapis-pthread-pth18`, plus local pth19):
+Kernels (`kernel/` / GitHub releases):
 - Image.ipados.lapis_pthread.amfi-iomedia-vmm-owners (pth18) 6194f1bb... — release lapis-pthread-pth18 (boot55).
-- Image.ipados.lapis_pthread.amfi-iomedia-vmm-sandbox (pth19) fbf2658a... — pth18 + lapis_sandbox MAC policy (chunk 17). Build: `xnu/lapis-ramfs/build.sh` then `tools/patch_kernel_ramfs_replace.py pth18 pth19`.
+- Image.ipados.lapis_pthread.amfi-iomedia-vmm-sandbox (pth19/pth20) fbf2658a... — pth18 + lapis_sandbox MAC policy.
+  Releases: lapis-pthread-pth19 (registration kernel) and lapis-pthread-pth20 (same bytes; reproducible recipe + replace-tool asserts).
+  Build (gcc 13.3.0 / ld 2.42): `cd xnu/lapis-ramfs && ./build.sh` (ramfs.bin 11688 B, f84c4345…) then
+  `python3 tools/patch_kernel_ramfs_replace.py Image.pth18 Image.pth20` — see docs/status/Image.pth20-recipe.txt.
 - Image.ipados.lapis_pthread       c34fe621...  = qemu/Image.ipados + xnu/lapis_pthread/build.sh + tools/patch_kernel_lapis_pthread.py
 - Image.ipados.lapis_pthread.boot  a5410683...  = above + tools/patch_kernel_rootdev_bootarg.py (rd=md0 -> rootdev=md0)
                                                   + tools/patch_kernel_lapisfs_rootauth.py + tools/patch_kernel_platform_binary.py

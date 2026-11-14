@@ -5,3 +5,4 @@ qemu/qemu-11.0.0/
 qemu/qemu-deps/
 xnu/lapis-ramfs/ramfs.elf
 tools/__pycache__/
+xnu/lapis-ramfs/*.o
