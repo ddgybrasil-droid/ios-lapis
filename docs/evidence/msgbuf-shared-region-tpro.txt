@@ -1,0 +1,3 @@
+[    0.778834]: shared_region: 0xfeeb9b54cd7e6653 [1(launchd)] check_np(0x16ce7f930) vm_shared_region_start_address() returned 0x1
+[    0.864340]: shared_region: 0xfeeb9b54cd7e6653 [1(launchd)] check_np(0x16ce7ed18) vm_shared_region_start_address() returned 0x1
+[    2.126665]: pid 1 exited -- exit reason namespace 2 subcode 0xb, description none
