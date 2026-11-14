@@ -40,6 +40,8 @@ for root, ds, fs in os.walk(top):
                 out += blk[1:] if blk[0] & 0x0f == 0x0f else zlib.decompress(blk)
             open(base + '.dec', 'wb').write(out); ok = True
         if ok and os.path.getsize(base + '.dec') == sz:
+            st = os.stat(base)          # 7-Zip's 0-byte placeholder carries the real mode/mtime
+            os.chmod(base + '.dec', st.st_mode & 0o7777); os.utime(base + '.dec', (st.st_atime, st.st_mtime))
             os.replace(base + '.dec', base); os.remove(xa)
             if os.path.exists(rs):
                 os.remove(rs)

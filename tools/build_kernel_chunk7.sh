@@ -21,3 +21,6 @@ python3 "$R/patch_kernel_bootarg_add.py" $T/Image.pth11 $T/Image.pth12 launchd_u
 #           (xnu kern_exit.c tunable: launchd _PanicOnCrash services no longer panic the kernel when they crash)
 # rootfs: lapisfs_add.py IMG --dir /private/var/log --dir /private/var/log/com.apple.xpc.launchd (ramfs template)
 #         SystemOS cryptex non-DSC content -> /System/Cryptexes/OS (see tools/decmpfs_decode_tree.py docstring)
+#         missing daemon binaries (launchd "binary is missing" -> xpcproxy exit 78): 259 LaunchDaemons programs (+ their .app/.xpc/.appex/.bundle
+#         bundles, no .lproj) extracted from the OS dmg 094-54982-099.dmg with 7zz @list -> lapisfs_add.py --grow-mb 384 /System=.. /Applications=..;
+#         AppOS cryptex 094-54871-103.dmg (all, decmpfs decoded) -> /System/Cryptexes/App; lapisfs_fix_macho_modes.py IMG /System/Cryptexes/OS /System/Cryptexes/App
