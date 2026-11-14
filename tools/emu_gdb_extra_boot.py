@@ -80,7 +80,9 @@ def on_namei_ret():
     path=NAMEI['pend'].pop(r('sp'),None); rv=r('x0')&0xffffffff
     if rv and path is not None:
         NAMEI['fail']+=1
-        if NAMEI['fail']<=800: P('NAMEI_FAIL err=%d path=%r'%(rv,path))
+        k=(rv,path)
+        if k not in NAMEI.setdefault('seen',set()) and len(NAMEI['seen'])<6000:
+            NAMEI['seen'].add(k); P('NAMEI_FAIL err=%d path=%r proc=%s'%(rv,path,cur_pname()))
     return False
 BP('_namei',on_namei); BP('namei_ret',on_namei_ret,NAMEI_RET)
 SPAWN={'n':0}
@@ -222,3 +224,56 @@ def on_persona():
         P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2])); RetBP(r('x30'),'persona op=%d'%op)
     return False
 BP('_persona',on_persona)
+def cur_pname():
+    try:
+        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18); return pname(p)[:1]
+    except Exception as e: return ['?']
+_iok_seen=set()
+def _iok(tag,ma,cnt):
+    n=cur_pname()
+    try:
+        b=bytes(gdb.selected_inferior().read_memory(ma,min(cnt,4096)))
+        s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
+    except Exception as e: s=['<%s>'%e]
+    k=(n[0] if n else '?',tag,tuple(s))
+    if k in _iok_seen: return False
+    _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12])); return False
+BP('_is_io_service_get_matching_services_bin',lambda: _iok('services',r('x1'),r('x2')))
+BP('_is_io_service_get_matching_service_bin',lambda: _iok('service',r('x1'),r('x2')))
+BP('_is_io_service_add_notification_bin_64',lambda: _iok('notify',r('x2'),r('x3')))
+def _uframes(tag, extra=''):
+    th=r('TPIDR_EL1'); ss=m64(th+0x110)
+    fp,lr,sp,pc=[m64(ss+8+0xe8+8*i) for i in range(4)]
+    ch=[pc,lr]; f=fp
+    for i in range(24):
+        try: d=uread(f,16); nf,l=struct.unpack('<QQ',d)
+        except Exception: break
+        if not l: break
+        ch.append(l & 0xfffffffff); f=nf
+        if not f: break
+    P('%s proc=%s pc=%#x lr=%#x %s FRAMES %s'%(tag,cur_pname(),pc,lr,extra,' '.join('%#x'%x for x in ch)))
+def on_pkill():
+    try:
+        sig=m64(r('x1')+8)&0xffffffff
+        if sig==6: _uframes('SIGABRT_PTHREAD_KILL')
+    except Exception as e: P('PKILL err %r'%e)
+    return False
+BP('___pthread_kill',on_pkill)
+
+# csops entitlement queries (CS_OPS_STATUS 0, CS_OPS_ENTITLEMENTS_BLOB 7, CS_OPS_DER_ENTITLEMENTS_BLOB 16) with result
+_cs_seen={}
+class CsRet(gdb.Breakpoint):
+    def __init__(s,addr,tag):
+        super().__init__('*%#x'%addr,internal=True,temporary=True); s.tag=tag
+    def stop(s):
+        P('CSOPS %s ret=%d'%(s.tag,r('x0')&0xffffffff))
+        gdb.post_event(lambda b=s: b.delete() if b.is_valid() else None)
+        return False
+def on_csops():
+    ops=r('x1')&0xffffffff
+    if ops not in (0,7,16): return False
+    n=cur_pname(); k=(n[0] if n else '?',ops)
+    _cs_seen[k]=_cs_seen.get(k,0)+1
+    if _cs_seen[k]<=2: CsRet(r('x30'),'proc=%s pid=%d ops=%d usize=%d'%(n,r('x0')&0xffffffff,ops,r('x3')))
+    return False
+BP('_csops_internal',on_csops)
