@@ -145,6 +145,7 @@ extern int vnode_recycle(vnode_t);
 extern void *vfs_fsprivate(mount_t);
 extern void vfs_setfsprivate(mount_t, void *);
 extern int vfs_fsadd(struct vfs_fsentry *, void **);
+extern int vflush(mount_t, vnode_t, int);
 extern int cluster_read(vnode_t, uio_t, off_t, int);
 extern int cluster_write(vnode_t, uio_t, off_t, off_t, off_t, off_t, int);
 extern int cluster_pagein(vnode_t, upl_t, uint64_t, off_t, size_t, off_t, int);
@@ -327,7 +328,26 @@ static int r_mount(mount_t mp, vnode_t devvp, uint64_t data, vfs_context_t ctx)
 	ramfs_log("LAPIS ramfs: mounted tmpfs mp=%llx max=%llx %llx\n", (uint64_t)mp, m->maxbytes, 0);
 	return 0;
 }
-static int r_unmount(mount_t mp, int flags, vfs_context_t ctx) { return 0; }
+static void tree_free(struct rmnt *m, struct rnode *n)
+{
+	struct rnode *c, *nx;
+	for (c = n->child; c; c = nx) { nx = c->next; tree_free(m, c); }
+	nfree(m, n);
+}
+/* xnu dounmount flushes with SKIPROOT; the fs must release the rest (root vnode)
+ * itself, otherwise mount_refdrain() waits forever ("mount_drain"). */
+static int r_unmount(mount_t mp, int flags, vfs_context_t ctx)
+{
+	struct rmnt *m = MNT(mp);
+	int err = vflush(mp, 0, (flags & 0x80000 /* MNT_FORCE */) ? 2 /* FORCECLOSE */ : 0);
+	if (err) return err;
+	if (m) {
+		tree_free(m, m->root);
+		vfs_setfsprivate(mp, 0);
+		IOFree(m, sizeof(*m));   /* mutex/group intentionally leaked (tiny, bring-up) */
+	}
+	return 0;
+}
 static int r_root(mount_t mp, vnode_t *vpp, vfs_context_t ctx) { struct rmnt *m = MNT(mp); return node_vget(m, m->root, 0, 0, vpp); }
 static int r_vfsgetattr(mount_t mp, void *fsap, vfs_context_t ctx) { return 0; }
 static int r_sync(mount_t mp, int w, vfs_context_t ctx) { return 0; }

@@ -160,7 +160,7 @@ if '_exit' in S: BP('_exit',on_exit)
 CON={'buf':b'','n':0}
 def on_conw():
     a=r('x0'); n=r('x1')&0xffffffff
-    if n<=0 or n>4096 or CON['n']>6000: return False
+    if n<=0 or n>4096 or CON['n']>60000: return False
     try: d=bytes(gdb.selected_inferior().read_memory(a,n))
     except Exception: return False
     CON['buf']+=d
@@ -174,3 +174,23 @@ def on_sysreboot():
     P('SYS_REBOOT proc=%s opt=%#x msg=%r'%(pname(p),opt,ustr(msg,400) if msg else None))
     return False
 BP('_reboot',on_sysreboot)
+# --- unmount tracing (boot27) ---
+UM={'on':0,'ms':0,'n':{}}
+def _cnt(k,lim):
+    UM['n'][k]=UM['n'].get(k,0)+1; return UM['n'][k]<=lim
+def mkh(tag,lim,fmt):
+    def f():
+        if _cnt(tag,lim): P(tag+' '+fmt())
+        if tag=='DOUNMOUNT': UM['on']=1
+        return False
+    return f
+BP('_dounmount',mkh('DOUNMOUNT',20,lambda:'mp=%#x flags=%#x lr=%#x'%(r('x0'),r('x1'),r('x30'))))
+BP('_vflush',mkh('VFLUSH',20,lambda:'mp=%#x skipvp=%#x flags=%#x'%(r('x0'),r('x1'),r('x2'))))
+BP('_vnode_reclaim_internal',mkh('VRECLAIM',40,lambda:'vp=%#x'%r('x0')))
+BP('r_reclaim',mkh('R_RECLAIM',40,lambda:'ap=%#x'%r('x0')),addr=0xfffffe000743f5b4)
+BP('r_unmount',mkh('R_UNMOUNT',10,lambda:'mp=%#x'%r('x0')),addr=0xfffffe000743e6a4)
+def on_msleep():
+    if UM['on'] and _cnt('MSLEEP',300):
+        w=r('x3'); P('MSLEEP chan=%#x wmesg=%r lr=%#x'%(r('x0'), cstr(w,40) if w>>40==0xfffffe else hex(w), r('x30')))
+    return False
+BP('_msleep',on_msleep)
