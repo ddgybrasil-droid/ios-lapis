@@ -79,20 +79,12 @@ Verified in QEMU (this tree)
 - fullroot dyld patch (tools/patch_fullroot_dyld_skip_chained.py) skips the
   userspace chained-fixup walker (Auth64 pager owns USERLAND24) and the
   dyld_cache header walk at +0x208 that hits an unmapped shared-region VA.
-  Clears the launchd __DATA walker SEGV site; next wall was SIGSEGV 0xb on
-  `str` into `__DATA_CONST,__dyld_apis` (preferred 0x1ec090040) in
-  `.33.dylddata` map[3] (CONST|TPRO). That map never gets a VME under QEMU
-  (`vm_shared_region_start_address` returns 0x1; flag clears / section
-  relocate / map merge do not fix it).
-- fullroot dyld patch (tools/patch_fullroot_dyld_tpro_local.py) redirects
-  that store into dyld `__DATA.__common` and skips the matching `__helper`
-  PAC install (also in unmapped `.33` map[5]). Clears the `__dyld_apis`
-  write SEGV; next wall is still SIGSEGV 0xb at later dyld/shared-cache
-  sites (see docs/evidence/gdb-shared-region-tpro.txt).
+  Clears the launchd __DATA walker SEGV site; next wall is still SIGSEGV 0xb
+  on a write into another unmapped shared-cache address.
 
 Not verified
 ------------
-- launchd past the post-TPRO-local SIGSEGV 0xb.
+- launchd past the post-skip shared-cache write SIGSEGV 0xb.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
