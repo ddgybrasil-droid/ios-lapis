@@ -6,7 +6,7 @@ data extent holds the target (kernel: lapisfs_vtype -> VLNK, lapisfs_readlink).
   existing dir   -> (an emulated mirror made by lapisfs_add.py --mirror) moved, with its
                     subtree, under /private/.lapis-mirrors/<flattened path>; new link entry added
   missing        -> new link entry added (parent must exist)
-New entries are appended (indices unchanged); string table rebuilt after the entry table and
+Kernel rule: parent index < child index. New entries are appended (indices unchanged); string table rebuilt after the entry table and
 must end before the first data extent; link data goes 16K-aligned at the old `total`.
 usage: lapisfs_symlink.py IMG LINK=TARGET ..."""
 import struct, sys, os
@@ -44,10 +44,18 @@ with open(img, 'r+b') as f:
         if i is not None and E[i][1] == 2:
             E[i][2] = LNK; setdata(i, target.encode()); print('converted file', link, '->', target); continue
         if i is not None:
+            # the kernel requires parent index < child index: the first moved dir becomes the
+            # holder itself (renamed /private/.lapis-mirrors), later ones go below it if allowed
             if hold is None:
-                hold = P.get('/private/.lapis-mirrors') or add(P['/private'], 1, 0o755, '.lapis-mirrors')
-            E[i][0] = hold; names[i] = link.strip('/').replace('/', '_')
-            print('moved mirror dir', link, '-> /private/.lapis-mirrors/' + names[i])
+                hold = P.get('/private/.lapis-mirrors')
+                if hold is None:
+                    assert P['/private'] < i
+                    E[i][0] = P['/private']; names[i] = '.lapis-mirrors'; hold = i
+                    print('mirror dir', link, 'renamed /private/.lapis-mirrors'); j = add(pi, 2, LNK, nm)
+                    setdata(j, target.encode()); print('symlink', link, '->', target, 'idx', j); continue
+            if hold < i: E[i][0] = hold; names[i] = link.strip('/').replace('/', '_'); where = '/private/.lapis-mirrors/'
+            else: names[i] = '.lapis-mirror.' + nm; where = par + '/'
+            print('moved mirror dir', link, '->', where + names[i])
         j = add(pi, 2, LNK, nm); setdata(j, target.encode()); print('symlink', link, '->', target, 'idx', j)
     # rebuild strings
     so = eo + 32 * len(E); sb = bytearray()
