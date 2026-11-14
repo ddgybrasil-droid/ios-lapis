@@ -76,15 +76,10 @@ Verified in QEMU (this tree)
 - fullroot DSC patch (tools/patch_fullroot_pac_strip.py --nop-brk1) strips
   PAC ops to XPAC/BLR/RET and NOPs TEXT padding `brk #1`. GDB shows
   nbrk=0; exit reason advances from subcode 0x5 to **0xb** (SIGSEGV).
-- fullroot dyld patch (tools/patch_fullroot_dyld_skip_chained.py) skips the
-  userspace chained-fixup walker (Auth64 pager owns USERLAND24) and the
-  dyld_cache header walk at +0x208 that hits an unmapped shared-region VA.
-  Clears the launchd __DATA walker SEGV site; next wall is still SIGSEGV 0xb
-  on a write into another unmapped shared-cache address.
 
 Not verified
 ------------
-- launchd past the post-skip shared-cache write SIGSEGV 0xb.
+- launchd past SIGSEGV 0xb after PAC strip (unmapped object-ish FAR).
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
