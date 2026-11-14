@@ -211,4 +211,6 @@ Registration (VERIFIED on this agent with pth19 + the old 283-entry fullroot, gd
 | boot56-reg | Image.pth19 | old fullroot (283 ents) | qemu11 lva=off | VERIFIED mac_policy_register w0=0 + success log; rootfs too small to reach backboardd | /tmp/boot56-reg, /tmp/boot56-smoke2 |
 | boot56 | Image.pth19 | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО on this agent: fullroot-mnt2.img (5.7G bring-up rootfs) is not in the repo or this VM. Expect: no more `error = 159` / `x0=0x9f` on containermanagerd.system lookups, WILL_SPAWN of containermanagerd.system, `/private/var/containers` created, backboardd past BSSystemContainer nil-path. | - |
 
-Next blocker: boot56 on the bring-up rootfs to confirm containermanagerd.system + containers; then IOMobileFramebuffer / IOSurface / HID for backboardd/SpringBoard; personas (usermanagerd).
+#24 merged into lapis-pthread (2a68706). Image.pth19 sha256 fbf2658a…. Next: boot56 on the bring-up rootfs.
+
+Next blocker: boot56 on fullroot-mnt2.img (this cloud VM only has the old 5.0G/283-entry fullroot; IPSW 23F77 download started to rebuild). Then IOMobileFramebuffer / IOSurface / HID for backboardd/SpringBoard; personas (usermanagerd).
