@@ -42,5 +42,12 @@ cur = list(struct.unpack_from('<2I', img, off(VT)))
 assert cur in (old, new), [hex(x) for x in cur]
 struct.pack_into('<2I', img, off(VT), *new)
 print('lapisfs readlink slot -> %#x, vget vtype -> bl %#x' % (rl, sym('lapisfs_vtype')))
+# lapisfs owners: getattr slot (kernel lapisfs getattr, always uid/gid 0) -> lapisfs_getattr (owner table)
+GA_SLOT, OLD_GETATTR = 0xfffffe000743dd48, 0xfffffe000743caf4
+assert struct.unpack_from('<Q', img, off(GA_SLOT - 8))[0] == 0xfffffe0007c86870  # vnop_getattr_desc
+ga = sym('lapisfs_getattr')
+assert struct.unpack_from('<Q', img, off(GA_SLOT))[0] in (OLD_GETATTR, ga)
+struct.pack_into('<Q', img, off(GA_SLOT), ga)
+print('lapisfs getattr slot -> %#x' % ga)
 open(sys.argv[2], 'wb').write(img)
 print('ramfs %d bytes @%#x, wrap %#x, call site %#x -> bl wrap' % (len(blob), BLOB_VA, wrap, CALL_SITE))

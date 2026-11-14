@@ -718,6 +718,47 @@ out:
 	return (r == -2) ? EIO : 0;
 }
 
+/* ---- lapisfs getattr with owners (replaces the kernel lapisfs getattr @0x743caf4, which
+ * reported root:wheel for everything; slot pointed here by tools/patch_kernel_ramfs.py).
+ * Backward-compatible LAPISFS v2 extension: optional owner table. The root entry (index 0,
+ * a directory, whose data extent is otherwise unused) points at it: ents[0].data_off/size =
+ * { "LFSOWN01", u32 count, u32 reserved, count x { u32 uid, u32 gid } } (indexed by entry
+ * number). Old images (root size 0 / no magic) and entries >= count stay 0:0. Old kernels
+ * ignore the table (directory data is never read). Written by tools/lapisfs_owners.py. ---- */
+static void lfs_owner(const struct lfs_mnt *md, uint32_t idx, uint32_t *uid, uint32_t *gid)
+{
+	static const char mg[8] = { 'L','F','S','O','W','N','0','1' };
+	const struct lfs_ent *r = &md->ents[0];
+	const uint8_t *t;
+	uint64_t total = *(const uint64_t *)(md->base + 32), cnt;
+	int k;
+	*uid = 0; *gid = 0;
+	if (r->type != 1 || r->size < 16 || r->data_off < 40 || r->data_off + r->size > total) return;
+	t = md->base + r->data_off;
+	for (k = 0; k < 8; k++) if (t[k] != (uint8_t)mg[k]) return;
+	cnt = *(const uint32_t *)(t + 8);
+	if (16 + cnt * 8 > r->size || idx >= cnt) return;
+	*uid = *(const uint32_t *)(t + 16 + (uint64_t)idx * 8);
+	*gid = *(const uint32_t *)(t + 20 + (uint64_t)idx * 8);
+}
+int lapisfs_getattr(struct a_attr *ap)
+{
+	struct lfs_node *n = vnode_fsnode(ap->vp);
+	char *v = (char *)ap->vap;
+	uint64_t sz = n->type == 1 ? 0 : n->e->size;
+	uint32_t uid, gid;
+	lfs_owner(vfs_fsprivate(n->mnt), n->idx, &uid, &gid);
+	*(uint64_t *)(v + 24) = n->type == 1 ? 2 : 1;           /* va_nlink */
+	*(uint64_t *)(v + 32) = sz; *(uint64_t *)(v + 40) = sz; /* total size/alloc */
+	*(uint64_t *)(v + 48) = sz; *(uint64_t *)(v + 56) = sz; /* data size/alloc */
+	F(v, VAO_uid, uint32_t) = uid; F(v, VAO_gid, uint32_t) = gid;
+	*(uint16_t *)(v + 76) = n->e->mode & 07777;             /* va_mode */
+	*(uint64_t *)(v + 176) = (uint64_t)n->idx + 2;          /* va_fileid */
+	*(uint64_t *)v |= VA_nlink | VA_total_size | VA_total_alloc | VA_data_size | VA_data_alloc |
+		VA_uid | VA_gid | VA_mode | VA_fileid;
+	return 0;
+}
+
 static int r_inactive(struct a_vp *ap)
 {
 	struct rnode *n = VN(ap->vp);
