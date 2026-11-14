@@ -60,5 +60,10 @@ void lapis_sandbox_register(void)
 	ops[MPO_POLICY_SYSCALL] = (void *)lsb_policy_syscall;
 	c->mpc_name = name; c->mpc_fullname = full; c->mpc_ops = ops;
 	e = mac_policy_register(c, &h, 0);
-	IOLog("LAPIS sandbox: mac_policy_register -> %d (handle %u)\n", e, h);
+	/* IOLog on this kernel uses the Apple stack-varargs ABI; multi-arg
+	 * printf from gcc is garbage (same note as lapis_amfi). One string only. */
+	if (e)
+		IOLog("LAPIS sandbox: mac_policy_register FAILED\n");
+	else
+		IOLog("LAPIS sandbox: check-allow policy registered\n");
 }

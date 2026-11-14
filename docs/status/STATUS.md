@@ -202,11 +202,13 @@ mac_policy_ops layout (VERIFIED against apple-oss-distributions `xnu-12377.121.6
 Fix (real code, no NOPs): `xnu/lapis-ramfs/lapis_sandbox.c` — register a MAC policy named `"Sandbox"` from `lapis_ramfs_wrap` (next to IOMedia). `mpo_policy_syscall` call 2 (check) returns 0 (allowed, result word left pre-zeroed); every other Sandbox call still returns ENOPOLICY (sandbox_init / extensions unchanged — same bring-up class as lapis_amfi).
   efe0a23 had compiled `lapis_sandbox.o` but `build.sh` linked only ramfs/amfi/iomedia (sandbox never entered the blob) — that WIP was unverified and incomplete. Fixed: `$OBJS` includes sandbox; `tools/patch_kernel_ramfs_replace.py` rebuilds an already-patched Image (zeros the blob region, re-applies vnodeop/wrap/amfi restores).
 Kernel Image.pth19 = pth18 blob replaced with the new ramfs+sandbox build
-  sha256 6a0f4dafa30ffe2f33f4fdc2e7ad5884003c329bdf375cb2762c589bf76f2c2a
+  sha256 fbf2658a8752e6e8aeae29e76d3df0e0f60ce8d317e2b06fde2c228a3a401aac
   (docs/status/Image.ipados.lapis_pthread.amfi-iomedia-vmm-sandbox.sha256;
    build: `xnu/lapis-ramfs/build.sh` && `python3 tools/patch_kernel_ramfs_replace.py Image.pth18 Image.pth19`).
 Harness: `___mac_syscall` Sandbox call/return trace; XPC_LOOKUP_RET annotates `0x9f` as xpcerr 159.
+Registration (VERIFIED on this agent with pth19 + the old 283-entry fullroot, gdb break after `bl mac_policy_register`): w0=0; console `LAPIS sandbox: check-allow policy registered`. Full containermanagerd.system path still needs mnt2.
 
-| boot56 | Image.pth19 | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО on this agent: fullroot-mnt2.img (5.7G bring-up rootfs) is not in the repo or this VM (only the older 5.0G fullroot with 283 lapisfs entries). Expect: `LAPIS sandbox: mac_policy_register -> 0`, no more `error = 159` / `x0=0x9f` on containermanagerd.system lookups, WILL_SPAWN of containermanagerd.system, `/private/var/containers` created, backboardd past BSSystemContainer nil-path. | - |
+| boot56-reg | Image.pth19 | old fullroot (283 ents) | qemu11 lva=off | VERIFIED mac_policy_register w0=0 + success log; rootfs too small to reach backboardd | /tmp/boot56-reg, /tmp/boot56-smoke2 |
+| boot56 | Image.pth19 | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО on this agent: fullroot-mnt2.img (5.7G bring-up rootfs) is not in the repo or this VM. Expect: no more `error = 159` / `x0=0x9f` on containermanagerd.system lookups, WILL_SPAWN of containermanagerd.system, `/private/var/containers` created, backboardd past BSSystemContainer nil-path. | - |
 
 Next blocker: boot56 on the bring-up rootfs to confirm containermanagerd.system + containers; then IOMobileFramebuffer / IOSurface / HID for backboardd/SpringBoard; personas (usermanagerd).
