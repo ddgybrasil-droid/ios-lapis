@@ -154,7 +154,7 @@ for nm in ('_execve','___mac_execve'):
     if nm in S:
         BP(nm,on_execve); break
 def on_exit():
-    a=r('x1'); P('SYS_EXIT rval=%d'%(m32(a) if m32(a) is not None else -1)); return False
+    a=r('x1'); P('SYS_EXIT rval=%d proc=%s'%(m32(a) if m32(a) is not None else -1, pname(r('x0')))); return False
 if '_exit' in S: BP('_exit',on_exit)
 # --- console capture + reboot(2) caller (boot19+) ---
 CON={'buf':b'','n':0}

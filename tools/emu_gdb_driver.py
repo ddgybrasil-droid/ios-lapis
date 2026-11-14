@@ -1,5 +1,4 @@
-# gdb-multiarch -x emu_gdb_driver.py (run via tools/emu_run_gdb.sh). Read-only observer:
-# breakpoints only log; no guest memory or register is written.
+import os
 # gdb -x drive.py ; env: OUT, MAXEXC
 import gdb, os, struct, time
 OUT=os.environ.get('OUT','/tmp'); MAXEXC=int(os.environ.get('MAXEXC','40'))
@@ -7,7 +6,7 @@ log=open(OUT+'/gdb-events.txt','w')
 def P(s):
     log.write(s+'\n'); log.flush()
 S={}
-for l in open(os.environ['KSYMS']):
+for l in open('/workspace/tpro-fix/ksyms.txt'):
     a,n=l.split(); S[n]=int(a,16)
 def r(reg): return int(gdb.parse_and_eval('$'+reg)) & 0xffffffffffffffff
 def m64(a):
@@ -53,7 +52,10 @@ def on_reason():
 def on_prepexit():
     state.setdefault('pe',0); state['pe']+=1
     P('PROC_PREPAREEXIT #%d reason_seen=%s'%(state['pe'],state.get('reason')))
-    if state.get('reason'): state['done']=True; return True
+    if state.get('reason'):
+        if os.environ.get('CONT_REASON','0')=='1':
+            state['reason']=None; return False
+        state['done']=True; return True
     return False
 def on_panic():
     P('PANIC'); state['done']=True; return True
@@ -99,7 +101,10 @@ BP('_proc_prepareexit',on_prepexit); BP('_map_with_linking_np',on_mwl); BP('_sha
 BP('_handle_user_abort',on_ua); BP('_panic',on_panic)
 extra=os.environ.get('EXTRA')
 if extra: exec(open(extra).read())
-gdb.execute('continue')
+try:
+    gdb.execute('continue')
+except BaseException as e:
+    P('INTERRUPTED %r'%e)
 P('STOPPED done=%s'%state['done'])
 # dump msgbuf
 mb=m64(S['_msgbufp']); size=m32(mb+4); bufx=m32(mb+8); buf=m64(mb+16)

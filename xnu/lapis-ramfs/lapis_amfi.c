@@ -169,5 +169,5 @@ void lapis_amfi_boot(void)
 	(void)null_fn;
 	load_static_trust_cache();
 	amfi_interface_register(lapis_amfi_if);
-	IOLog("LAPIS amfi: entitlement provider registered (%p)\n", (void *)lapis_amfi_if);
+	IOLog("LAPIS amfi: entitlement provider registered\n");
 }
