@@ -87,17 +87,12 @@ Verified in QEMU (this tree)
 - fullroot dyld patch (tools/patch_fullroot_dyld_tpro_local.py) redirects
   that store into dyld `__DATA.__common` and skips the matching `__helper`
   PAC install (also in unmapped `.33` map[5]). Clears the `__dyld_apis`
-  write SEGV; next wall was SIGSEGV 0xb on Allocator freelist
-  `stp x8,x9,[x5]` at /usr/lib/dyld VA 0x7bf44 into a vm_map VA with no
-  L3 PTE (DSC RW subcaches unmapped).
-- fullroot dyld patch (tools/patch_fullroot_dyld_alloc_page.py) branches
-  that freelist store to the function epilogue. Clears the 0x7bf44 site;
-  next wall is still SIGSEGV 0xb — write permission faults into dyld
-  `__DATA_CONST` (see docs/evidence/dyld-alloc-page-skip.txt).
+  write SEGV; next wall is still SIGSEGV 0xb at later dyld/shared-cache
+  sites (see docs/evidence/gdb-shared-region-tpro.txt).
 
 Not verified
 ------------
-- launchd past the post-alloc-skip SIGSEGV 0xb.
+- launchd past the post-TPRO-local SIGSEGV 0xb.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 
