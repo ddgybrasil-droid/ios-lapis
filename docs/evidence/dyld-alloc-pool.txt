@@ -1,0 +1,32 @@
+# dyld Allocator pool redirect into __DATA_DIRTY (post-TPRO, post-#17-revert)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local) after prior fullroot patches through tpro_local, then:
+  tools/patch_fullroot_dyld_alloc_pool.py
+cpu: max,pauth-impdef=on
+
+## before
+- After TPRO-local (#16): OS_REASON ns=2 / 0xb on
+  `/usr/lib/dyld` VA 0x7bf44 `stp x8,x9,[x5]` into a MemoryManager::vm_map
+  pool (often size 0x20000) with no L3 PTE.
+- #17 skipped that store to the epilogue; reverted in #19 (half-init left
+  later paths worse).
+
+## patch
+tools/patch_fullroot_dyld_alloc_pool.py on /usr/lib/dyld:
+  - Hook VA 0x7bf24 (`mov x19,x0`) → `b` TEXT cave at 0xa5180
+  - Cave forces pool to `__DATA_DIRTY` 0xb9000 / size 0x3000 (past all
+    ADRP+ADD refs into that segment), runs the stock freelist + 0x40
+    metadata alloc, returns via epilogue 0x7bf6c
+
+Does **not** skip the freelist store.
+
+## after
+- No FAULT with ALLOC_STP / page-off 0x3f44.
+- OS_REASON still ns=2 code=0xb.
+- Next write-permission faults (esr …04f) at dyld VA 0x7960
+  `str x21,[x19]` into RO `__DATA_CONST` (live phys confirmed on earlier
+  boots; see gdb-dyld-alloc-pool.txt).
+
+## apply
+  python3 tools/patch_fullroot_dyld_alloc_pool.py /path/to/fullroot.img
