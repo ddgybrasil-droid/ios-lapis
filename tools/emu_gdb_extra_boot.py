@@ -187,8 +187,8 @@ def mkh(tag,lim,fmt):
 BP('_dounmount',mkh('DOUNMOUNT',20,lambda:'mp=%#x flags=%#x lr=%#x'%(r('x0'),r('x1'),r('x30'))))
 BP('_vflush',mkh('VFLUSH',20,lambda:'mp=%#x skipvp=%#x flags=%#x'%(r('x0'),r('x1'),r('x2'))))
 BP('_vnode_reclaim_internal',mkh('VRECLAIM',40,lambda:'vp=%#x'%r('x0')))
-BP('r_reclaim',mkh('R_RECLAIM',40,lambda:'ap=%#x'%r('x0')),addr=0xfffffe000743f5b4)
-BP('r_unmount',mkh('R_UNMOUNT',10,lambda:'mp=%#x'%r('x0')),addr=0xfffffe000743e6a4)
+BP('r_reclaim',mkh('R_RECLAIM',40,lambda:'ap=%#x'%r('x0')),addr=0xfffffe000743f5e8)
+BP('r_unmount',mkh('R_UNMOUNT',10,lambda:'mp=%#x'%r('x0')),addr=0xfffffe000743e6d8)
 def on_msleep():
     if UM['on'] and _cnt('MSLEEP',300):
         w=r('x3'); P('MSLEEP chan=%#x wmesg=%r lr=%#x'%(r('x0'), cstr(w,40) if w>>40==0xfffffe else hex(w), r('x30')))

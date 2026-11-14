@@ -10,6 +10,7 @@ $CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-
 DS=""
 for s in $(aarch64-linux-gnu-nm -u lapis_ramfs.o | awk '{print $2}'); do
   case $s in lapis_mountroot_wrap_target) a=fffffe000743d9e8;;
+    lapisfs_devread) a=fffffe000743d464;;
     *) a=$(awk -v n="_$s" '$2==n{print $1; exit}' "$KSYMS");; esac
   [ -n "$a" ] || { echo "missing symbol $s"; exit 1; }
   DS="$DS --defsym=$s=0x$a"

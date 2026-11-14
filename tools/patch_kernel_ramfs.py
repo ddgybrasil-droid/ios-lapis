@@ -26,5 +26,21 @@ rd = int([l.split()[0] for l in subprocess.check_output(['aarch64-linux-gnu-nm',
 assert struct.unpack_from('<Q', img, off(RD_SLOT))[0] in (ERR_READDIR, rd)
 struct.pack_into('<Q', img, off(RD_SLOT), rd)
 print('lapisfs readdir slot -> %#x' % rd)
+sym = lambda n: int([l.split()[0] for l in subprocess.check_output(['aarch64-linux-gnu-nm', os.path.join(d, 'ramfs.elf')], text=True).splitlines() if l.endswith(' ' + n)][0], 16)
+# lapisfs symlinks: readlink slot err_readlink -> lapisfs_readlink
+RL_SLOT, ERR_READLINK = 0xfffffe000743de38, 0xfffffe0007613240
+assert struct.unpack_from('<Q', img, off(RL_SLOT - 8))[0] == 0xfffffe0007c87130  # vnop_readlink_desc
+rl = sym('lapisfs_readlink')
+assert struct.unpack_from('<Q', img, off(RL_SLOT))[0] in (ERR_READLINK, rl)
+struct.pack_into('<Q', img, off(RL_SLOT), rl)
+# lapisfs vget vtype: was  ldrb w0,[x19,#4]; cmp w0,#2; cset w0,ne; cmp w20,#0; add w0,w0,#1  (VREG/VDIR only)
+# now                      ldrb w0,[x19,#4]; bl lapisfs_vtype; sub w0,w0,#1; cmp w20,#0; add w0,w0,#1  (VREG/VDIR/VLNK)
+VT = 0xfffffe000743d268
+old = [0x7100081f, 0x1a9f07e0]
+new = [bl(VT, sym('lapisfs_vtype')), 0x51000400]
+cur = list(struct.unpack_from('<2I', img, off(VT)))
+assert cur in (old, new), [hex(x) for x in cur]
+struct.pack_into('<2I', img, off(VT), *new)
+print('lapisfs readlink slot -> %#x, vget vtype -> bl %#x' % (rl, sym('lapisfs_vtype')))
 open(sys.argv[2], 'wb').write(img)
 print('ramfs %d bytes @%#x, wrap %#x, call site %#x -> bl wrap' % (len(blob), BLOB_VA, wrap, CALL_SITE))

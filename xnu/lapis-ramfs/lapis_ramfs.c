@@ -662,6 +662,25 @@ static int r_readdir(struct a_readdir *ap)
 struct lfs_ent { uint32_t parent; uint16_t type, mode; uint64_t data_off, size; uint32_t name_off, name_len; };
 struct lfs_node { uint32_t idx; uint8_t type; mount_t mnt; vnode_t vp; const struct lfs_ent *e; };
 struct lfs_mnt { const uint8_t *base; uint32_t nent; const struct lfs_ent *ents; const char *strs; };
+/* lapisfs symlinks: a regular (type 2) entry whose mode carries S_IFLNK; data extent = target. */
+#define LFS_ISLNK(e) ((e)->type == 2 && ((e)->mode & 0170000) == 0120000)
+/* kernel lapisfs device reader: fills dst[off..end) from the md root (lapisfs @0x743d464) */
+extern int lapisfs_devread(uint8_t *dst, uint64_t off, uint64_t end);
+/* vtype for lapisfs vnode_create (called from lapisfs vget @0x743d268, x19 = lfs_node).
+   Must preserve x1-x3 (already set up by the caller): uses only x0, x16, x17. */
+__asm__(".text\n.globl lapisfs_vtype\nlapisfs_vtype:\n"
+	"ldr x16, [x19, #0x18]\n ldrh w0, [x16, #4]\n cmp w0, #2\n b.eq 1f\n mov w0, #2\n ret\n"
+	"1: ldrh w17, [x16, #6]\n and w17, w17, #0xf000\n cmp w17, #0xa000\n mov w0, #1\n b.ne 2f\n mov w0, #5\n2: ret\n");
+int lapisfs_readlink(struct a_readlink *ap)
+{
+	struct lfs_node *n = vnode_fsnode(ap->vp);
+	const struct lfs_ent *e;
+	char buf[1024];
+	if (!n || !(e = n->e) || !LFS_ISLNK(e)) return EINVAL;
+	if (e->size == 0 || e->size > sizeof(buf)) return EIO;
+	if (lapisfs_devread((uint8_t *)buf - e->data_off, e->data_off, e->data_off + e->size)) return EIO;
+	return uiomove(buf, (int)e->size, ap->uio);
+}
 static int lfs_emit(uio_t uio, uint64_t ino, uint8_t ty, const char *nm, int nl)
 {
 	struct dirent32 de;
@@ -687,7 +706,7 @@ int lapisfs_readdir(struct a_readdir *ap)
 	for (i = (uint32_t)(off - 2) > 0 ? (uint32_t)(off - 2) : 1; i < md->nent; i++) {
 		const struct lfs_ent *e = &md->ents[i];
 		if (e->parent != d->idx || i == d->idx) continue;
-		r = lfs_emit(ap->uio, i + 2, e->type == 1 ? 4 : 8, md->strs + e->name_off, (int)e->name_len);
+		r = lfs_emit(ap->uio, i + 2, e->type == 1 ? 4 : LFS_ISLNK(e) ? 10 : 8, md->strs + e->name_off, (int)e->name_len);
 		if (r < 0) { off = i + 2; goto out; }
 		if (r > 0) cnt++;
 	}
