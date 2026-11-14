@@ -137,3 +137,21 @@ try:
     BP('_csops_internal', on_csops)
 except Exception as e:
     P('no csops_internal: %s'%e)
+# --- execve + exit status ---
+EX={'n':0}
+def on_execve():
+    a=r('x1'); path=m64(a)
+    EX['n']+=1
+    if EX['n']<=200:
+        argv=m64(a+8); args=[]
+        for k in range(8):
+            p=m64(argv+8*k) if argv else None  # user ptrs: use uread
+            break
+        P('EXECVE #%d path=%r'%(EX['n'],ustr(path,256)))
+    return False
+for nm in ('_execve','___mac_execve'):
+    if nm in S:
+        BP(nm,on_execve); break
+def on_exit():
+    a=r('x1'); P('SYS_EXIT rval=%d'%(m32(a) if m32(a) is not None else -1)); return False
+if '_exit' in S: BP('_exit',on_exit)

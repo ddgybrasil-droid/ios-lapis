@@ -104,7 +104,7 @@ def main():
         kept = 0
         def add(path, typ, mode, off=0, size=0):
             nonlocal kept
-            path = path.rstrip("/") or "/"
+            path = "/" + path.strip("/")   # accept relative DEST (e.g. private/etc/x)
             if path in index:
                 i = index[path]
                 if typ == 1:
