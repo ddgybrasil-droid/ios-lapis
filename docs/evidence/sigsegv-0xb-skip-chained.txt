@@ -1,0 +1,45 @@
+# SIGSEGV 0xb — skip dyld chained walker + cache header walk (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local) after:
+  tools/patch_fullroot_container_init.py
+  tools/patch_fullroot_pthread_features.py
+  tools/patch_fullroot_pac_strip.py --nop-brk1
+  tools/patch_fullroot_dyld_skip_chained.py
+cpu: max,pauth-impdef=on
+
+## before (after PAC strip alone)
+- MOUNTED → MWL → OS_REASON ns=2 code=0xb
+- GDB data abort IFSC=7 at dyld chained-fixup walker:
+  PC unslid 0x2b5d0 `ldr x25,[x21]`, LR 0x2b408 (caller after `bl 0x2b564`)
+  FAR = launchd __DATA + page_start 0x18 (ptrfmt 12 / USERLAND24)
+- launchd chained starts: __DATA page[0] start=0x18; __DATA_CONST pages start=0
+
+## patch
+tools/patch_fullroot_dyld_skip_chained.py on /usr/lib/dyld:
+
+1. Walker VA 0x2b564 → `mov w0,#0; ret`
+   Leave USERLAND24 fixups to Image.ipados Auth64 dyld pager (page-in).
+
+2. Header walk VA 0x652f4 `b.cc` → `b` (always take old-header early exit)
+   Without (1), boot never reached this. With (1) alone, next SEGV was:
+   `ldr w9,[x21,#4]` at VA 0x65324 with
+   x21 = *(cache_base+0x208)+slide (on-disk preferred 0x2b925fae0) —
+   inside sharedRegionSize but unmapped (subcache hole).
+
+Unit: tests/test-patch-fullroot-dyld-skip-chained.py
+
+## after
+- GDB: first userspace data abort is no longer the 0x2b5d0 walker or 0x65324
+  header walk. New wall: write translation fault (esr …047) FAR in shared
+  cache (e.g. 0x1ef9b0040), PC still in dyld/main ASLR range.
+- OS_REASON still ns=2 code=0xb (SIGSEGV) — same signal class, new site.
+- msgbuf: `pid 1 exited -- exit reason namespace 2 subcode 0xb`
+  (docs/evidence/msgbuf-sigsegv-0xb-skip.txt)
+- gdb: docs/evidence/gdb-sigsegv-0xb-skip.txt
+
+## apply
+  python3 tools/patch_fullroot_container_init.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_pthread_features.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_pac_strip.py --nop-brk1 /path/to/fullroot.img
+  python3 tools/patch_fullroot_dyld_skip_chained.py /path/to/fullroot.img
