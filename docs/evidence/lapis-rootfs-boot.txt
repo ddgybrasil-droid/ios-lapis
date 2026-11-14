@@ -1,0 +1,41 @@
+# lapisfs rootfs boot evidence (QEMU, Image.pth5 a5410683..., fullroot-boot.img)
+
+# lapis-pthread bring-up status (Europe/Moscow times)
+
+| run | kernel | rootfs | change | result |
+|---|---|---|---|---|
+| etc3 | Image.pth | fullroot-etc.img | IPSW /private/etc + /etc mirror | 'mobile' abort gone; namei failures only |
+| boot2 | Image.pth | fullroot-boot.img | + IPSW boot subset (LaunchDaemons, sbin, usr/...) | launchd in RESTORE mode (rd=md0) -> HorizonSetup, stall |
+| boot3 | Image.pth2 | fullroot-boot.img | cmdline rd=md0 -> rootdev=md0 | panic: rootvp not authenticated |
+| boot5-7 | Image.pth3 | fullroot-boot.img | lapisfs FSIOC_KERNEL_ROOTAUTH -> 0 | normal boot tasks; spawns /sbin/fsck; REBOOT 'boot task is not a platform binary (fsck, /sbin/fsck)' |
+| boot8/9 | Image.pth4 (dropped) | fullroot-boot.img | OR CS_PLATFORM_BINARY in ubc_cs_blob_add | same reboot; csb flags=0x4000003 but proc csflags not platform |
+| boot10 | Image.pth5 | fullroot-boot.img | OR CS_SIGNED|CS_PLATFORM_BINARY in proc_getcsflags | platform reboot GONE: fsck runs, then /sbin/mount spawned (see logs/boot10) |
+| boot11 | Image.pth5 | fullroot-boot.img | clean rerun of boot10 (330 s) | fsck spawned+exited; /sbin/mount (mount-phase-1) spawned; ENOENT /etc/fstab and mount_lapisfs (4 helper paths, 4 child exits); REBOOT 'boot task failure: mount-phase-1 - exited due to exit(72)' |
+
+Next blocker: mount-phase-1 exit(72) (EX_OSFILE): no /etc/fstab and no mount_lapisfs helper for the lapisfs root.
+
+## boot11 excerpts (runs/boot11/gdb-events.txt)
+6:PROC_PREPAREEXIT #1 reason_seen=None
+21:PROC_PREPAREEXIT #2 reason_seen=None
+3297:SPAWN #1 path='/sbin/fsck'
+9086:PROC_PREPAREEXIT #3 reason_seen=None
+9260:SPAWN #2 path='/sbin/mount'
+16631:NAMEI_FAIL err=2 path='/etc/fstab'
+19872:NAMEI_FAIL err=2 path='/sbin/mount_lapisfs'
+19883:NAMEI_FAIL err=2 path='/usr/sbin/mount_lapisfs'
+19894:NAMEI_FAIL err=2 path='/System/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+19905:NAMEI_FAIL err=2 path='/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+22918:NAMEI_FAIL err=2 path='/sbin/mount_lapisfs'
+22931:PROC_PREPAREEXIT #4 reason_seen=None
+22932:NAMEI_FAIL err=2 path='/usr/sbin/mount_lapisfs'
+22945:PROC_PREPAREEXIT #5 reason_seen=None
+22946:NAMEI_FAIL err=2 path='/System/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+22959:PROC_PREPAREEXIT #6 reason_seen=None
+22960:NAMEI_FAIL err=2 path='/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+22973:PROC_PREPAREEXIT #7 reason_seen=None
+23022:PROC_PREPAREEXIT #8 reason_seen=None
+23059:PROC_PREPAREEXIT #9 reason_seen=None
+25093:REBOOT_KERNEL howto=0xc00 msg='boot task failure: mount-phase-1 - exited due to exit(72)'
+
+## boot7 (before platform fix)
+3501:REBOOT_KERNEL howto=0xc00 msg='boot task is not a platform binary (fsck, /sbin/fsck)'
