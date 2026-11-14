@@ -80,6 +80,7 @@ BP('_terminate_with_payload',on_twp)
 NAMEI={'n':0,'fail':0,'pend':{}}
 NAMEI_RET=0xfffffe00075ea5a8   # the single `ret` of _namei (xnu-12377.121.6 image)
 def on_namei():
+    if '_dsc_arm' in globals() and not _dsc.get('armed'): _dsc_arm()
     nd=r('x0'); dirp=m64(nd); seg=m32(nd+8)
     try: path=cstr(dirp) if seg==2 else ustr(dirp,256)
     except Exception as e: path='<%s>'%e
@@ -316,8 +317,20 @@ def _dsc_ret():
     start=m64(st); slide=start-DSC_BASE
     if not (0<=slide<0x40000000): return False
     _dsc['slide']=slide; P('DSC_SLIDE start=%#x slide=%#x'%(start,slide))
-    for n,a in DSC_SYMS.items(): BP('u_'+n,_ufn(n),a+slide)
     return False
+# The user bps are inserted from a later kernel stop taken in a process that has the cache mapped
+# (TTBR0 = that process): QEMU invalidates already-translated code for a new breakpoint through the
+# current address space, so inserting them in a context where the VA is unmapped (boot54) left the
+# cached translations of the shared-cache code without the breakpoint and they never fired.
+def _dsc_arm():
+    if _dsc['slide'] is None or _dsc.get('armed'): return
+    p=cur_pname()
+    if not p or p[0] in ('launchd','?'): return
+    try: uread(DSC_SYMS['xpc_look_up_endpoint']+_dsc['slide'],4)
+    except Exception: return
+    _dsc['armed']=1
+    for n,a in DSC_SYMS.items(): BP('u_'+n,_ufn(n),a+_dsc['slide'])
+    P('DSC_BPS armed in proc=%s'%p)
 def on_vsrsa():
     if _dsc['slide'] is None: _dsc['pend'][r('sp')]=r('x1'); RetBP2(r('x30'),_dsc_ret)
     return False
