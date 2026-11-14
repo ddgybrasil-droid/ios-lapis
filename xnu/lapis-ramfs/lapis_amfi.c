@@ -33,7 +33,10 @@ extern int csblob_get_entitlements(struct cs_blob *, void **, size_t *);
 extern void amfi_interface_register(const void *);
 extern void load_static_trust_cache(void);
 extern void IOLog(const char *, ...);
-extern void *kOSBooleanTrue, *kOSBooleanFalse;
+/* libkern: `OSBoolean * const & kOSBooleanTrue = gOSBooleanTrue;` -- a C++ reference, so the exported
+ * symbol is a pointer to the gOSBooleanTrue slot, not the object (boot44: returned &gOSBooleanTrue,
+ * IOPMrootDomain::setProperties then called release() through a bogus vtable -> pc 0). */
+extern void *const *kOSBooleanTrue, *const *kOSBooleanFalse;
 extern void *OSString_withCString(const char *) __asm__("_ZN8OSString11withCStringEPKc");
 extern void *OSNumber_withNumber(unsigned long long, unsigned int) __asm__("_ZN8OSNumber10withNumberEyj");
 
@@ -111,8 +114,8 @@ static kern_return_t copy_obj_proc(const proc_t p, const char *name, void **obj)
 	if (obj) *obj = 0;
 	if (!name || !obj || !ents_xml(p, &x, &n) || !(v = find_value(x, n, name))) return KERN_FAILURE;
 	e = x + n;
-	if (pfx(v, e, "<true/>")) { *obj = kOSBooleanTrue; return KERN_SUCCESS; }
-	if (pfx(v, e, "<false/>")) { *obj = kOSBooleanFalse; return KERN_SUCCESS; }
+	if (pfx(v, e, "<true/>")) { *obj = *kOSBooleanTrue; return KERN_SUCCESS; }
+	if (pfx(v, e, "<false/>")) { *obj = *kOSBooleanFalse; return KERN_SUCCESS; }
 	if (pfx(v, e, "<string>")) {
 		const char *c = v + 8; size_t l = 0;
 		while (c + l < e && c[l] != '<' && l < sizeof(buf) - 1) { buf[l] = c[l]; l++; }

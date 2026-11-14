@@ -28,3 +28,6 @@ python3 "$R/patch_kernel_bootarg_add.py" $T/Image.pth11 $T/Image.pth12 launchd_u
 #           lock-panic 0xc00000 ticks (~0.5 s) x16 under TCG; boot36/42 "Mutex interlock timeout" in lck_mtx_ilk_lock_contended)
 # rootfs: 37 launchd-cache programs still missing (from /System/Library/xpc/launchd.plist, incl. /Applications/*.app UI scene services)
 #         + bundles (no .lproj) from the OS dmg -> lapisfs; OS dmg private/var skeleton (minus staged_system_apps, 220 entries) -> /private/var template
+# chunk 12: Image.pth17 = full chain from pth5 with fixed lapis_amfi (kOSBooleanTrue/False are C++ references: deref twice):
+#   build.sh; patch_kernel_ramfs.py pth5 k1; patch_kernel_amfi.py k1 k2; patch_image_adt.py k2 k3 /chosen ephemeral-storage u32:1;
+#   patch_image_adt.py k3 k4 defaults vmm-present u32:1; patch_kernel_bootarg_add.py k4 pth17 launchd_unsecure_cache=1 panic_on_crash_disabled=1 ml-timeout-global-scale=16

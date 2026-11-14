@@ -6,7 +6,9 @@ class RetBP(gdb.Breakpoint):
     def __init__(s,addr,tag):
         super().__init__('*%#x'%addr,internal=True,temporary=True); s.tag=tag
     def stop(s):
-        P('RET %s x0=%#x'%(s.tag,r('x0'))); return False
+        P('RET %s x0=%#x'%(s.tag,r('x0')))
+        gdb.post_event(lambda b=s: b.delete() if b.is_valid() else None)  # temporary BPs are only auto-deleted when they stop
+        return False
 def mk(name,limit):
     def fn():
         cnt[name]=cnt.get(name,0)+1
