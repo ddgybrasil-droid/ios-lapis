@@ -1,4 +1,4 @@
-# lapis-ramfs: writable in-kernel RAM filesystem for /private/var (design, NOT implemented yet)
+# lapis-ramfs: writable in-kernel RAM filesystem for /private/var (implemented: lapis_ramfs.c, chunk 5)
 
 Why: this kernel's built-in vfs table has only devfs and nullfs (vfstbllist @0xfffffe0007c85fd0);
 lapisfs (lapis-mockfs) is read-only; tmpfs/APFS/HFS are kexts and absent. iOS writes /private/var
