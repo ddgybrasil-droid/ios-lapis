@@ -633,6 +633,52 @@ static int r_readdir(struct a_readdir *ap)
 	if (ap->numdirent) *ap->numdirent = cnt;
 	return err;
 }
+
+/* ---- lapisfs readdir (the kernel's lapisfs blob has err_readdir; its vnodeop table
+ * slot is pointed here by tools/patch_kernel_ramfs.py). Layout verified against the
+ * kernel's own lapisfs lookup (0xfffffe000743d2d8): fsnode{u32 idx; u8 type; mount mnt@8;
+ * vnode vp@0x10; ent *e@0x18}, mnt_data{base; u32 nent@8; ents@0x10; strs@0x18},
+ * ent(32B){u32 parent; u16 type, mode; u64 data_off, size; u32 name_off, name_len}. ---- */
+struct lfs_ent { uint32_t parent; uint16_t type, mode; uint64_t data_off, size; uint32_t name_off, name_len; };
+struct lfs_node { uint32_t idx; uint8_t type; mount_t mnt; vnode_t vp; const struct lfs_ent *e; };
+struct lfs_mnt { const uint8_t *base; uint32_t nent; const struct lfs_ent *ents; const char *strs; };
+static int lfs_emit(uio_t uio, uint64_t ino, uint8_t ty, const char *nm, int nl)
+{
+	struct dirent32 de;
+	int reclen = (8 + nl + 1 + 3) & ~3;
+	if (nl > NAMEMAX) return 0;   /* skip */
+	if (uio_resid(uio) < reclen) return -1;
+	memset(&de, 0, sizeof(de));
+	de.d_ino = (uint32_t)ino; de.d_reclen = (uint16_t)reclen; de.d_type = ty; de.d_namlen = (uint8_t)nl;
+	memcpy(de.d_name, nm, (size_t)nl);
+	return uiomove((const char *)&de, reclen, uio) ? -2 : 1;
+}
+int lapisfs_readdir(struct a_readdir *ap)
+{
+	struct lfs_node *d = vnode_fsnode(ap->vp);
+	struct lfs_mnt *md = vfs_fsprivate(d->mnt);
+	off_t off = uio_offset(ap->uio);
+	uint32_t i;
+	int r = 0, cnt = 0, eof = 0;
+	if (d->type != 1) return ENOTDIR;
+	if (ap->flags & 0x0001) return EINVAL;
+	if (off == 0) { if ((r = lfs_emit(ap->uio, d->idx + 2, 4, ".", 1)) < 0) goto out; cnt++; off = 1; }
+	if (off == 1) { if ((r = lfs_emit(ap->uio, d->e->parent + 2, 4, "..", 2)) < 0) goto out; cnt++; off = 2; }
+	for (i = (uint32_t)(off - 2) > 0 ? (uint32_t)(off - 2) : 1; i < md->nent; i++) {
+		const struct lfs_ent *e = &md->ents[i];
+		if (e->parent != d->idx || i == d->idx) continue;
+		r = lfs_emit(ap->uio, i + 2, e->type == 1 ? 4 : 8, md->strs + e->name_off, (int)e->name_len);
+		if (r < 0) { off = i + 2; goto out; }
+		if (r > 0) cnt++;
+	}
+	off = (off_t)md->nent + 2; eof = 1; r = 0;
+out:
+	uio_setoffset(ap->uio, off);
+	if (ap->eofflag) *ap->eofflag = eof;
+	if (ap->numdirent) *ap->numdirent = cnt;
+	return (r == -2) ? EIO : 0;
+}
+
 static int r_inactive(struct a_vp *ap)
 {
 	struct rnode *n = VN(ap->vp);

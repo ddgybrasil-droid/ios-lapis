@@ -15,9 +15,10 @@ def mk(name,limit):
             RetBP(r('x30'),name)
         return False
     BP(name,fn,LP[name])
+LPHOOKS=int(os.environ.get('LPHOOKS','0'))
 for n,l in [('lp_bsdthread_register',5),('lp_bsdthread_create',10),('lp_bsdthread_terminate',5),('lp_thread_selfid',3),
             ('lp_workq_create_threadstack',10),('lp_workq_setup_thread',10),('lp_enotsup',20),('lp_workq_handle_stack_events',5)]:
-    mk(n,l)
+    if LPHOOKS: mk(n,l)
 def on_wqk():
     P('WORKQ_KERNRETURN pid? x1=%#x'%r('x1')); return False
 def cstr(a,n=200):

@@ -1,2 +1,2 @@
 /dev/md0 / lapisfs ro,noauto 0 1
-#ramdisk /private/var tmpfs rw,nosuid,nodev,size=1048576,template=<dir> 0 2  (needs a readable template dir: lapisfs readdir)
+ramdisk /private/var tmpfs rw,nosuid,nodev,size=1048576,template=/private/var/ 0 2

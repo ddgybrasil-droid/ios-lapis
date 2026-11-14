@@ -13,11 +13,18 @@ wrap = int([l.split()[0] for l in subprocess.check_output(['aarch64-linux-gnu-nm
 img = bytearray(open(sys.argv[1], 'rb').read())
 assert BLOB_VA + len(blob) <= BLOB_END
 region = img[off(BLOB_VA):off(BLOB_VA) + len(blob)]
-assert region == bytes(len(blob)) or region == blob, 'target region not free'
+assert region == bytes(len(blob)), 'target region not free (patch a kernel without ramfs)'
 img[off(BLOB_VA):off(BLOB_VA) + len(blob)] = blob
 def bl(src, dst): return 0x94000000 | (((dst - src) // 4) & 0x3ffffff)
 cur = struct.unpack_from('<I', img, off(CALL_SITE))[0]
 assert cur in (bl(CALL_SITE, OLD_TGT), bl(CALL_SITE, wrap)), hex(cur)
 struct.pack_into('<I', img, off(CALL_SITE), bl(CALL_SITE, wrap))
+# lapisfs vnodeop table (kernel blob @0x743dcd0): readdir slot err_readdir -> lapisfs_readdir
+RD_SLOT, ERR_READDIR = 0xfffffe000743de28, 0xfffffe0007613200
+assert struct.unpack_from('<Q', img, off(RD_SLOT - 8))[0] == 0xfffffe0007c87058  # vnop_readdir_desc
+rd = int([l.split()[0] for l in subprocess.check_output(['aarch64-linux-gnu-nm', os.path.join(d, 'ramfs.elf')], text=True).splitlines() if l.endswith(' lapisfs_readdir')][0], 16)
+assert struct.unpack_from('<Q', img, off(RD_SLOT))[0] in (ERR_READDIR, rd)
+struct.pack_into('<Q', img, off(RD_SLOT), rd)
+print('lapisfs readdir slot -> %#x' % rd)
 open(sys.argv[2], 'wb').write(img)
 print('ramfs %d bytes @%#x, wrap %#x, call site %#x -> bl wrap' % (len(blob), BLOB_VA, wrap, CALL_SITE))
