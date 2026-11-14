@@ -7,15 +7,18 @@ CC=aarch64-linux-gnu-gcc
 $CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align \
     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -Wall -Wno-unused-parameter \
     -c lapis_ramfs.c -o lapis_ramfs.o
+$CC -Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align \
+    -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin -Wall -Wno-unused-parameter \
+    -c lapis_amfi.c -o lapis_amfi.o
 DS=""
-for s in $(aarch64-linux-gnu-nm -u lapis_ramfs.o | awk '{print $2}'); do
+for s in $(aarch64-linux-gnu-nm -u lapis_ramfs.o lapis_amfi.o | awk 'NF==2{print $2}' | sort -u); do
   case $s in lapis_mountroot_wrap_target) a=fffffe000743d9e8;;
     lapisfs_devread) a=fffffe000743d464;;
     *) a=$(awk -v n="_$s" '$2==n{print $1; exit}' "$KSYMS");; esac
   [ -n "$a" ] || { echo "missing symbol $s"; exit 1; }
   DS="$DS --defsym=$s=0x$a"
 done
-aarch64-linux-gnu-ld -T ramfs.ld --no-warn-rwx-segments -e lapis_ramfs_wrap $DS -o ramfs.elf lapis_ramfs.o
+aarch64-linux-gnu-ld -T ramfs.ld --no-warn-rwx-segments -e lapis_ramfs_wrap $DS -o ramfs.elf lapis_ramfs.o lapis_amfi.o
 aarch64-linux-gnu-objcopy -O binary -j .text ramfs.elf ramfs.bin
 sz=$(stat -c %s ramfs.bin); echo "ramfs.bin $sz bytes"
 [ $sz -le $((0x74443d8 - 0x743e100)) ] || { echo too big; exit 1; }
