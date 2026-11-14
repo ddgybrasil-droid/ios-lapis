@@ -186,8 +186,29 @@ VERIFIED (boot55): backboardd really asks containermanagerd.system:
   XPC_LOOKUP proc=backboardd name='com.apple.containermanagerd.system' type=7 handle=0x0 flags=0x0   (_xpc_look_up_endpoint, 3 tries)
   same for PerfPowerServices (disposition 1, repeated lookups); for comparison backboardd's analyticsd/mobilegestalt lookups are type=2 handle=0x1f5 (user 501 domain), oscard/frontboard type=7 handle 0.
 launchd never logs anything for com.apple.containermanagerd.system (no WILL_SPAWN / spawn scheduled) in boot47-55, although the job is in the launchd cache (LimitLoadToSessionType System, MachServices com.apple.containermanagerd.system, binary /usr/libexec/containermanagerd_system present 0755; entitlements: sandbox profile "containermanagerd", container-manager, storage.* - nothing that blocks a spawn here). Other System-session on-demand jobs (lsd.system, cfprefsd.xpc.daemon.system, logd_helper) are likewise silent (never demanded); notifyd/usermanagerd do spawn in system/.
-HYPOTHESIS: launchd's reply to the type-7 lookup from backboardd's user/501 domain is "not found" (no demand launch), i.e. the System-session service is not visible from the user/501 domain the way it is on a real device; not yet proven - the lookup return value (x0=0x9f for every lookup, also successful ones) is not the reply status.
-NOT DONE: launchd's reply/error (next: hook __xpc_bootstrap_routine_authenticate return / the "port" extraction in _xpc_look_up_endpoint, and launchd's routine 0x324 handler), fix, /private/var/containers, display/HID.
+HYPOTHESIS (superseded by chunk 17): launchd's reply was "not found" / domain visibility. The x0=0x9f return is in fact the reply status (see below).
+NOT DONE (chunk 16): launchd reply decode was incomplete at the time of boot55 write-up.
 | boot54 | Image.pth18 | mnt2 + owners | qemu11 lva=off | user bps armed in wrong context (never fired); 167 spawns, no panic | out/logs/boot54 |
 | boot55 | same | same | same | XPC lookup trace above; 194 spawns, no panic; backboardd same abort | out/logs/boot55 |
-Next blocker: why launchd does not resolve/demand-launch com.apple.containermanagerd.system for the type-7 lookup (launchd reply), then backboardd's system container, then display/HID.
+
+## Chunk 17 (launchd lookup reply = Sandbox restriction 159; lapis_sandbox MAC policy)
+Root cause (VERIFIED from boot55 logs, no new boot required for the diagnosis):
+- Console: `denied lookup: name = com.apple.logd ... error = 159: Sandbox restriction` (and notification_center / commcenter.xpc) — launchd itself prints xpc error 159.
+- Every traced `XPC_LOOKUP_RET` in boot55 has `x0=0x9f` (=159). That includes `com.apple.containermanagerd.system` from backboardd / PerfPowerServices / fairplayd / bluetoothd / imagent / appprotectiond. So the lookup reply status is 159, not a silent "not found", and not a System-vs-user/501 domain visibility miss.
+- Chain: launchd `sandbox_check_by_audit_token(..., "mach-lookup", name)` -> libsystem_sandbox `sandbox_check_common` -> `__mac_syscall("Sandbox", 2, args)`. This kernel has no Sandbox.kext; `___mac_syscall` returns ENOPOLICY (103); sandbox_check returns -1; launchd maps that to xpc 159 and does not demand-launch the service.
+- Domain-visibility hypothesis REJECTED for this wall: the denial is the sandbox check, and it hits System-session names the same way.
+mac_policy_ops layout (VERIFIED against apple-oss-distributions `xnu-12377.121.6` `security/mac_policy.h`): 335 entries, `mpo_policy_syscall` at index 117.
+
+Fix (real code, no NOPs): `xnu/lapis-ramfs/lapis_sandbox.c` — register a MAC policy named `"Sandbox"` from `lapis_ramfs_wrap` (next to IOMedia). `mpo_policy_syscall` call 2 (check) returns 0 (allowed, result word left pre-zeroed); every other Sandbox call still returns ENOPOLICY (sandbox_init / extensions unchanged — same bring-up class as lapis_amfi).
+  efe0a23 had compiled `lapis_sandbox.o` but `build.sh` linked only ramfs/amfi/iomedia (sandbox never entered the blob) — that WIP was unverified and incomplete. Fixed: `$OBJS` includes sandbox; `tools/patch_kernel_ramfs_replace.py` rebuilds an already-patched Image (zeros the blob region, re-applies vnodeop/wrap/amfi restores).
+Kernel Image.pth19 = pth18 blob replaced with the new ramfs+sandbox build
+  sha256 fbf2658a8752e6e8aeae29e76d3df0e0f60ce8d317e2b06fde2c228a3a401aac
+  (docs/status/Image.ipados.lapis_pthread.amfi-iomedia-vmm-sandbox.sha256;
+   build: `xnu/lapis-ramfs/build.sh` && `python3 tools/patch_kernel_ramfs_replace.py Image.pth18 Image.pth19`).
+Harness: `___mac_syscall` Sandbox call/return trace; XPC_LOOKUP_RET annotates `0x9f` as xpcerr 159.
+Registration (VERIFIED on this agent with pth19 + the old 283-entry fullroot, gdb break after `bl mac_policy_register`): w0=0; console `LAPIS sandbox: check-allow policy registered`. Full containermanagerd.system path still needs mnt2.
+
+| boot56-reg | Image.pth19 | old fullroot (283 ents) | qemu11 lva=off | VERIFIED mac_policy_register w0=0 + success log; rootfs too small to reach backboardd | /tmp/boot56-reg, /tmp/boot56-smoke2 |
+| boot56 | Image.pth19 | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО on this agent: fullroot-mnt2.img (5.7G bring-up rootfs) is not in the repo or this VM. Expect: no more `error = 159` / `x0=0x9f` on containermanagerd.system lookups, WILL_SPAWN of containermanagerd.system, `/private/var/containers` created, backboardd past BSSystemContainer nil-path. | - |
+
+Next blocker: boot56 on the bring-up rootfs to confirm containermanagerd.system + containers; then IOMobileFramebuffer / IOSurface / HID for backboardd/SpringBoard; personas (usermanagerd).

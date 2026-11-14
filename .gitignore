@@ -1,0 +1,7 @@
+
+# local bring-up workdir / qemu build
+tpro-fix/
+qemu/qemu-11.0.0/
+qemu/qemu-deps/
+xnu/lapis-ramfs/ramfs.elf
+tools/__pycache__/
