@@ -15,3 +15,4 @@ python3 "$R/patch_kernel_bootarg_add.py" $T/Image.pth11 $T/Image.pth12 launchd_u
 # python3 $R/dsc_cd_rehash.py IMG --write                                 # fix DSC CodeDirectory slots
 # chunk 9: Image.pth13 = patch_kernel_ramfs.py pth5 -> patch_kernel_amfi.py -> patch_image_adt.py /chosen ephemeral-storage u32:1
 #          -> patch_kernel_bootarg_add.py launchd_unsecure_cache=1
+# chunk 10: Image.pth14 = same chain as pth13 with lapis_iomedia in the ramfs blob (build.sh links lapis_ramfs/amfi/iomedia)
