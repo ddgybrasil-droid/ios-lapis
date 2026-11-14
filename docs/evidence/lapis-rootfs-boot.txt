@@ -132,3 +132,5 @@ on fullroot-mnt2.img before reseal: computed 313f41ec493c6643b21b502a782a4f9245a
 79709:SPAWN #10 path='/usr/libexec/cc_fips_test'
 98386:SYS_EXIT rval=0
 98724:SPAWN #11 path='/usr/libexec/keybagd'
+### boot18 panic bt
+_sleh_synchronous+0x9d8 <- _fleh_synchronous+0x18 <- _vm_sanitize_addr_size+0x1d0 (brk #0xbffc after mrs id_aa64mmfr2_el1; tst #0xf0000) <- _vm_map_copyin_internal+0xa8 <- _ipc_kmsg_copyin_body+0x1fc <- _ipc_kmsg_copyin_from_user+0xe3c <- _mach_msg_trap_send+0x10c <- _mach_msg2_trap+0x278 <- _mach_syscall+0x190
