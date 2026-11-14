@@ -2,13 +2,22 @@ LP={}
 for l in open('/workspace/tpro-fix/pth/lp.syms'):
     a,t,n=l.split(); LP[n]=int(a,16)
 cnt={}
-class RetBP(gdb.Breakpoint):
-    def __init__(s,addr,tag):
-        super().__init__('*%#x'%addr,internal=True,temporary=True); s.tag=tag
+# Return hooks: one persistent (never deleted) breakpoint per return address; pending tags keyed
+# by (return pc, sp at call). Creating+deleting temporary breakpoints from stop() raced with
+# gdb's own handling (boot50: stray SIGTRAP at a deleted temp bp -> harness stopped the run).
+_ret_bps={}; _ret_pend={}
+class _RetSite(gdb.Breakpoint):
+    def __init__(s,addr):
+        super().__init__('*%#x'%addr,internal=True); s.addr=addr
     def stop(s):
-        P('RET %s x0=%#x'%(s.tag,r('x0')))
-        gdb.post_event(lambda b=s: b.delete() if b.is_valid() else None)  # temporary BPs are only auto-deleted when they stop
+        t=_ret_pend.pop((s.addr,r('sp')),None)
+        if t is not None: P('RET %s x0=%#x'%(t,r('x0')))
         return False
+def RetBP(addr,tag):
+    if addr not in _ret_bps:
+        if len(_ret_bps)>=64: return
+        _ret_bps[addr]=_RetSite(addr)
+    _ret_pend[(addr,r('sp'))]=tag
 def mk(name,limit):
     def fn():
         cnt[name]=cnt.get(name,0)+1
@@ -262,18 +271,34 @@ BP('___pthread_kill',on_pkill)
 
 # csops entitlement queries (CS_OPS_STATUS 0, CS_OPS_ENTITLEMENTS_BLOB 7, CS_OPS_DER_ENTITLEMENTS_BLOB 16) with result
 _cs_seen={}
-class CsRet(gdb.Breakpoint):
-    def __init__(s,addr,tag):
-        super().__init__('*%#x'%addr,internal=True,temporary=True); s.tag=tag
-    def stop(s):
-        P('CSOPS %s ret=%d'%(s.tag,r('x0')&0xffffffff))
-        gdb.post_event(lambda b=s: b.delete() if b.is_valid() else None)
-        return False
 def on_csops():
     ops=r('x1')&0xffffffff
     if ops not in (0,7,16): return False
     n=cur_pname(); k=(n[0] if n else '?',ops)
     _cs_seen[k]=_cs_seen.get(k,0)+1
-    if _cs_seen[k]<=2: CsRet(r('x30'),'proc=%s pid=%d ops=%d usize=%d'%(n,r('x0')&0xffffffff,ops,r('x3')))
+    if _cs_seen[k]<=2: RetBP(r('x30'),'CSOPS proc=%s pid=%d ops=%d usize=%d'%(n,r('x0')&0xffffffff,ops,r('x3')))
     return False
 BP('_csops_internal',on_csops)
+
+# ramfs owners: r_setattr (lapis-ramfs) entry - who sets which uid/gid on which /private/var node
+RAMFS_SETATTR=0xfffffe000743eb60
+_own_cnt={}
+def _rpath(n):
+    parts=[]
+    for _ in range(16):
+        if not n: break
+        nm=m64(n+0x50); nl=m32(n+0x28)&0xffff
+        if nm and nl: parts.append(bytes(gdb.selected_inferior().read_memory(nm,min(nl,255))).decode('latin1'))
+        n=m64(n)
+    return '/private/var/'+'/'.join(reversed(parts))
+def on_rsetattr():
+    try:
+        ap=r('x0'); vp=m64(ap+8); vap=m64(ap+16); act=m64(vap+8)
+        if not (act & (1<<7)): return False
+        uid=m32(vap+68); gid=m32(vap+72); n=m64(vp+0xe0); p=_rpath(n)
+        k=(uid,gid); _own_cnt[k]=_own_cnt.get(k,0)+1
+        if uid!=0 or gid!=0 or p.startswith('/private/var/mobile') and p.count('/')<=5:
+            if _own_cnt[k]<=40 or p.count('/')<=4: P('RAMFS_CHOWN uid=%d gid=%d path=%r proc=%s'%(uid,gid,p,cur_pname()))
+    except Exception as e: P('ERR rsetattr %s'%e)
+    return False
+BP('ramfs_setattr',on_rsetattr,RAMFS_SETATTR)
