@@ -108,3 +108,27 @@ built-in vfs table (vfstbllist @0xfffffe0007c85fd0): devfs, nullfs (+ lapisfs vi
 111233:SYS_EXIT rval=0
 111249:PANIC
 111250:PANIC2 fmt='%s at pc 0x%016llx, lr 0x%016llx (saved state: %p%s)\n\t  x0:  0x%016llx x1:  0x%016llx  x2:  0x%016llx  x3:  0x%016llx\n\t  x4:  0x%016llx x5:  0x%016llx  x6:  0x%016llx  x7:  0x%016llx\n\t  x8:  0x%016llx' x1=0xfffffe0007bcb970 x2=0x1 x3=0xf200bffc20402204 lr=0xfffffe0007bcf93c
+
+## chunk 4: fips
+reseal_corecrypto_fips_hmac.py on original ufs-fullroot.img: stored ff142ad0d4cff9e103c48114275011a34c8fdcb095eea052c7075b2c19b8ea2c == computed (algorithm check)
+on fullroot-mnt2.img before reseal: computed 313f41ec493c6643b21b502a782a4f9245a254729beaa783404bcb85f6a4ea5d != stored
+### boot18 (resealed, no fips boot-arg)
+3143:SPAWN #1 path='/sbin/fsck'
+8304:SYS_EXIT rval=0
+8647:SPAWN #2 path='/sbin/mount'
+15874:SYS_EXIT rval=0
+15931:SPAWN #3 path='/usr/libexec/init_data_protection'
+24171:SYS_EXIT rval=0
+24221:SPAWN #4 path='/usr/libexec/mobile_obliterator'
+37846:SYS_EXIT rval=0
+38441:SPAWN #5 path='/usr/libexec/HorizonSetup'
+38566:SPAWN #6 path='/sbin/mount'
+49302:EXECVE #1 path='/System/Library/Filesystems/apfs.fs/apfs_boot_util'
+63482:SYS_EXIT rval=0
+64512:SPAWN #7 path='/usr/libexec/MSUEarlyBootTask'
+76338:SPAWN #8 path='/usr/local/bin/snapshottool'
+79443:SYS_EXIT rval=0
+79501:SPAWN #9 path='/usr/libexec/MobileAssetEarlyBootTask'
+79709:SPAWN #10 path='/usr/libexec/cc_fips_test'
+98386:SYS_EXIT rval=0
+98724:SPAWN #11 path='/usr/libexec/keybagd'
