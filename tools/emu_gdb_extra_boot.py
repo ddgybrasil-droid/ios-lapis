@@ -194,3 +194,29 @@ def on_msleep():
         w=r('x3'); P('MSLEEP chan=%#x wmesg=%r lr=%#x'%(r('x0'), cstr(w,40) if w>>40==0xfffffe else hex(w), r('x30')))
     return False
 BP('_msleep',on_msleep)
+def on_pwtks():
+    ss=r('x1'); P('PWTKS msg=%r ss=%#x sp_now=%#x tpidr_el1=%#x'%(cstr(r('x0')),ss,r('sp'),r('TPIDR_EL1') if True else 0))
+    try:
+        b=8; x=[m64(ss+b+8*i) for i in range(29)]
+        fp,lr,sp,pc=[m64(ss+b+0xe8+8*i) for i in range(4)]
+        cpsr=m64(ss+b+0x108)&0xffffffff; far=m64(ss+b+0x110); esr=m64(ss+b+0x118)
+        P('  pc=%#x lr=%#x sp=%#x fp=%#x cpsr=%#x far=%#x esr=%#x'%(pc,lr,sp,fp,cpsr,far,esr))
+        P('  x=%s'%' '.join('%#x'%v for v in x))
+        f=fp
+        for i in range(40):
+            try: nf=m64(f); l=m64(f+8)
+            except Exception: break
+            if not l: break
+            P('  sbt %#x fp=%#x'%((l & 0x1ffffffffff)|0xfffffe0000000000,f)); f=nf
+            if not f: break
+    except Exception as e: P('  PWTKS read err %r'%e)
+    return False
+BP('_panic_with_thread_kernel_state',on_pwtks)
+_pcnt=[0]
+def on_persona():
+    _pcnt[0]+=1
+    if _pcnt[0]<=60:
+        op=m64(r('x1'))&0xffffffff
+        P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2])); RetBP(r('x30'),'persona op=%d'%op)
+    return False
+BP('_persona',on_persona)
