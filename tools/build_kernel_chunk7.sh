@@ -24,3 +24,7 @@ python3 "$R/patch_kernel_bootarg_add.py" $T/Image.pth11 $T/Image.pth12 launchd_u
 #         missing daemon binaries (launchd "binary is missing" -> xpcproxy exit 78): 259 LaunchDaemons programs (+ their .app/.xpc/.appex/.bundle
 #         bundles, no .lproj) extracted from the OS dmg 094-54982-099.dmg with 7zz @list -> lapisfs_add.py --grow-mb 384 /System=.. /Applications=..;
 #         AppOS cryptex 094-54871-103.dmg (all, decmpfs decoded) -> /System/Cryptexes/App; lapisfs_fix_macho_modes.py IMG /System/Cryptexes/OS /System/Cryptexes/App
+# chunk 12: Image.pth16 = pth15 -> patch_kernel_bootarg_add.py ml-timeout-global-scale=16 (xnu kern/machine.c machine-timeout scale:
+#           lock-panic 0xc00000 ticks (~0.5 s) x16 under TCG; boot36/42 "Mutex interlock timeout" in lck_mtx_ilk_lock_contended)
+# rootfs: 37 launchd-cache programs still missing (from /System/Library/xpc/launchd.plist, incl. /Applications/*.app UI scene services)
+#         + bundles (no .lproj) from the OS dmg -> lapisfs; OS dmg private/var skeleton (minus staged_system_apps, 220 entries) -> /private/var template
