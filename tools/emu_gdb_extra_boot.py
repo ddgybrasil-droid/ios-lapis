@@ -230,7 +230,7 @@ def on_persona():
     _pcnt[0]+=1
     if _pcnt[0]<=60:
         op=m64(r('x1'))&0xffffffff
-        P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2])); RetBP(r('x30'),'persona op=%d'%op)
+        P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2]))  # no return hook: x30 of a syscall handler is unix_syscall's return path (persistent bp there = every syscall)
     return False
 BP('_persona',on_persona)
 def cur_pname():
@@ -276,7 +276,7 @@ def on_csops():
     if ops not in (0,7,16): return False
     n=cur_pname(); k=(n[0] if n else '?',ops)
     _cs_seen[k]=_cs_seen.get(k,0)+1
-    if _cs_seen[k]<=2: RetBP(r('x30'),'CSOPS proc=%s pid=%d ops=%d usize=%d'%(n,r('x0')&0xffffffff,ops,r('x3')))
+    if _cs_seen[k]<=2: P('CSOPS proc=%s pid=%d ops=%d usize=%d'%(n,r('x0')&0xffffffff,ops,r('x3')))  # entry only: csops tail-calls csops_internal, so x30 is unix_syscall's return (a bp there hits every syscall; boot51 crawled)
     return False
 BP('_csops_internal',on_csops)
 
