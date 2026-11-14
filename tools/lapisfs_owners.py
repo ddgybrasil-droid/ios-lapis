@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Write the LAPISFS v2 owner table (backward-compatible extension, read by the kernel's
 lapisfs_getattr in xnu/lapis-ramfs) IN PLACE, from IPSW filesystem metadata.
-Table: { "LFSOWN01", u32 count, u32 0, count x {u32 uid, u32 gid} } indexed by entry number,
-16 KiB aligned after the old LAPISFS total (total is bumped past it, so later lapisfs_add.py
-appends after it); the root entry (index 0, directory) data_off/size point at it.
+Layout (metadata prefix, header ent_off moved past it): 0x28 "LFSOWN01", u32 count, u32 0,
+u64 table_off=0x40; table: count x {u32 uid, u32 gid} indexed by entry number; then entries,
+strings. Old kernels/tools that honour ent_off ignore it.
 METADATA: TSV "path<TAB>mode<TAB>uid<TAB>gid" (paths relative to the dmg root), e.g. from
   7zz l -slt OS.dmg | awk '/^Path = /{p=substr($0,8)} /^Mode = /{m=substr($0,8)}
     /^User ID = /{u=substr($0,11)} /^Group ID = /{g=substr($0,12); print p"\\t"m"\\t"u"\\t"g}'
@@ -41,7 +41,7 @@ with open(img, 'r+b') as f:
     pr = [p for p in parts if p[0] == 'lapis-root'][0]; root = pr[1]
     rsize = pr[2] if len(pr) > 2 else None
     f.seek(root); magic, nent, ver, eo, so, total = struct.unpack('<8sIIQQQ', f.read(40))
-    assert magic == b'LAPISFS1' and ver == 2 and eo == 40
+    assert magic == b'LAPISFS1' and ver == 2 and eo >= 40
     f.seek(root + eo); E = [list(struct.unpack('<IHHQQII', f.read(32))) for _ in range(nent)]
     f.seek(root + so); S = f.read(max(e[5] + e[6] for e in E) + 1)
     cache = {0: ''}
@@ -61,14 +61,22 @@ with open(img, 'r+b') as f:
             if b is not None and (E[i][2] & 0o7777) != b:
                 E[i][2] = (E[i][2] & 0o170000) | b
                 f.seek(root + eo + 32 * i + 6); f.write(struct.pack('<H', E[i][2])); nmode += 1
-    r0 = E[0]
-    if r0[3] and r0[4] >= len(tab) and r0[3] + r0[4] <= total:
-        toff = r0[3]                                  # rewrite the existing table in place
-    else:
-        toff = (total + PAGE - 1) & ~(PAGE - 1); total = (toff + len(tab) + PAGE - 1) & ~(PAGE - 1)
-        if rsize: assert total <= rsize, 'partition too small for the owner table'
-        f.seek(root + 32); f.write(struct.pack('<Q', total))
-    f.seek(root + toff); f.write(tab)
-    f.seek(root + eo + 8); f.write(struct.pack('<QQ', toff, len(tab)))
-    print(f'owner table @{toff:#x} ({len(tab)} bytes, {nent} entries): {nmatch} matched in metadata, '
+    # undo the first (rejected) layout: table hung off the root entry at the image end
+    # (kernel lapisfs mount requires root data_off/size == 0) -> restore root entry and total
+    if E[0][3] or E[0][4]:
+        if E[0][3] + E[0][4] <= total and E[0][3] >= so: total = E[0][3]
+        E[0][3] = E[0][4] = 0
+    # metadata prefix: header(0x28) | ext(0x18) | owner table | entries | strings
+    strs_len = max(e[5] + e[6] for e in E) + 1
+    f.seek(root + so); strs = f.read(strs_len)
+    first_data = min(e[3] for e in E if e[1] == 2 and e[4])
+    toff = 0x40; neo = (toff + 8 * nent + 7) & ~7; nso = neo + 32 * nent
+    assert nso + strs_len <= first_data, 'metadata would overlap file data (grow/relocate with lapisfs_add first)'
+    out = bytearray(struct.pack('<8sIIQQQ', b'LAPISFS1', nent, 2, neo, nso, total))
+    out += struct.pack('<8sIIQ', b'LFSOWN01', nent, 0, toff) + tab[16:]
+    out += b'\0' * (neo - len(out))
+    for e in E: out += struct.pack('<IHHQQII', *e)
+    out += strs
+    f.seek(root); f.write(out)
+    print(f'owner table @{toff:#x} ({8 * nent} bytes, {nent} entries): {nmatch} matched in metadata, '
           f'{nown} non-root owners, {nmode} modes updated; LAPISFS total {total:#x}')

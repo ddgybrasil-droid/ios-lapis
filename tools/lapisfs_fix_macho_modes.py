@@ -12,7 +12,7 @@ img, prefixes = sys.argv[1], sys.argv[2:]
 with open(img, 'r+b') as f:
     root = [p[1] for p in gpt_partitions(f) if p[0] == 'lapis-root'][0]
     f.seek(root); magic, nent, ver, eo, so, total = struct.unpack('<8sIIQQQ', f.read(40))
-    assert magic == b'LAPISFS1' and eo == 40
+    assert magic == b"LAPISFS1" and eo >= 40   # >40: LFSOWN01 owner table before the entries
     f.seek(root + eo); E = [struct.unpack('<IHHQQII', f.read(32)) for _ in range(nent)]
     f.seek(root + so); S = f.read(max(e[5] + e[6] for e in E) + 1)
     cache = {0: ''}

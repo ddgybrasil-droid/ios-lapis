@@ -91,6 +91,10 @@ def main():
         assert magic == b"LAPISFS1" and ver == 2
         f.seek(root); meta = f.read(min(so + (1 << 22), 1 << 25))
         E = [list(struct.unpack_from("<IHHQQII", meta, eo + 32*i)) for i in range(nent)]
+        own = []   # LFSOWN01 owner table (tools/lapisfs_owners.py): kept, new entries 0:0
+        if eo >= 0x40 and meta[0x28:0x30] == b"LFSOWN01":
+            ocnt, _, otoff = struct.unpack_from("<IIQ", meta, 0x30)
+            own = [struct.unpack_from("<II", meta, otoff + 8*i) for i in range(min(ocnt, nent))]
         names = [meta[so+e[5]:so+e[5]+e[6]].decode() for e in E]
         first_data = min(e[3] for e in E if e[1] == 2 and e[4])
         index = {"/": 0}
@@ -167,7 +171,8 @@ def main():
         strs = bytearray()
         for i, e in enumerate(E):
             nb = names[i].encode(); e[5] = len(strs); e[6] = len(nb); strs += nb + b"\0"
-        neo = 0x28; nso = neo + 32 * len(E); end = nso + len(strs)
+        neo = 0x28 if not own else (0x40 + 8 * len(E) + 7) & ~7
+        nso = neo + 32 * len(E); end = nso + len(strs)
         assert end <= 0x2000000, "metadata over the kernel's 32 MiB limit"
         relocs = []
         while end > first_data:
@@ -187,6 +192,10 @@ def main():
         for e in E:   # zero-size files: point at a valid offset
             if e[1] == 2 and not e[4] and e[3] < first_data: e[3] = first_data
         out = bytearray(struct.pack("<8sIIQQQ", b"LAPISFS1", len(E), 2, neo, nso, data_end))
+        if own:
+            out += struct.pack("<8sIIQ", b"LFSOWN01", len(E), 0, 0x40)
+            for i in range(len(E)): out += struct.pack("<II", *(own[i] if i < len(own) else (0, 0)))
+            out += b"\0" * (neo - len(out))
         for e in E: out += struct.pack("<IHHQQII", *e)
         out += strs; out += b"\0" * (first_data - len(out))
         for off, src in pending:

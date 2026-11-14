@@ -17,7 +17,7 @@ img = sys.argv[1]; links = [a.split('=', 1) for a in sys.argv[2:]]
 with open(img, 'r+b') as f:
     root, rsize = [(p[1], p[2]) for p in gpt_partitions(f) if p[0] == 'lapis-root'][0]
     f.seek(root); magic, nent, ver, eo, so, total = struct.unpack('<8sIIQQQ', f.read(40))
-    assert magic == b'LAPISFS1' and ver == 2 and eo == 40
+    assert magic == b'LAPISFS1' and ver == 2 and eo >= 40   # >40: LFSOWN01 owner table
     f.seek(root + eo); E = [list(struct.unpack('<IHHQQII', f.read(32))) for _ in range(nent)]
     f.seek(root + so); S = f.read(max(e[5] + e[6] for e in E) + 1)
     names = [S[e[5]:e[5] + e[6]].decode() for e in E]

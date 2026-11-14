@@ -720,26 +720,28 @@ out:
 
 /* ---- lapisfs getattr with owners (replaces the kernel lapisfs getattr @0x743caf4, which
  * reported root:wheel for everything; slot pointed here by tools/patch_kernel_ramfs.py).
- * Backward-compatible LAPISFS v2 extension: optional owner table. The root entry (index 0,
- * a directory, whose data extent is otherwise unused) points at it: ents[0].data_off/size =
- * { "LFSOWN01", u32 count, u32 reserved, count x { u32 uid, u32 gid } } (indexed by entry
- * number). Old images (root size 0 / no magic) and entries >= count stay 0:0. Old kernels
- * ignore the table (directory data is never read). Written by tools/lapisfs_owners.py. ---- */
+ * Backward-compatible LAPISFS v2 extension: optional owner table in the metadata prefix,
+ * between the 40-byte header and the entry table (ent_off is a header field, so old kernels
+ * and tools that honour it just skip it; the kernel lapisfs mount requires root entry
+ * data_off/size == 0, so the table cannot hang off the root entry):
+ *   0x28 "LFSOWN01"  0x30 u32 count  0x34 u32 0  0x38 u64 table_off (0x40)
+ *   table_off: count x { u32 uid, u32 gid }, indexed by entry number; ent_off >= table end.
+ * The prefix [0, str_off) is resident in md->base for both md and blk roots.
+ * Entries >= count, or images without the extension, stay 0:0. Written by
+ * tools/lapisfs_owners.py, preserved by tools/lapisfs_add.py. ---- */
 static void lfs_owner(const struct lfs_mnt *md, uint32_t idx, uint32_t *uid, uint32_t *gid)
 {
 	static const char mg[8] = { 'L','F','S','O','W','N','0','1' };
-	const struct lfs_ent *r = &md->ents[0];
-	const uint8_t *t;
-	uint64_t total = *(const uint64_t *)(md->base + 32), cnt;
+	const uint8_t *b = md->base;
+	uint64_t eo = *(const uint64_t *)(b + 16), cnt, to;
 	int k;
 	*uid = 0; *gid = 0;
-	if (r->type != 1 || r->size < 16 || r->data_off < 40 || r->data_off + r->size > total) return;
-	t = md->base + r->data_off;
-	for (k = 0; k < 8; k++) if (t[k] != (uint8_t)mg[k]) return;
-	cnt = *(const uint32_t *)(t + 8);
-	if (16 + cnt * 8 > r->size || idx >= cnt) return;
-	*uid = *(const uint32_t *)(t + 16 + (uint64_t)idx * 8);
-	*gid = *(const uint32_t *)(t + 20 + (uint64_t)idx * 8);
+	if (eo < 0x40) return;
+	for (k = 0; k < 8; k++) if (b[0x28 + k] != (uint8_t)mg[k]) return;
+	cnt = *(const uint32_t *)(b + 0x30); to = *(const uint64_t *)(b + 0x38);
+	if (to < 0x40 || to + cnt * 8 > eo || idx >= cnt) return;
+	*uid = *(const uint32_t *)(b + to + (uint64_t)idx * 8);
+	*gid = *(const uint32_t *)(b + to + 4 + (uint64_t)idx * 8);
 }
 int lapisfs_getattr(struct a_attr *ap)
 {
