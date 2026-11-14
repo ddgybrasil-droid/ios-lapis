@@ -2,7 +2,9 @@
 
 Patches: `patches/` = `git format-patch afc7b33..lapis-pthread` (local branch, not pushed).
 
-Kernels (`kernel/`):
+Kernels (`kernel/` / GitHub release `lapis-pthread-pth18`, plus local pth19):
+- Image.ipados.lapis_pthread.amfi-iomedia-vmm-owners (pth18) 6194f1bb... — release lapis-pthread-pth18 (boot55).
+- Image.ipados.lapis_pthread.amfi-iomedia-vmm-sandbox (pth19) 6a0f4daf... — pth18 + lapis_sandbox MAC policy (chunk 17). Build: `xnu/lapis-ramfs/build.sh` then `tools/patch_kernel_ramfs_replace.py pth18 pth19`.
 - Image.ipados.lapis_pthread       c34fe621...  = qemu/Image.ipados + xnu/lapis_pthread/build.sh + tools/patch_kernel_lapis_pthread.py
 - Image.ipados.lapis_pthread.boot  a5410683...  = above + tools/patch_kernel_rootdev_bootarg.py (rd=md0 -> rootdev=md0)
                                                   + tools/patch_kernel_lapisfs_rootauth.py + tools/patch_kernel_platform_binary.py

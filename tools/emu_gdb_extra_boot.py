@@ -11,7 +11,10 @@ class _RetSite(gdb.Breakpoint):
         super().__init__('*%#x'%addr,internal=True); s.addr=addr
     def stop(s):
         t=_ret_pend.pop((s.addr,r('sp')),None)
-        if t is not None: P('RET %s x0=%#x'%(t,r('x0')))
+        if t is not None:
+            x0=r('x0'); extra=''
+            if (x0 & 0xffffffff) == 0x9f: extra=' (xpcerr=159 Sandbox restriction)'
+            P('RET %s x0=%#x%s'%(t,x0,extra))
         return False
 def RetBP(addr,tag):
     if addr not in _ret_bps:
@@ -350,6 +353,7 @@ def _ufn(n):
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
             if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager')) and _xl_cnt[k]<=3:
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x'%(pn,name,r('x1')&0xffffffff,r('x2'),r('x3')))
+                # x0 on return is the xpc error / endpoint object; 0x9f == 159 "Sandbox restriction"
                 RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
         elif n=='container_xpc_create_connection':
             P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))
@@ -358,3 +362,19 @@ def _ufn(n):
         return False
     return fn
 BP('_vm_shared_region_start_address',on_vsrsa)
+
+# chunk 17: ___mac_syscall("Sandbox", call, arg) — without lapis_sandbox this returns ENOPOLICY (103)
+# and launchd maps sandbox_check failure to xpc 159. With the policy, call 2 must return 0.
+_mac_cnt={'n':0}
+def on_mac_syscall():
+    try:
+        name=cstr(r('x0'),32); call=r('x1')&0xffffffff
+    except Exception as e:
+        P('ERR mac_syscall %s'%e); return False
+    if name!='Sandbox': return False
+    _mac_cnt['n']+=1
+    if _mac_cnt['n']<=40 or call==2:
+        P('MAC_SYSCALL Sandbox call=%d arg=%#x proc=%s'% (call, r('x2'), cur_pname()))
+        RetBP(r('x30'), 'MAC_SYSCALL_RET Sandbox call=%d'%call)
+    return False
+BP('___mac_syscall', on_mac_syscall)

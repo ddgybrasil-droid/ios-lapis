@@ -2,21 +2,24 @@
  * lapis_sandbox: minimal in-kernel "Sandbox" MAC policy for the iPadOS 26 bring-up kernel
  * (xnu-12377.121.6, no Sandbox.kext in this kernel).
  *
- * Why (chunk 17, VERIFIED with a user-space trace): every launchd lookup made by backboardd /
- * PerfPowerServices (_xpc_look_up_endpoint, launchd routine 0x324) came back with error 159 =
- * "Sandbox restriction" (libxpc __errors[159-106]). launchd authorises mach-lookups with
- * sandbox_check_by_audit_token(..., "mach-lookup", name) -> libsystem_sandbox
- * sandbox_check_common -> __mac_syscall("Sandbox", 2, args). With no policy named "Sandbox"
- * registered, xnu's __mac_syscall returns ENOPOLICY, sandbox_check returns -1 (error), and
- * launchd treats that as a denial, so containermanagerd.system (and everything else looked up
- * that way) was never resolved / demand-launched -> backboardd got no system container.
+ * Why (chunk 17):
+ * - boot55 console (VERIFIED): launchd "denied lookup: ... error = 159: Sandbox restriction"
+ *   for UserEventAgent lookups (com.apple.logd / notification_center / commcenter.xpc).
+ * - boot55 XPC_LOOKUP_RET (VERIFIED): every traced _xpc_look_up_endpoint return, including
+ *   com.apple.containermanagerd.system from backboardd/PerfPowerServices, has x0=0x9f (=159).
+ * - launchd authorises mach-lookups with sandbox_check_by_audit_token(..., "mach-lookup", name)
+ *   -> sandbox_check_common -> __mac_syscall("Sandbox", 2, args). With no policy named
+ *   "Sandbox", ___mac_syscall returns ENOPOLICY (103), sandbox_check returns -1, and launchd
+ *   maps that to xpc error 159 -> no demand-launch of containermanagerd.system -> backboardd
+ *   BSSystemContainerForCurrentProcessPathProvider gets nil.
  *
- * This policy implements the sandbox check call the way "no sandbox profile applied" answers it
- * (this kernel enforces no sandbox profiles at all - same bring-up policy class as the AMFI
- * provider): call 2 (check) returns 0 and leaves the caller's result word untouched (0 =
- * allowed). Every other Sandbox call keeps its previous behaviour (ENOPOLICY), so
- * sandbox_init/extension/etc. users see exactly what they saw before.
- * The policy has no label slot and no other hooks.
+ * This policy answers check the way "no sandbox profile applied" does (same bring-up class as
+ * lapis_amfi): mpo_policy_syscall call 2 returns 0; the caller's result word is left untouched
+ * (pre-zeroed = allowed). Every other Sandbox call still returns ENOPOLICY (sandbox_init etc.
+ * unchanged). No label slot, no other hooks.
+ *
+ * mac_policy_ops layout VERIFIED against apple-oss-distributions xnu-12377.121.6
+ * security/mac_policy.h: 335 entries, mpo_policy_syscall at index 117.
  */
 #include <stdint.h>
 #include <stddef.h>
