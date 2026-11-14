@@ -61,3 +61,8 @@ qemu-system-aarch64 -nodefaults -display none -serial mon:stdio \
   -cpu max -smp 8 -kernel Image
 
 В fastboot этот файл не писать.
+
+QEMU 11 + lva=off (chunk 5): qemu/build-qemu11-lva.sh builds qemu-system-aarch64 with a new
+`lva` property for -cpu max. Use CPU=max,pauth-impdef=on,lva=off QEMU=<built binary> tools/emu_run_gdb.sh ...
+Sources (VARange [19:16] = 0b0000, 48-bit VA): Arm Cortex-X4 TRM 102484 r0p3, Cortex-A720 TRM 102530,
+Cortex-A520 TRM 102517, section ID_AA64MMFR2_EL1.

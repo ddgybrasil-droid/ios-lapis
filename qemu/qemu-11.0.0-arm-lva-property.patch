@@ -1,0 +1,51 @@
+--- a/target/arm/cpu.h
++++ b/target/arm/cpu.h
+@@ -1118,6 +1118,7 @@
+     bool prop_pauth_qarma3;
+     bool prop_pauth_qarma5;
+     bool prop_lpa2;
++    bool prop_lva;
+ 
+     /* GM blocksize, in log_2(words), ie low 4 bits of GMID_EL0 */
+     uint8_t gm_blocksize;
+--- a/target/arm/cpu64.c
++++ b/target/arm/cpu64.c
+@@ -670,6 +670,13 @@
+ {
+     uint64_t t;
+ 
++    /* lva=off (only installed for tcg -cpu max): report 48-bit VA only. */
++    if (object_property_find(OBJECT(cpu), "lva") && !cpu->prop_lva) {
++        t = GET_IDREG(&cpu->isar, ID_AA64MMFR2);
++        t = FIELD_DP64(t, ID_AA64MMFR2, VARANGE, 0);
++        SET_IDREG(&cpu->isar, ID_AA64MMFR2, t);
++    }
++
+     /*
+      * We only install the property for tcg -cpu max; this is the
+      * only situation in which the cpu field can be true.
+--- a/target/arm/tcg/cpu64.c
++++ b/target/arm/tcg/cpu64.c
+@@ -200,6 +200,14 @@
+ static const Property arm_cpu_lpa2_property =
+     DEFINE_PROP_BOOL("lpa2", ARMCPU, prop_lpa2, true);
+ 
++/*
++ * FEAT_LVA (ID_AA64MMFR2_EL1.VARange): -cpu max advertises 52-bit VA.
++ * Real Cortex-X4/A720/A520 (and Apple cores) report VARange=0 (48-bit);
++ * lva=off lets the max model match them.
++ */
++static const Property arm_cpu_lva_property =
++    DEFINE_PROP_BOOL("lva", ARMCPU, prop_lva, true);
++
+ static void aarch64_a55_initfn(Object *obj)
+ {
+     ARMCPU *cpu = ARM_CPU(obj);
+@@ -1397,6 +1405,7 @@
+     object_property_add(obj, "x-l0gptsz", "uint32", cpu_max_get_l0gptsz,
+                         cpu_max_set_l0gptsz, NULL, NULL);
+     qdev_property_add_static(DEVICE(obj), &arm_cpu_lpa2_property);
++    qdev_property_add_static(DEVICE(obj), &arm_cpu_lva_property);
+ }
+ 
+ static const ARMCPUInfo aarch64_cpus[] = {

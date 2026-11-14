@@ -155,3 +155,21 @@ for nm in ('_execve','___mac_execve'):
 def on_exit():
     a=r('x1'); P('SYS_EXIT rval=%d'%(m32(a) if m32(a) is not None else -1)); return False
 if '_exit' in S: BP('_exit',on_exit)
+# --- console capture + reboot(2) caller (boot19+) ---
+CON={'buf':b'','n':0}
+def on_conw():
+    a=r('x0'); n=r('x1')&0xffffffff
+    if n<=0 or n>4096 or CON['n']>6000: return False
+    try: d=bytes(gdb.selected_inferior().read_memory(a,n))
+    except Exception: return False
+    CON['buf']+=d
+    while b'\n' in CON['buf']:
+        l,CON['buf']=CON['buf'].split(b'\n',1); CON['n']+=1
+        P('CON %s'%l.decode('latin1').rstrip())
+    return False
+BP('_console_write',on_conw)
+def on_sysreboot():
+    p=r('x0'); u=r('x1'); opt=m32(u); msg=m64(u+8)
+    P('SYS_REBOOT proc=%s opt=%#x msg=%r'%(pname(p),opt,ustr(msg,400) if msg else None))
+    return False
+BP('_reboot',on_sysreboot)
