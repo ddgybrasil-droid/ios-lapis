@@ -92,12 +92,16 @@ Verified in QEMU (this tree)
   L3 PTE (DSC RW subcaches unmapped).
 - fullroot dyld patch (tools/patch_fullroot_dyld_alloc_page.py) branches
   that freelist store to the function epilogue. Clears the 0x7bf44 site;
-  next wall is still SIGSEGV 0xb — write permission faults into dyld
-  `__DATA_CONST` (see docs/evidence/dyld-alloc-page-skip.txt).
+  next wall was write-permission SIGSEGV into dyld `__DATA_CONST`.
+- fullroot dyld patches (tools/patch_fullroot_dyld_alloc_pool.py +
+  tools/patch_fullroot_dyld_dataconst_str.py) redirect the Allocator pool
+  into `__DATA_DIRTY` and nop `str x21,[x19]` at VA 0x7960 (live phys at
+  the first …04f fault). Clears the 0x7960 site; next wall is still
+  SIGSEGV 0xb (see docs/evidence/dyld-dataconst-str.txt).
 
 Not verified
 ------------
-- launchd past the post-alloc-skip SIGSEGV 0xb.
+- launchd past the post-dataconst-str SIGSEGV 0xb.
 - DSMOS / SpringBoard / UI.
 - Tablet / TB520FU hardware.
 

@@ -1,0 +1,34 @@
+# dyld __DATA_CONST store SEGV — nop str x21,[x19] (QEMU+GDB)
+
+Image.ipados sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+fullroot.img (local) after prior fullroot patches + alloc_page (#17) +
+  tools/patch_fullroot_dyld_alloc_pool.py
+  tools/patch_fullroot_dyld_dataconst_str.py
+cpu: max,pauth-impdef=on
+
+## before (after alloc-page skip alone)
+- OS_REASON still ns=2 code=0xb.
+- First write-permission faults (esr …04f) were mis-attributed to dyld
+  VA 0x7f960 by matching page offsets; live phys at the fault PC is:
+
+    /usr/lib/dyld VA 0x7960  str x21, [x19]
+    x19 / FAR in relocated __DATA_CONST (RO)
+
+## patch
+tools/patch_fullroot_dyld_dataconst_str.py:
+  VA 0x7960 `str x21,[x19]` → `nop` on /usr/lib/dyld and .01 embedded dyld
+
+Also ships tools/patch_fullroot_dyld_alloc_pool.py: redirect Allocator
+bump-pool into __DATA_DIRTY 0xb9000 (completes freelist init instead of
+the #17 epilogue skip).
+
+## after
+- No write fault with page-off matching 0x7960 / SITE7960.
+- OS_REASON still ns=2 code=0xb.
+- Next write aborts include dyld VA 0x3288 `str x20,[x8,#0x308]` into
+  slid __DATA 0xb4308 (near the TPRO local-store cave) and later sites
+  (see gdb-dyld-dataconst-str.txt).
+
+## apply
+  python3 tools/patch_fullroot_dyld_alloc_pool.py /path/to/fullroot.img
+  python3 tools/patch_fullroot_dyld_dataconst_str.py /path/to/fullroot.img
