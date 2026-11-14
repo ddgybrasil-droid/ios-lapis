@@ -39,3 +39,28 @@ Next blocker: mount-phase-1 exit(72) (EX_OSFILE): no /etc/fstab and no mount_lap
 
 ## boot7 (before platform fix)
 3501:REBOOT_KERNEL howto=0xc00 msg='boot task is not a platform binary (fsck, /sbin/fsck)'
+
+## boot14 excerpts (fstab ro,noauto)
+3086:SPAWN #1 path='/sbin/fsck'
+8718:SYS_EXIT rval=0
+9205:SPAWN #2 path='/sbin/mount'
+15908:SYS_EXIT rval=0
+15960:SPAWN #3 path='/usr/libexec/init_data_protection'
+24721:SYS_EXIT rval=0
+24788:SPAWN #4 path='/usr/libexec/mobile_obliterator'
+37186:SYS_EXIT rval=0
+37695:SPAWN #5 path='/usr/libexec/HorizonSetup'
+37833:SPAWN #6 path='/sbin/mount'
+47280:EXECVE #1 path='/System/Library/Filesystems/apfs.fs/apfs_boot_util'
+47339:SYS_EXIT rval=66
+52543:REBOOT_KERNEL howto=0xc00 msg='boot task failure: mount-phase-2 - exited due to exit(66)'
+
+## boot13 (fstab ro, no noauto)
+8761:SYS_EXIT rval=0
+18800:EXECVE #1 path='/sbin/mount_lapisfs'
+18813:EXECVE #2 path='/usr/sbin/mount_lapisfs'
+18828:EXECVE #3 path='/System/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+18842:EXECVE #4 path='/Library/Filesystems/lapisfs.fs/Contents/Resources/mount_lapisfs'
+18900:SYS_EXIT rval=72
+18935:SYS_EXIT rval=72
+20663:REBOOT_KERNEL howto=0xc00 msg='boot task failure: mount-phase-1 - exited due to exit(72)'
