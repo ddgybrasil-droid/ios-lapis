@@ -404,4 +404,6 @@ Fix (not instruction-NOP of unrelated code):
 
 | boot64 | Image.pth21 | mnt2 + personas/UMD + IOMFB + fw batch | qemu11 43G lva=off | ПРОВЕРЕНО: `IN/DONE UMD_INIT`; PERSONA op=1 ×5; **0** kpersona_find ESRCH (was spam). trampolines/libramrod 0. IOMFB metaclasses register (3). SpringBoard×1. New wall: usermanagerd daemon ABORT `Daemon failed to load persona manifest` (~12×); UMD_INIT NAMEI on missing `/private/var/keybags/persona.kb` (dir absent). lsd SIGABRT ~17 (may be coupled). | out/logs/boot64 |
 
-| boot65 | Image.pth21 | + `/private/var/keybags` (+ PersonaVolumes/logs) | qemu11 43G lva=off | running… | out/logs/boot65 |
+| boot65 | Image.pth21 | + `/private/var/keybags` | qemu11 43G lva=off | ПРОВЕРЕНО: persona manifest ABORT **0** (keybags dir fixed); kpersona 0; UMD_INIT OK. SpringBoard×1. **lsd wall remains**: ~16 lsd + ~15 xpcproxy SIGABRT (no ABORT reason string). Next: symbolicate lsd/xpcproxy frames; seed Containers/*; real IOMFB IOService instance. | out/logs/boot65 |
+
+| boot66 | Image.pth21 (iomfb strings) | + Containers skeleton + empty LS prefs | qemu11 43G lva=off | running… | out/logs/boot66 |
