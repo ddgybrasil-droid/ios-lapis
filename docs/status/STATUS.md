@@ -372,5 +372,15 @@ Minimal fix (applied to `/tmp/fullroot-mnt2.img` + rebuild script):
   - `lapisfs_add` both `/usr/lib/libobjc-trampolines.dylib` and cryptex OS mirror.
   - `tools/rebuild_mnt2_from_ipsw.sh` vendors/`ipsw extract` fallback + checklist YES.
 
-| boot62 | Image.pth20 | mnt2 + trampolines | qemu11 43G lva=off | running… | out/logs/boot62 |
+| boot62 | Image.pth20 | mnt2 + trampolines | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): **0** `libobjc-trampolines` NAMEI/ABORT (wall cleared). SpringBoard×1 stays up past MappedImageCache; backboardd + containermanagerd(_system) + appprotectiond spawn. New wall: **lsd** respawn loop (~15×) with xpcproxy `SIGABRT_PTHREAD_KILL` (proc truncated `roxy`); `kpersona_find_by_type` / persona type 6 errno 3; lockdownd one-shot missing `libramrod.dylib`. | out/logs/boot62 + docs/status/logs/boot62/gdb-events-key.txt |
 
+Next: lsd SIGABRT (LaunchServices DB / Info.plist / personas); `/private/var/db/lsd`; usermanagerd personas; IOMobileFramebuffer/IOSurface/HID.
+
+## Chunk 25 (boot63: CoreServices Info.plist for lsd)
+
+boot62 next wall (ПРОВЕРЕНО): lsd respawn + xpcproxy SIGABRT; NAMEI on
+  MobileCoreServices LaunchServices prefs; CoreServices*.framework absent.
+ГИПОТЕЗА: same CFBundle Info.plist NULL path as boot59 CFCheck.
+Fix: vendored `rootfs/ipsw-coreservices/`; `tools/apply_coreservices_frameworks.sh`.
+
+| boot63 | Image.pth20 | mnt2 + trampolines + CoreServices | qemu11 43G lva=off | running… | out/logs/boot63 |

@@ -272,6 +272,7 @@ bash "$ROOT/tools/apply_mcm_framework.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_icu_data.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_appprotection_framework.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_cf_foundation_frameworks.sh" "$OUT" "$META"
+bash "$ROOT/tools/apply_coreservices_frameworks.sh" "$OUT" "$META"
 
 # log dirs for launchd + ramdisk mountpoints (mount -P 2 looks for /.b/8/
 # then /private/system_data before template=/private/var/)
@@ -390,6 +391,8 @@ need=[
  '/usr/share/icu/icudt78l.dat',
  '/System/Library/CoreServices/SpringBoard.app/SpringBoard',
  '/usr/lib/libobjc-trampolines.dylib',
+ '/System/Library/Frameworks/CoreServices.framework/Info.plist',
+ '/System/Library/Frameworks/MobileCoreServices.framework/Info.plist',
 ]
 print('paths', len(present))
 for n in need:
