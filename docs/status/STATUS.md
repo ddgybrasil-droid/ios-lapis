@@ -281,6 +281,30 @@ Minimal rootfs fix (НЕ СДЕЛАНО apply/boot here — no mnt2 on this VM):
   vendored `rootfs/ipsw-icu/`; host: `tools/apply_icu_data.sh fullroot-mnt2.icu.img METADATA.tsv`
   recipe `docs/status/Image.icu-data-recipe.txt`.
 
-| boot58 | Image.pth20 | mnt2.mcm+icu | qemu11 lva=off | НЕ СДЕЛАНО (host): expect no CFDateFormatter NULL SIGSEGV; containermanagerd_system stays up; `/private/var/containers` appears. | - |
+| boot58 | Image.pth20 | mnt2.mcm+icu | qemu11 lva=off | ПРОВЕРЕНО (host): ICU ENOENT gone; MCM ISO8601 crash gone; containermanagerd/_system spawn once and stay up (lookup x0=0); SpringBoard/backboardd running. New wall: appprotectiond SIGSEGV FAR=0x8 in ___CFCheckCFInfoPACSignature after NAMEI_FAIL on AppProtection.framework (10 respawns / 720 s). `/private/var/containers` still missing (profiled); deferred. | host |
 
-Next: host boot58. Then IOMobileFramebuffer / IOSurface / HID; personas.
+## Chunk 21 (appprotectiond: missing AppProtection.framework on-disk bundle)
+Crash (ПРОВЕРЕНО host boot58):
+  NAMEI_FAIL `…/PrivateFrameworks/AppProtection.framework`
+  then `___CFCheckCFInfoPACSignature` <- `_CFBundleGetInfoDictionary` <-
+  `__copyBundleLocalizationsFromResources` <- … <- `_CFBundleCopyResourceURL` <-
+  `-[NSBundle URLForResource:withExtension:subdirectory:]` <- AppProtection / `_APDServerEntry`.
+  elr unslid 0x1834f48cc, far=0x8 (NULL+8), same CFCheck pattern as boot57 but different caller.
+
+IPSW (ПРОВЕРЕНО): on-disk bundle with Info.plist, Localizable.loctable, *.lproj,
+AppProtection.momd, _CodeSignature, com.apple.appprotection.plist (Mach-O in DSC).
+
+ГИПОТЕЗА: without the on-disk bundle CFBundle has no Info.plist → GetInfoDictionary NULL → CFCheck SIGSEGV.
+
+Minimal fix (НЕ СДЕЛАНО apply/boot here): vendored `rootfs/ipsw-appprotection/`;
+  in-place `tools/apply_appprotection_framework.sh fullroot-mnt2.icu.img METADATA.tsv`
+  (lapisfs_add keeps existing entries — no new image copy).
+  recipe `docs/status/Image.appprotection-recipe.txt`.
+
+Other frameworks (list only, not copied): boot55 NAMEI_FAIL ∩ IPSW Info.plist → 441 paths
+  in `docs/status/boot55-frameworks-needing-info.txt`. Host audit:
+  `python3 tools/list_missing_framework_info.py IMG IPSW_ROOT`.
+
+| boot59 | Image.pth20 | mnt2.icu+AppProtection | qemu11 lva=off | НЕ СДЕЛАНО (host): expect no appprotectiond SIGSEGV on this CFBundle chain; MCM alive; SpringBoard/backboardd running. | - |
+
+Next: host boot59. Deferred: `/private/var/containers`, posixrules/icutz, lsd corpses, bulk framework Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
