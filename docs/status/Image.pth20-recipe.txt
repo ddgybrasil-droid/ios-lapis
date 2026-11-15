@@ -1,0 +1,12 @@
+# Image.pth20 (= pth19 bytes) reproducible recipe
+# Toolchain: aarch64-linux-gnu-gcc 13.3.0 / binutils ld 2.42 (see xnu/lapis-ramfs/TOOLCHAIN.txt)
+# Base: Image.pth18 sha256 6194f1bb41797a769577e5a19edbe3205ca9f1c51114ff3774eff6fa07581b4e
+#        (release lapis-pthread-pth18 / Image.ipados.lapis_pthread.amfi-iomedia-vmm-owners)
+#
+#   cd xnu/lapis-ramfs && KSYMS=../../tpro-fix/ksyms.txt ./build.sh
+#   # expect ramfs.bin 11688 bytes, sha256 f84c4345f4da1bd9...
+#   python3 tools/patch_kernel_ramfs_replace.py Image.pth18 Image.pth20
+#   # expect Image sha256 fbf2658a8752e6e8...
+#
+# patch_kernel_ramfs_replace.py asserts: elf symbols inside blob, amfi_boot prologue,
+# SITE bl -> amfi_boot, amfi_boot+8 -> load_static_trust_cache, amfi_boot+0x14 -> amfi_interface_register.

@@ -209,6 +209,24 @@ Harness: `___mac_syscall` Sandbox call/return trace; XPC_LOOKUP_RET annotates `0
 Registration (VERIFIED on this agent with pth19 + the old 283-entry fullroot, gdb break after `bl mac_policy_register`): w0=0; console `LAPIS sandbox: check-allow policy registered`. Full containermanagerd.system path still needs mnt2.
 
 | boot56-reg | Image.pth19 | old fullroot (283 ents) | qemu11 lva=off | VERIFIED mac_policy_register w0=0 + success log; rootfs too small to reach backboardd | /tmp/boot56-reg, /tmp/boot56-smoke2 |
-| boot56 | Image.pth19 | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО on this agent: fullroot-mnt2.img (5.7G bring-up rootfs) is not in the repo or this VM. Expect: no more `error = 159` / `x0=0x9f` on containermanagerd.system lookups, WILL_SPAWN of containermanagerd.system, `/private/var/containers` created, backboardd past BSSystemContainer nil-path. | - |
+| boot56 | bad rebuild (sha 95fcfae4…) | mnt2 + owners | qemu11 lva=off | ПРОВЕРЕНО (bring-up host): early panic after "Guarded vnode policy", before "LAPIS sandbox"/launchd. pc=0xfffffe000743ff54 (wrap), lr=0xfffffe000744056c (= mistaken amfi_boot+8), far=0xaf8 esr=0x96000006. Image sha ≠ fbf2658a (registration kernel). | host |
 
-Next blocker: boot56 on the bring-up rootfs to confirm containermanagerd.system + containers; then IOMobileFramebuffer / IOSurface / HID for backboardd/SpringBoard; personas (usermanagerd).
+## Chunk 18 (boot56 panic: amfi_boot SITE / elf↔bin mismatch)
+Root cause (ПРОВЕРЕНО offline against committed ramfs.bin 11688 B):
+- Real `lapis_amfi_boot` in the matching blob is at 0xfffffe0007440580 (prologue `stp x29,x30` / `mov x29,sp`; +8 `bl load_static_trust_cache` → 0xfffffe000791a1c4).
+- Panic lr 0xfffffe000744056c implies SITE was aimed at 0xfffffe0007440564. At that VA in the 11688 B blob the bytes are mid-function: `bl` 0x97fffe7a → 0xfffffe000743ff50 (inside `lapis_ramfs_wrap`) — matches pc/far.
+- ГИПОТЕЗА confirmed as mechanism: `patch_kernel_ramfs_replace.py` took `lapis_amfi_boot` from ramfs.elf while placing a different ramfs.bin (or a rebuild with a different layout / 11656 B blob). It did not check prologue or rewrite/assert the in-blob BLs against ksyms.
+- Not a wrong restore of IOKit sites; the death is SITE → non-prologue address inside the blob.
+
+Fix:
+- `tools/patch_kernel_ramfs_replace.py`: assert elf symbols lie inside the placed blob; assert amfi_boot prologue; rewrite amfi_boot+8/+0x14 to LSTC/AIR; assert `kernel_bootstrap_thread` SITE bl target == amfi_boot.
+- `xnu/lapis-ramfs/build.sh`: pin CFLAGS (`-fno-ident`), `--build-id=none`, write `TOOLCHAIN.txt` + `ramfs.bin.sha256`. Bring-up toolchain: gcc 13.3.0 / ld 2.42 → ramfs.bin 11688 B sha256 f84c4345… (bit-identical across two rebuilds here).
+- tests/test-ramfs-replace-amfi-bl.py: encodes the 0x1c-shifted mismatch pattern.
+
+Image.pth20 = same bytes as the registration pth19 when built with that toolchain
+  sha256 fbf2658a8752e6e8aeae29e76d3df0e0f60ce8d317e2b06fde2c228a3a401aac
+  recipe: docs/status/Image.pth20-recipe.txt; releases lapis-pthread-pth19 + lapis-pthread-pth20.
+
+| boot56-retry | Image.pth20 (fbf2658a…) | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО here (host retries): expect no xpc 159 on containermanagerd.system, WILL_SPAWN, /private/var/containers, backboardd past BSSystemContainer nil-path. | - |
+
+Next blocker: host boot56-retry on released pth20. Then IOMobileFramebuffer / IOSurface / HID; personas (usermanagerd).
