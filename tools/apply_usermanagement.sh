@@ -13,7 +13,9 @@ python3 "$ROOT/tools/lapisfs_add.py" "$IMG" \
   "System/Library/PrivateFrameworks/UserManagement.framework=$BASE/UserManagement.framework" \
   "System/Library/PrivateFrameworks/UserManagementLayout.framework=$BASE/UserManagementLayout.framework" \
   --dir private/var/PersonaVolumes \
-  --dir private/var/logs
+  --dir private/var/logs \
+  --dir private/var/keybags \
+  --dir private/var/db/com.apple.usermanagerd
 
 if [ -f "$BASE/FeatureFlags/Domain/UserManagement.plist" ]; then
   python3 "$ROOT/tools/lapisfs_add.py" "$IMG" \

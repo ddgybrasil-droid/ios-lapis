@@ -402,4 +402,6 @@ Fix (not instruction-NOP of unrelated code):
   - Kernel Image.pth21: `lapis_iomfb.c` registers IOMobileFramebuffer /
     IOSurfaceRoot / IOHIDEventService metaclasses (IOMedia pattern).
 
-| boot64 | Image.pth21 | mnt2 + personas/UMD + IOMFB + fw batch | qemu11 43G lva=off | running… | out/logs/boot64 |
+| boot64 | Image.pth21 | mnt2 + personas/UMD + IOMFB + fw batch | qemu11 43G lva=off | ПРОВЕРЕНО: `IN/DONE UMD_INIT`; PERSONA op=1 ×5; **0** kpersona_find ESRCH (was spam). trampolines/libramrod 0. IOMFB metaclasses register (3). SpringBoard×1. New wall: usermanagerd daemon ABORT `Daemon failed to load persona manifest` (~12×); UMD_INIT NAMEI on missing `/private/var/keybags/persona.kb` (dir absent). lsd SIGABRT ~17 (may be coupled). | out/logs/boot64 |
+
+| boot65 | Image.pth21 | + `/private/var/keybags` (+ PersonaVolumes/logs) | qemu11 43G lva=off | running… | out/logs/boot65 |

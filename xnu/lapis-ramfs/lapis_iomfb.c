@@ -1,13 +1,7 @@
 /*
- * lapis_iomfb: built-in OSMetaClass stubs for display/surface classes that
- * Apple ships in IOMobileFramebuffer / IOSurface kexts (absent from this
- * OSS-built KC). Same pattern as lapis_iomedia.c: register the name so
- * getMetaClassWithName / serviceMatching do not assert; alloc() returns NULL
- * until a real provider exists. Also registers IOSurfaceRoot (QuartzCore).
- *
- * backboardd / IOMFB_FDR_Loader look up IOProviderClass IOMobileFramebuffer;
- * without the metaclass, later IOKit paths fault. Instances still require a
- * real driver — this only clears the class-registry wall.
+ * lapis_iomfb: built-in OSMetaClass stubs for display/surface/HID classes.
+ * Same pattern as lapis_iomedia.c (string literals kept in this TU so the
+ * .rodata.str merge into the ramfs .text blob stays self-contained).
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -25,27 +19,27 @@ extern const uint64_t IOService_MetaClass_vtable[] __asm__("_ZTVN9IOService9Meta
 
 static void *null_alloc(const void *self) { (void)self; return 0; }
 
-static void register_ioservice_subclass(const char *name)
+static void register_one(const char *name)
 {
 	uint64_t *vt;
 	void *mc, *h;
 	int r, i;
 	vt = IOMallocZero(VT_ENTRIES * 8);
 	mc = IOMallocZero(0x80);
-	if (!vt || !mc) { IOLog("LAPIS iomfb: no memory for %s\n", name); return; }
+	if (!vt || !mc) { IOLog("LAPIS iomfb: no memory\n"); return; }
 	for (i = 0; i < VT_ENTRIES; i++) vt[i] = IOService_MetaClass_vtable[i];
 	vt[VT_ALLOC] = (uint64_t)(uintptr_t)null_alloc;
 	h = OSMetaClass_preModLoad("__kernel__");
 	OSMetaClass_ctor(mc, name, IOService_metaClass, OSMetaClass_getClassSize(IOService_metaClass));
 	*(uint64_t **)mc = vt + 2;
 	r = OSMetaClass_postModLoad(h);
-	if (r) IOLog("LAPIS iomfb: postModLoad failed for %s\n", name);
-	else IOLog("LAPIS iomfb: registered %s metaclass\n", name);
+	if (r) IOLog("LAPIS iomfb: postModLoad failed\n");
+	else IOLog("LAPIS iomfb: registered built-in %s metaclass\n", name);
 }
 
 void lapis_iomfb_register(void)
 {
-	register_ioservice_subclass("IOMobileFramebuffer");
-	register_ioservice_subclass("IOSurfaceRoot");
-	register_ioservice_subclass("IOHIDEventService");
+	register_one("IOMobileFramebuffer");
+	register_one("IOSurfaceRoot");
+	register_one("IOHIDEventService");
 }
