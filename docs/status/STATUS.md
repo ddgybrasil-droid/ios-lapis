@@ -227,6 +227,32 @@ Image.pth20 = same bytes as the registration pth19 when built with that toolchai
   sha256 fbf2658a8752e6e8aeae29e76d3df0e0f60ce8d317e2b06fde2c228a3a401aac
   recipe: docs/status/Image.pth20-recipe.txt; releases lapis-pthread-pth19 + lapis-pthread-pth20.
 
-| boot56-retry | Image.pth20 (fbf2658a…) | mnt2 + owners | qemu11 lva=off | НЕ СДЕЛАНО here (host retries): expect no xpc 159 on containermanagerd.system, WILL_SPAWN, /private/var/containers, backboardd past BSSystemContainer nil-path. | - |
+| boot56-retry | Image.pth20 (fbf2658a…) | mnt2 + owners | qemu11 lva=off | ПРОВЕРЕНО (host): no early panic past vnguard; Sandbox MAC registered; containermanagerd.system lookup x0=0x0 (not 0x9f); `/usr/libexec/containermanagerd_system` spawns; backboardd/SpringBoard running, no nil-path abort. New wall: both containermanagerd and containermanagerd_system SYS_EXIT rval=0 then respawn (~11 exits / 720 s). | host |
 
-Next blocker: host boot56-retry on released pth20. Then IOMobileFramebuffer / IOSurface / HID; personas (usermanagerd).
+## Chunk 19 (containermanagerd exit-0: missing ContainerManagerCommon plists)
+NAMEI before exit (ПРОВЕРЕНО host boot56-retry; same order already in boot55 for the user agent):
+  `/private/var/mobile/Library/MobileContainerManager/runtime_state.plist`  (containermanagerd)
+  `/System/Library/PrivateFrameworks/ContainerManagerCommon.framework/User.plist`
+  `/private/var/root/Library/MobileContainerManager/runtime_state.plist`   (containermanagerd_system)
+  `/System/Library/PrivateFrameworks/ContainerManagerCommon.framework/System.plist`
+  `/private/var/containers` (NAMEI_FAIL from profiled — tree never created)
+
+IPSW 23F77 OS APFS (ПРОВЕРЕНО on this agent, apfs-fuse of 094-54982-099.dmg):
+  - User.plist / System.plist / whole resource bundle of ContainerManagerCommon.framework
+    (Base, Platform, Containers, Container.Class.*, Container.Global.*, Container.User.*, Info, _CodeSignature)
+    are on the OS volume (~10 KiB). Framework Mach-O is DSC-only; sibling ContainerManager{System,User}/MobileContainerManager.framework hold only Info+_CodeSignature.
+  - `#Include` chain: User|System → Platform → Base → Containers → Container.Class.* / Container.Global.* — need the full Common.framework resources, not two files alone.
+  - `/private/var/containers` and `…/MobileContainerManager/runtime_state.plist` are ABSENT on the OS volume (runtime; daemon creates them). Do not invent their contents.
+  - `/private/var/mobile` is 501:501 0711; `Library` 501:501; no MobileContainerManager dir in the IPSW skeleton.
+
+ГИПОТЕЗА: SYS_EXIT rval=0 is clean failure after config plist open fails (boot55: User.plist ENOENT then immediate exit). Once plists are present on lapisfs, daemon should create runtime_state + `/private/var/containers` on the writable ramfs `/private/var`.
+
+Minimal rootfs fix:
+  IPSW bytes vendored at `rootfs/ipsw-mcm/` (ПРОВЕРЕНО byte-identical to APFS User/System.plist).
+  Host on a COPY: `cp --sparse=always fullroot-mnt2.img fullroot-mnt2.mcm.img`
+  then `tools/apply_mcm_framework.sh fullroot-mnt2.mcm.img METADATA.tsv`
+  (or recipe `docs/status/Image.mcm-framework-recipe.txt`).
+
+| boot57 | Image.pth20 | mnt2.mcm + owners | qemu11 lva=off | НЕ СДЕЛАНО on this cloud VM: `fullroot-mnt2.img` absent (only 283-entry 5.0G fullroots). Authorised («да») but cannot run here. Host: apply script + same boot56-retry harness. Expect: no immediate SYS_EXIT rval=0 from containermanagerd_system after User/System.plist; `/private/var/containers` created; backboardd/SpringBoard still past nil-path. | - |
+
+Next: host boot57. Then IOMobileFramebuffer / IOSurface / HID; personas.
