@@ -333,10 +333,26 @@ Budget (ПРОВЕРЕНО sizes vs IPSW): CF+Foundation full on-disk ≈ 2.17 M
   — do not bulk-copy). boot59 NAMEI ∩ 441: apply via host log +
   `tools/apply_framework_info_from_namei.py` (НЕ СДЕЛАНО here — no boot59 gdb-events on VM).
 
-Minimal fix (НЕ СДЕЛАНО apply/boot here): vendored `rootfs/ipsw-cf-foundation/`;
-  in-place `tools/apply_cf_foundation_frameworks.sh fullroot-mnt2.icu.img METADATA.tsv`
+Minimal fix applied (ПРОВЕРЕНО cloud): vendored `rootfs/ipsw-cf-foundation/`;
+  `tools/apply_cf_foundation_frameworks.sh` on cloud-rebuilt mnt2;
   recipe `docs/status/Image.cf-foundation-recipe.txt`.
 
-| boot60 | Image.pth20 | mnt2 + CF/Foundation | qemu11 lva=off | НЕ СДЕЛАНО (host): expect appprotectiond no SIGSEGV on this CFCheck chain; MCM alive; SpringBoard running. | - |
+## Chunk 23 (cloud: rebuild fullroot-mnt2 + boot60 self-test)
+Host `/workspace/tpro-fix/fullroot-mnt2*.img` never lived on this VM (Grok bring-up host only).
+  Rebuilt locally: `tools/rebuild_mnt2_from_ipsw.sh` from pristine ufs-fullroot 23F77
+  (`/tmp/ios-lapis-ufs-fullroot-23F77.img`, sha256 819cc92b…) + IPSW APFS root
+  (`/tmp/apfs-mnt/root`) + MCM/ICU/AppProtection/CF + DSC bring-up patches.
+  Cloud harness: `tools/emu_run_gdb_cloud.sh` (qemu11, default **-m 43G** overcommit;
+  8–12G hits early stub PC=0).
 
-Next: host boot60. Deferred: `/private/var/containers`, posixrules/icutz, lsd corpses, boot59 NAMEI∩441 Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
+Rebuild deltas vs naive IPSW dump (ПРОВЕРЕНО):
+  - DSC: `patch_fullroot_container_init` + `pac_strip --nop-brk1`; restore pristine `/usr/lib/dyld`;
+    FIPS reseal → stored HMAC `313f41ec…` match True. **Do not** force pthread features
+    `0x4000001e` on Image.pth20 (libdispatch DISPATCH_CLIENT_CRASH → FAR=0x4000001e).
+  - `/etc` → `private/etc` symlink (else getpwnam("mobile") fails after early boot).
+  - DarwinDirectory users/groups; `/.b/8` + `/private/system_data` for mount -P 2 ramdisk;
+    timezone symlinks; launchd log dirs.
+
+| boot60 | Image.pth20 | cloud-rebuilt mnt2 + CF/Foundation | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): lapisfs mount 14180 ents; launchd past _container_init; mount-phase-2/tmpfs/apfs_boot_util/cc_fips/keybagd/tzinit OK; Early boot complete; MCM lookup x0=0; SpringBoard×15 + backboardd + appprotectiond spawn. **CFCheck FAR=0x8 / AppProtection NAMEI: 0 hits** (boot59 wall cleared). SpringBoard still SIGABRT corpse loop (not CFCheck). | out/logs/boot60 + docs/status/logs/boot60/gdb-events-key.txt |
+
+Next: SpringBoard SIGABRT / corpses; `/private/var/containers`; lsd; boot59 NAMEI∩441 Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
