@@ -27,3 +27,5 @@ Then (chunk 3, in place on fullroot-mnt2.img): 7zz x <IPSW OS dmg 094-54982-099.
 Then (chunk 4): tools/reseal_corecrypto_fips_hmac.py fullroot-mnt2.img --write   (recompute corecrypto FIPS HMAC after PAC strip)
 Then (chunk 19, on a COPY): lapisfs_add IPSW ContainerManagerCommon.framework resources
   (User.plist/System.plist + #Include chain) — see docs/status/Image.mcm-framework-recipe.txt; re-run lapisfs_owners --modes /private/var.
+Then (chunk 20, on a COPY): tools/apply_icu_data.sh — IPSW `/usr/share/icu/icudt78l.dat` (+ locale UTF-8, zoneinfo.default);
+  see docs/status/Image.icu-data-recipe.txt. Fixes CFDateFormatterCreateISO8601Formatter NULL → MCM SIGSEGV.
