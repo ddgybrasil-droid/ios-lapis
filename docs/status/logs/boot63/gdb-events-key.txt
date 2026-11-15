@@ -1,0 +1,112 @@
+1178:CON Creating /.b/8//mobile/Library/Preferences/com.apple.MobileCoreServices/
+1179:NAMEI_FAIL err=2 path='/.b/8//mobile/Library/Preferences/com.apple.MobileCoreServices' proc=['mount']
+1181:NAMEI_FAIL err=2 path='._com.apple.MobileCoreServices' proc=['mount']
+1912:CON Creating /private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/
+1913:NAMEI_FAIL err=2 path='/private/var/mobile/Library/Preferences/com.apple.MobileCoreServices' proc=['mount']
+2407:SPAWN #15 path='/usr/libexec/usermanagerd'
+2660:CON [System Event] [55569658292] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2665:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+2725:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+2990:SPAWN #29 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+3123:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3126:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3134:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3143:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3152:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3165:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_typAllowing spawn of iOS binary xpcproxy since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3185:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3199:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3208:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3217:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3226:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3235:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3244:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3253:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3263:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3272:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3281:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3290:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3299:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3314:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3327:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3340:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3502:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3528:NAMEI_FAIL err=2 path='/System/Library/Frameworks/CoreServices.framework/CoreServices' proc=['configd']
+3542:SPAWN #104 path='/usr/libexec/backboardd'
+3557:SPAWN #107 path='/usr/libexec/containermanagerd'
+3680:ABORT_WITH_PAYLOAD reason_string="Library not loaded: /usr/lib/libramrod.dylib\n  Referenced from: <716C03BE-0923-3001-98D7-B20F3A84DD67> /usr/libexec/lockdownd\n  Reason: tried: '/usr/lib/libramrod.dylib' (no such file), '/System/Cryptexes/OS/usr/lib/libramrod.dylib' (no such file), '/usr/lib/libramrod.dylib' (no such file, not in dyld cache)"
+3715:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4015:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4233:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4320:SPAWN #161 path='/usr/libexec/containermanagerd_system'
+4439:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4484:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MobileCoreServices.framework/MobileCoreServices' proc=['IOMFB_FDR_Loader']
+4504:SPAWN #167 path='/usr/libexec/lsd'
+4520:NAMEI_FAIL err=2 path='/var/mobile/Library/Caches/MappedImageCache/Persistent' proc=['SpringBoard']
+4521:NAMEI_FAIL err=2 path='._MappedImageCache' proc=['SpringBoard']
+4554:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4643:NAMEI_FAIL err=2 path='/private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.launchservices.secure.plist' proc=['roxy']
+4644:NAMEI_FAIL err=2 path='/private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist' proc=['roxy']
+4767:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4847:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4980:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5007:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5076:EXC_TRIAGE exc=1 code0=0x1 code1=0x38 elr=0x19aa01a74 far=0x38 esr=0x92000006
+5136:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5146:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5237:SPAWN #192 path='/usr/libexec/lsd'
+5310:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5344:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5390:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5408:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5414:SPAWN #200 path='/usr/libexec/usermanagerd'
+5451:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5471:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5472:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5491:SPAWN #205 path='/usr/libexec/lsd'
+5532:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5551:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5570:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5578:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5599:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5614:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5628:SPAWN #212 path='/usr/libexec/lsd'
+5636:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5655:SPAWN #214 path='/usr/libexec/lsd'
+5667:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5681:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5684:SPAWN #217 path='/usr/libexec/lsd'
+5714:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5721:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5741:SPAWN #219 path='/usr/libexec/lsd'
+5748:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5769:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5773:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5791:SPAWN #224 path='/usr/libexec/lsd'
+5804:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5806:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5823:SPAWN #226 path='/usr/libexec/lsd'
+5842:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5860:SPAWN #228 path='/usr/libexec/lsd'
+5864:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5866:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5882:SPAWN #230 path='/usr/libexec/lsd'
+5889:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5917:SPAWN #232 path='/usr/libexec/lsd'
+5926:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5954:SPAWN #235 path='/usr/libexec/lsd'
+5961:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+5982:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5990:SPAWN #237 path='/usr/libexec/lsd'
+6010:SIGABRT_PTHREAD_KILL proc=C pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+6028:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6049:SPAWN #239 path='/usr/libexec/lsd'
+6055:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+6110:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6134:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6157:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6169:SPAWN #245 path='/usr/libexec/lsd'
+6175:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x24b2a91d0 lr=0x1fb68b7dc  FRAMES 0x24b2a91d0 0x1fb68b7dc 0x1a8101c98 0x19a7ed358 0x19a7f33e4 0x1d69891e4 0x1d697f2e0 0x19a725c5c 0x19a725b00 0x19a7ed8c4 0x19a85f2e4 0x199189c1c
+6189:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6264:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6327:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process

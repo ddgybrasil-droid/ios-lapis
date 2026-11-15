@@ -1,0 +1,17 @@
+Image / rootfs recipe: CoreServices + MobileCoreServices + CoreServicesStore
+==============================================================================
+Source: IPSW 23F77 APFS root (094-54982-099), on-disk framework resources only
+  (Info.plist, *.loctable, _CodeSignature). No CFBundleExecutable Mach-O
+  (DSC-resident). Empty *.lproj dirs omitted (CF/Foundation vendor style).
+
+Apply:
+  tools/apply_coreservices_frameworks.sh FULLROOT_IMG [METADATA.tsv]
+
+Vendored:
+  rootfs/ipsw-coreservices/{CoreServices,MobileCoreServices,CoreServicesStore}.framework
+
+Also creates:
+  /private/var/db/lsd
+  /private/var/mobile/Library/Preferences/com.apple.MobileCoreServices
+
+Motivation: boot62 lsd / xpcproxy wall after trampolines cleared.

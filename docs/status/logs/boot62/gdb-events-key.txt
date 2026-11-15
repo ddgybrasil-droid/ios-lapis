@@ -1,0 +1,174 @@
+2391:SPAWN #15 path='/usr/libexec/usermanagerd'
+2646:CON [System Event] [57796773853] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2651:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+2715:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+2716:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+2967:SPAWN #29 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+3150:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3151:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3182:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3197:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3255:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3269:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3314:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_typAllowing spawn of iOS binary xpcproxy since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3366:SPAWN #109 path='/usr/libexec/containermanagerd'
+3385:SPAWN #113 path='/usr/libexec/backboardd'
+3452:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3463:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3467:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3480:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3481:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3489:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3490:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3499:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3500:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3508:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3509:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3517:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3518:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3526:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3528:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3551:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3554:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3566:ABORT_WITH_PAYLOAD reason_string="Library not loaded: /usr/lib/libramrod.dylib\n  Referenced from: <716C03BE-0923-3001-98D7-B20F3A84DD67> /usr/libexec/lockdownd\n  Reason: tried: '/usr/lib/libramrod.dylib' (no such file), '/System/Cryptexes/OS/usr/lib/libramrod.dylib' (no such file), '/usr/lib/libramrod.dylib' (no such file, not in dyld cache)"
+3594:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3596:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3608:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3609:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3619:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3620:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3632:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3633:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3642:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3643:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3654:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3655:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3663:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3664:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3673:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3674:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3685:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3686:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3696:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3697:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3709:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3710:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3718:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3719:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3729:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3733:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3805:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3821:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+3874:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+3876:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4305:SPAWN #152 path='/usr/libexec/containermanagerd_system'
+4380:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4385:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4416:NAMEI_FAIL err=2 path='/var/mobile/Library/Caches/MappedImageCache/Persistent' proc=['SpringBoard']
+4417:NAMEI_FAIL err=2 path='._MappedImageCache' proc=['SpringBoard']
+4439:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4450:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4466:SPAWN #158 path='/usr/libexec/lsd'
+4554:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4558:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4634:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4649:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4775:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4800:CON ind persona with type 6: 3 - No such process
+4886:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4888:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+4952:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+4954:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5015:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5027:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5053:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5055:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5077:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5090:CON ind persona with type 6: 3 - No such process
+5138:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5200:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5201:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5255:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5256:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5272:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5273:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5290:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5291:SPAWN #182 path='/usr/libexec/lsd'
+5292:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5312:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5313:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5322:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5323:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5352:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5353:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5372:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5373:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5420:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5436:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5437:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5446:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5447:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5478:SPAWN #191 path='/usr/libexec/lsd'
+5488:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5491:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5509:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5510:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5531:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5532:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5563:SPAWN #197 path='/usr/libexec/usermanagerd'
+5604:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5618:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5621:SPAWN #200 path='/usr/libexec/lsd'
+5639:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5662:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5679:SPAWN #204 path='/usr/libexec/lsd'
+5686:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5706:SPAWN #206 path='/usr/libexec/lsd'
+5707:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_typAllowing spawn of iOS binary lsd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5712:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5713:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5729:SPAWN #208 path='/usr/libexec/lsd'
+5738:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5758:SPAWN #210 path='/usr/libexec/lsd'
+5763:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5782:SPAWN #212 path='/usr/libexec/lsd'
+5796:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5815:SPAWN #216 path='/usr/libexec/lsd'
+5826:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5842:SPAWN #218 path='/usr/libexec/lsd'
+5843:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_typAllowing spawn of iOS binary lsd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5849:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5918:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5942:SPAWN #222 path='/usr/libexec/lsd'
+5949:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5950:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5959:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+5960:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+5972:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+5988:SPAWN #225 path='/usr/libexec/lsd'
+6001:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret Allowing spawn of iOS binary apsd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+6004:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6013:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+6045:SPAWN #229 path='/usr/libexec/lsd'
+6053:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6054:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6069:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+6102:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6114:SPAWN #235 path='/usr/libexec/lsd'
+6115:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6121:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+6146:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6147:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6232:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6233:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6252:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6254:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6279:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6283:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6293:SPAWN #242 path='/usr/libexec/lsd'
+6299:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_typLAPIS lapisfs: vfs_getattr active=100ff0 supported=ff0 errno=0
+6302:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6304:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2387091d0 lr=0x1e8aeb7dc  FRAMES 0x2387091d0 0x1e8aeb7dc 0x195561c98 0x187c4d358 0x187c533e4 0x1c3de91e4 0x1c3ddf2e0 0x187b85c5c 0x187b85b00 0x187c4d8c4 0x187cbf2e4 0x1865e9c1c
+6349:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
+6351:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Unable to find persona with type 6: 3 - No such process
+6361:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Warning>: kpersona_find_by_type() failed with ret -1 errno 3 - No such process
