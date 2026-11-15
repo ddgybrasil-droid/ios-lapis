@@ -356,3 +356,21 @@ Rebuild deltas vs naive IPSW dump (ПРОВЕРЕНО):
 | boot60 | Image.pth20 | cloud-rebuilt mnt2 + CF/Foundation | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): lapisfs mount 14180 ents; launchd past _container_init; mount-phase-2/tmpfs/apfs_boot_util/cc_fips/keybagd/tzinit OK; Early boot complete; MCM lookup x0=0; SpringBoard×15 + backboardd + appprotectiond spawn. **CFCheck FAR=0x8 / AppProtection NAMEI: 0 hits** (boot59 wall cleared). SpringBoard still SIGABRT corpse loop (not CFCheck). | out/logs/boot60 + docs/status/logs/boot60/gdb-events-key.txt |
 
 Next: SpringBoard SIGABRT / corpses; `/private/var/containers`; lsd; boot59 NAMEI∩441 Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
+
+## Chunk 24 (boot61 owners/CD rehash → trampolines; boot62 add libobjc-trampolines)
+
+boot61 (ПРОВЕРЕНО cloud, Image.pth20 + mnt2 with `dsc_cd_rehash` + `/private/var` owners):
+  - DSC CD stale slots cleared (0 after rehash); CS_KILL / MappedImageCache OK.
+  - New wall: SpringBoard/audiomxd `ABORT_WITH_PAYLOAD` —
+    `couldn't dlopen libobjc-trampolines.dylib` (ENOENT on `/usr/lib/…` and
+    `/System/Cryptexes/OS/usr/lib/…`; "not in dyld cache" is expected — on-disk only).
+  - File absent from system APFS root `094-54982-099`; extracted via
+    `ipsw extract --files --pattern '.*libobjc-trampolines.*'` from sibling restore DMG
+    → Mach-O arm64e dylib 68176 B (`bringup/libobjc-trampolines.dylib`).
+
+Minimal fix (applied to `/tmp/fullroot-mnt2.img` + rebuild script):
+  - `lapisfs_add` both `/usr/lib/libobjc-trampolines.dylib` and cryptex OS mirror.
+  - `tools/rebuild_mnt2_from_ipsw.sh` vendors/`ipsw extract` fallback + checklist YES.
+
+| boot62 | Image.pth20 | mnt2 + trampolines | qemu11 43G lva=off | running… | out/logs/boot62 |
+

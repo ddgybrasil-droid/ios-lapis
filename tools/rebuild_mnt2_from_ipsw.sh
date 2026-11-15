@@ -282,6 +282,30 @@ python3 "$ROOT/tools/lapisfs_add.py" "$OUT" \
   --dir .b \
   --dir .b/8 || true
 
+# libobjc-trampolines.dylib is NOT in the system APFS root (094-54982-099);
+# it lives on a sibling restore DMG. SpringBoard/audiomxd dlopen it from
+# /usr/lib (and cryptex OS mirror); "not in dyld cache" is expected — on-disk only.
+TRAMP="${TRAMP:-$ROOT/bringup/libobjc-trampolines.dylib}"
+if [ ! -f "$TRAMP" ]; then
+  IPSW_ZIP=${IPSW_ZIP:-/tmp/ipsw23f77/iPad_Pro_M4_26.5_23F77_Restore.ipsw}
+  IPSW_BIN=${IPSW_BIN:-/tmp/ipsw}
+  if [ -x "$IPSW_BIN" ] && [ -f "$IPSW_ZIP" ]; then
+    echo "== extract libobjc-trampolines from IPSW =="
+    mkdir -p /tmp/tramp-ipsw
+    "$IPSW_BIN" extract --files --pattern '.*libobjc-trampolines.*' \
+      -o /tmp/tramp-ipsw "$IPSW_ZIP"
+    TRAMP=$(find /tmp/tramp-ipsw -name libobjc-trampolines.dylib | head -1)
+  fi
+fi
+if [ -f "$TRAMP" ]; then
+  echo "== add libobjc-trampolines.dylib =="
+  python3 "$ROOT/tools/lapisfs_add.py" "$OUT" \
+    /usr/lib/libobjc-trampolines.dylib="$TRAMP" \
+    /System/Cryptexes/OS/usr/lib/libobjc-trampolines.dylib="$TRAMP"
+else
+  echo "WARN: libobjc-trampolines.dylib missing (SpringBoard will SIGABRT on dlopen)" >&2
+fi
+
 echo "== DSC bring-up patches (host mnt2 parity) =="
 # Required for launchd past _container_init / pthread features under TCG.
 # DSC bring-up for Image.pth20:
@@ -318,6 +342,32 @@ raise SystemExit(rc >> 8)
 PY
 python3 "$ROOT/tools/reseal_corecrypto_fips_hmac.py" "$OUT" --write
 
+echo "== DSC CodeDirectory rehash (stale after PAC strip) =="
+# Without this, CS_KILL processes (UserEventAgent) die on tainted DSC pages
+# (boot32 → boot33). Must run after pac_strip + FIPS reseal.
+python3 "$ROOT/tools/dsc_cd_rehash.py" "$OUT" --write
+
+echo "== IPSW owners/modes for /private/var (mobile 501:501) =="
+# SpringBoard/backboardd need mobile-owned Library/Caches (boot47→50).
+IPSW_META=${IPSW_META:-/tmp/mnt2-IPSW-METADATA.tsv}
+python3 - "$IPSW" "$IPSW_META" <<'PY'
+import os, stat, sys
+ipsw, out = sys.argv[1], sys.argv[2]
+rows = []
+for dp, dns, fns in os.walk(ipsw):
+    for name in dns + fns:
+        p = os.path.join(dp, name)
+        try:
+            st = os.lstat(p)
+        except OSError:
+            continue
+        rel = os.path.relpath(p, ipsw)
+        rows.append(f"{rel}\t{stat.filemode(st.st_mode)}\t{st.st_uid}\t{st.st_gid}")
+open(out, 'w').write('\n'.join(rows) + '\n')
+print('IPSW metadata rows', len(rows))
+PY
+python3 "$ROOT/tools/lapisfs_owners.py" "$OUT" "$IPSW_META" --modes /private/var
+
 echo "== done: $OUT =="
 ls -lh "$OUT"
 python3 - <<PY
@@ -339,6 +389,7 @@ need=[
  '/System/Library/PrivateFrameworks/ContainerManagerCommon.framework/User.plist',
  '/usr/share/icu/icudt78l.dat',
  '/System/Library/CoreServices/SpringBoard.app/SpringBoard',
+ '/usr/lib/libobjc-trampolines.dylib',
 ]
 print('paths', len(present))
 for n in need:
