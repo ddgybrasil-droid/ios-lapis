@@ -1,0 +1,98 @@
+156:CON LAPIS lapisfs: mounted root size=1c2900000 entries=14347 disk=1
+241:CON libignition: 1:        hello: hello from launchd.1
+396:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (mount-phase-1) <Notice>: Doing boot task
+476:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (mount-phase-2) <Notice>: Doing boot task
+2283:EXECVE #1 path='/System/Library/Filesystems/apfs.fs/apfs_boot_util'
+2284:CON Allowing spawn of iOS binary apfs_boot_util since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+2288:CON CODE SIGNING: cs_invalid_page(0x1f6cc0000): p=7[apfs_boot_util] final status 0x24000000, allowing (remove VALID) page
+2290:CSOPS proc=['apfs_boot_util'] pid=7 ops=0 usize=4
+2292:CSOPS proc=['apfs_boot_util'] pid=7 ops=0 usize=4
+2297:IOKMATCH service proc=['apfs_boot_util'] ['BSD Name', 'root_device']
+2304:SYS_EXIT rval=0 proc=['apfs_boot_util', 'apfs_boot_util']
+2342:SPAWN #13 path='/usr/libexec/cc_fips_test'
+2343:CON Allowing spawn of iOS binary cc_fips_test since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+2348:CON CODE SIGNING: cs_invalid_page(0x1f7e80000): p=14[cc_fips_test] final status 0x24000000, allowing (remove VALID) page
+2350:CSOPS proc=['cc_fips_test'] pid=14 ops=0 usize=4
+2387:SYS_EXIT rval=0 proc=['cc_fips_test', 'cc_fips_test', 'launchd']
+2390:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (keybag) <Notice>: Doing boot task
+2391:SPAWN #14 path='/usr/libexec/keybagd'
+2392:CON Allowing spawn of iOS binary keybagd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+2396:CON CODE SIGNING: cs_invalid_page(0x1f6cc0000): p=15[keybagd] final status 0x24002000, allowing (remove VALID) page
+2399:CSOPS proc=['keybagd'] pid=15 ops=0 usize=4
+2401:CSOPS proc=['keybagd'] pid=15 ops=0 usize=4
+2403:SYS_EXIT rval=0 proc=['keybagd', 'keybagd', 'launchd']
+2455:CON [System Event] [47852298010] [INFO] [Subsystem: launchd] [Event: mount-phase-1] Doing boot task
+2463:CON [System Event] [47882369730] [INFO] [Subsystem: launchd] [Event: mount-phase-2] Doing boot task
+2470:CON [System Event] [47900991993] [INFO] [Subsystem: launchd] [Event: keybag] Doing boot task
+2563:SPAWN #20 path='/usr/libexec/tzinit'
+2564:CON [System Event] [50292361983] [INFO] [Subsystem: launchd] [Event: tzinit] Doing boot task
+2565:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (tzinit) <Notice>: Doing boot task
+2566:CON Allowing spawn of iOS binary tzinit since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+2568:CON CODE SIGNING: cs_invalid_page(0x1f7e80000): p=21[tzinit] final status 0x24000000, allowing (remove VALID) page
+2569:NAMEI_FAIL err=2 path='/var/db/timezone/tz/' proc=['tzinit']
+2570:NAMEI_FAIL err=2 path='/var/db/icutz' proc=['tzinit']
+2571:NAMEI_FAIL err=2 path='/var/db/icu' proc=['tzinit']
+2572:NAMEI_FAIL err=2 path='/var/db/timezone/tz_latest' proc=['tzinit']
+2573:CON tzinit: Unable to locate data; resetting to system partition: No such file or directory
+2574:NAMEI_FAIL err=2 path='/usr/lib/libstdc++.6.dylib' proc=['tzinit']
+2575:CON tzinit: localtime link invalid; resetting to America/Los_Angeles: Invalid argument
+2577:SYS_EXIT rval=0 proc=['tzinit', 'tzinit', 'launchd']
+2670:CON [System Event] [56630886989] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2675:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+2891:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (com.apple.mobile.keybagd) <Notice>: This key does not do anything: OnDemand
+2892:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Notice>: pending spawn, domain in on-demand-only mode: com.apple.mobile.keybagd
+3058:SPAWN #28 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+3067:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501) <Error>: Failed to bootstrap path: path Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3399:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd) <Notice>: internal event: WILL_SPAWN, code = 0
+3413:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd) <Notice>: service state: spawning
+3528:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd) <Notice>: launching: speculative
+3535:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd [50]) <Notice>: xpcproxy spawned with pid 50
+3539:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd [50]) <Notice>: internal event: SPAWNED, code = 0
+3559:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.mobile.keybagd [50]) <Notice>: service state: xpcproxy
+3618:SPAWN #103 path='/usr/libexec/keybagd'
+3620:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.MobileFileIAllowing spawn of iOS binary keybagd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3637:CON CODE SIGNING: cs_invalid_page(0x1f6cc0000): p=50[keybagd] final status 0x24002000, allowing (remove VALID) page
+3643:SPAWN #113 path='/usr/libexec/backboardd'
+3648:SPAWN #115 path='/usr/libexec/containermanagerd'
+3654:CON Allowing spawn of iOS binary backboardd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3662:NAMEI_FAIL err=2 path='/usr/libexec/Info.plist' proc=['keybagd']
+3671:CON Allowing spawn of iOS binary containermanagerd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3678:IOKMATCH service proc=['keybagd'] ['IOProviderClass', 'AppleKeyStore']
+3680:CSOPS proc=['keybagd'] pid=50 ops=16 usize=1032
+3681:CSOPS proc=['keybagd'] pid=50 ops=16 usize=1032
+4120:SPAWN #159 path='/usr/libexec/appprotectiond'
+4222:CON Allowing spawn of iOS binary appprotectiond since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4491:NAMEI_FAIL err=2 path='/var/mobile/Library/Preferences/.GlobalPreferences_m.plist' proc=['keybagd']
+4559:SPAWN #181 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+4576:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4609:NAMEI_FAIL err=2 path='._keybagd.log.0' proc=['keybagd']
+4631:NAMEI_FAIL err=2 path='/private/var/root/Library/Preferences/spaced_repetition.plist' proc=['keybagd']
+4633:NAMEI_FAIL err=2 path='/private/var/root/Library/Preferences/com.apple.spaced_repetition.plist' proc=['keybagd']
+4708:SPAWN #185 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+4714:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4805:SPAWN #189 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+4806:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4841:SPAWN #190 path='/usr/libexec/containermanagerd_system'
+4860:SPAWN #193 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+4861:CON Allowing spawn of iOS binary containermanagerd_system since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4863:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4941:SPAWN #197 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+4942:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5074:SPAWN #202 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5077:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5237:SPAWN #205 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5254:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5368:SPAWN #206 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5397:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5514:SPAWN #209 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5519:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5627:SPAWN #213 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5628:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (user/501/com.apple.thermalmoniAllowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5679:SPAWN #215 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5684:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5773:SPAWN #218 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5774:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+5902:SPAWN #221 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+5904:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+6374:SPAWN #249 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+6377:CON Allowing spawn of iOS binary SpringBoard since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true

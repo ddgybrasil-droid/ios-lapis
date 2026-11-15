@@ -305,6 +305,54 @@ Other frameworks (list only, not copied): boot55 NAMEI_FAIL ∩ IPSW Info.plist 
   in `docs/status/boot55-frameworks-needing-info.txt`. Host audit:
   `python3 tools/list_missing_framework_info.py IMG IPSW_ROOT`.
 
-| boot59 | Image.pth20 | mnt2.icu+AppProtection | qemu11 lva=off | НЕ СДЕЛАНО (host): expect no appprotectiond SIGSEGV on this CFBundle chain; MCM alive; SpringBoard/backboardd running. | - |
+| boot59 | Image.pth20 | mnt2.icu+AppProtection | qemu11 lva=off | ПРОВЕРЕНО (host): AppProtection Info.plist present (sha256 7b205531…); NAMEI_FAIL on framework dir gone; MCM alive; SpringBoard running. Wall remains: appprotectiond 5 spawns / 4 crashes — only NAMEI is …/AppProtection (CFBundleExecutable, DSC-only); SIGSEGV ___CFCheckCFInfoPACSignature FAR=0x8 via __copyAppleLocalizations → GetInfoDictionary. | host |
 
-Next: host boot59. Deferred: `/private/var/containers`, posixrules/icutz, lsd corpses, bulk framework Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
+## Chunk 22 (appprotectiond: CoreFoundation/Foundation on-disk Info.plist)
+Crash (ПРОВЕРЕНО host boot59): same CFCheck FAR=0x8, but AppProtection bundle resources already present.
+  FPCHAIN: `___CFCheckCFInfoPACSignature` <- `_CFBundleGetInfoDictionary+24` <-
+  `__copyBundleLocalizationsFromResources+64` <- `__copyAppleLocalizations+124` <-
+  `__copyBundleLocalizationsFromResources+304` <- `__CFBundleCopyBundleLocalizations+144` <-
+  … <- `_CFBundleCopyResourceURL` <- AppProtection / `_APDServerEntry`.
+  elr unslid `0x1834f48cc` = CFCheck+4.
+
+DSC (ПРОВЕРЕНО `/tmp/dsc` .01): at `0x1834f48c8`: `add x8,x0,#8; ldar x9,[x8]` → `x0=NULL` (FAR=0x8).
+
+IPSW (ПРОВЕРЕНО): `/System/Library/Frameworks/CoreFoundation.framework/Info.plist` + `Error.loctable`
+  (+ empty `*.lproj`, `_CodeSignature`); no on-disk `CoreFoundation` Mach-O. Same for Foundation
+  (+ loctables). Vendored payload ~2.17 MiB. Listed in `boot55-frameworks-needing-info.txt`.
+
+ГИПОТЕЗА: `__copyAppleLocalizations` resolves `com.apple.CoreFoundation` and calls
+  `CFBundleGetInfoDictionary` without NULL-check; without on-disk CF `Info.plist` the
+  CFBundleRef is NULL → this crash. AppProtection is the trigger, not the missing dict.
+НЕ СДЕЛАНО: full private-symbol walk of `__copyAppleLocalizations+100..124` (name not in
+  DSC export strings here). Second hypothesis (missing CFBundleExecutable Mach-O): not fixed
+  (do not invent stub). Deferred: `/private/var/containers`, lsd SIGABRT.
+
+Budget (ПРОВЕРЕНО sizes vs IPSW): CF+Foundation full on-disk ≈ 2.17 MiB; Info.plist-only
+  for all 441 ≈ 0.36 MiB; full on-disk excl. executables for all 441 ≈ 1887 MiB (over 150 MiB
+  — do not bulk-copy). boot59 NAMEI ∩ 441: apply via host log +
+  `tools/apply_framework_info_from_namei.py` (НЕ СДЕЛАНО here — no boot59 gdb-events on VM).
+
+Minimal fix applied (ПРОВЕРЕНО cloud): vendored `rootfs/ipsw-cf-foundation/`;
+  `tools/apply_cf_foundation_frameworks.sh` on cloud-rebuilt mnt2;
+  recipe `docs/status/Image.cf-foundation-recipe.txt`.
+
+## Chunk 23 (cloud: rebuild fullroot-mnt2 + boot60 self-test)
+Host `/workspace/tpro-fix/fullroot-mnt2*.img` never lived on this VM (Grok bring-up host only).
+  Rebuilt locally: `tools/rebuild_mnt2_from_ipsw.sh` from pristine ufs-fullroot 23F77
+  (`/tmp/ios-lapis-ufs-fullroot-23F77.img`, sha256 819cc92b…) + IPSW APFS root
+  (`/tmp/apfs-mnt/root`) + MCM/ICU/AppProtection/CF + DSC bring-up patches.
+  Cloud harness: `tools/emu_run_gdb_cloud.sh` (qemu11, default **-m 43G** overcommit;
+  8–12G hits early stub PC=0).
+
+Rebuild deltas vs naive IPSW dump (ПРОВЕРЕНО):
+  - DSC: `patch_fullroot_container_init` + `pac_strip --nop-brk1`; restore pristine `/usr/lib/dyld`;
+    FIPS reseal → stored HMAC `313f41ec…` match True. **Do not** force pthread features
+    `0x4000001e` on Image.pth20 (libdispatch DISPATCH_CLIENT_CRASH → FAR=0x4000001e).
+  - `/etc` → `private/etc` symlink (else getpwnam("mobile") fails after early boot).
+  - DarwinDirectory users/groups; `/.b/8` + `/private/system_data` for mount -P 2 ramdisk;
+    timezone symlinks; launchd log dirs.
+
+| boot60 | Image.pth20 | cloud-rebuilt mnt2 + CF/Foundation | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): lapisfs mount 14180 ents; launchd past _container_init; mount-phase-2/tmpfs/apfs_boot_util/cc_fips/keybagd/tzinit OK; Early boot complete; MCM lookup x0=0; SpringBoard×15 + backboardd + appprotectiond spawn. **CFCheck FAR=0x8 / AppProtection NAMEI: 0 hits** (boot59 wall cleared). SpringBoard still SIGABRT corpse loop (not CFCheck). | out/logs/boot60 + docs/status/logs/boot60/gdb-events-key.txt |
+
+Next: SpringBoard SIGABRT / corpses; `/private/var/containers`; lsd; boot59 NAMEI∩441 Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
