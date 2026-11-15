@@ -1,0 +1,106 @@
+104:CON LAPIS iomfb: metaclass IOMobileFramebuffer ok
+107:CON LAPIS iomfb: metaclass AppleKeyStore ok
+108:CON LAPIS iomfb: published instance
+109:CON LAPIS iomfb: published instance
+110:CON LAPIS iomfb: published instance
+111:CON LAPIS iomfb: published instance
+161:CON LapisBlk: published /dev/disk0 (+ 3 slices)
+363:IOKMATCH service proc=['launchd'] ['IOProviderClass', 'AppleKeyStore']
+370:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Notice>: failed to find AppleKeyStore service
+3104:NAMEI_FAIL err=2 path='/System/Library/PrivateFrameworks/AppleKeyStore.framework/AppleKeyStore' proc=['usermanagerd']
+4307:IOKMATCH service proc=['keybagd'] ['IOProviderClass', 'AppleKeyStore']
+4928:CM_LOOKUP proc=AppleCredentialM class=13 id=None flags=0x1
+4930:IOKMATCH service proc=['remotepairingdev'] ['IOProviderClass', 'AppleKeyStore']
+4961:CM_LOOKUP proc=fairplayd.A2 class=12 id=None flags=0x1
+5014:IOKMATCH service proc=['ReportCrash'] ['IOProviderClass', 'AppleKeyStore']
+5129:SPAWN #169 path='/usr/libexec/lsd'
+5144:IOKMATCH service proc=['bluetoothd'] ['IOProviderClass', 'AppleKeyStore']
+5231:CM_LOOKUP proc=roxy class=12 id='<invalid at shift 14 desc 0x0>' flags=0x1
+5475:IOKMATCH service proc=C ['IOProviderClass', 'AppleKeyStore']
+5478:CM_LOOKUP proc=sharingd class=13 id=None flags=0x1
+5489:IOKMATCH service proc=['passd'] ['IOProviderClass', 'AppleKeyStore']
+5530:RET CM_LOOKUP_RET proc=roxy x0=0x0
+5532:RET CM_LOOKUP_RET proc=fairplayd.A2 x0=0x0
+5534:RET CM_LOOKUP_RET proc=sharingd x0=0x0
+5541:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+5557:RET CM_LOOKUP_RET proc=AppleCredentialM x0=0x0
+5599:SPAWN #186 path='/usr/libexec/lsd'
+5640:IOKMATCH service proc=['containermanager'] ['IOProviderClass', 'AppleKeyStore']
+5660:CM_LOOKUP proc=wirelessinsights class=13 id=None flags=0x1
+5762:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+5782:CM_LOOKUP proc=fairplayd.A2 class=12 id=None flags=0x1
+5797:RET CM_LOOKUP_RET proc=wirelessinsights x0=0x0
+5798:CM_LOOKUP proc=bluetoothd class=13 id=None flags=0x1
+5803:RET CM_LOOKUP_RET proc=bluetoothd x0=0x0
+5808:RET CM_LOOKUP_RET proc=roxy x0=0x0
+5810:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+5848:RET CM_LOOKUP_RET proc=fairplayd.A2 x0=0x0
+5881:IOKMATCH service proc=['DumpPanic'] ['IOProviderClass', 'AppleKeyStore']
+5919:SPAWN #198 path='/usr/libexec/lsd'
+5937:IOKMATCH notify proc=['IOMFB_FDR_Loader'] ['IOProviderClass', 'IOMobileFramebuffer']
+5947:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6004:CM_LOOKUP proc=C class=13 id=None flags=0x1
+6014:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6016:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6047:SPAWN #204 path='/usr/libexec/lsd'
+6055:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6091:RET CM_LOOKUP_RET proc=C x0=0x0
+6092:CM_LOOKUP proc=fairplayd.A2 class=12 id=None flags=0x1
+6099:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6101:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6120:SPAWN #206 path='/usr/libexec/lsd'
+6128:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6132:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6134:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6151:SPAWN #208 path='/usr/libexec/lsd'
+6156:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6161:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6163:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6180:SPAWN #210 path='/usr/libexec/lsd'
+6186:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6191:CM_LOOKUP proc=ReportCrash class=13 id=None flags=0x1
+6234:RET CM_LOOKUP_RET proc=fairplayd.A2 x0=0x0
+6257:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6259:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6281:SPAWN #213 path='/usr/libexec/lsd'
+6286:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6294:RET CM_LOOKUP_RET proc=ReportCrash x0=0x0
+6313:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6315:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6332:SPAWN #218 path='/usr/libexec/lsd'
+6342:CM_LOOKUP proc=C class=12 id='com.apple.lsd' flags=0x1
+6356:RET CM_LOOKUP_RET proc=C x0=0x0
+6358:SIGABRT_PTHREAD_KILL proc=C pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1d12911e
+6379:SPAWN #222 path='/usr/libexec/lsd'
+6387:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6390:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6393:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6414:SPAWN #224 path='/usr/libexec/lsd'
+6422:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6430:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6432:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6449:SPAWN #226 path='/usr/libexec/lsd'
+6457:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6462:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6464:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6480:SPAWN #228 path='/usr/libexec/lsd'
+6487:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6495:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6497:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6524:SPAWN #230 path='/usr/libexec/lsd'
+6531:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6539:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6541:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6557:CM_LOOKUP proc=fairplayd.A2 class=12 id=None flags=0x1
+6571:SPAWN #232 path='/usr/libexec/lsd'
+6576:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6585:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6587:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6626:IOKMATCH service proc=['triald'] ['IOProviderClass', 'AppleKeyStore']
+6654:RET CM_LOOKUP_RET proc=fairplayd.A2 x0=0x0
+6698:SPAWN #239 path='/usr/libexec/lsd'
+6718:CM_LOOKUP proc=roxy class=12 id='com.apple.lsd' flags=0x1
+6752:RET CM_LOOKUP_RET proc=roxy x0=0x0
+6754:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x245bb11d0 lr=0x1f5f937dc  FRAMES 0x245bb11d0 0x1f5f937dc 0x1a2a09c98 0x193b3afd4 0x193b3cb90 0x193a3b868 0x193b471f8 0x193b48e18 0x193b35360 0x193a3938c 0x1950f4e8c 0x1950fb3e4 0x1
+6773:CM_LOOKUP proc=imagent class=13 id=None flags=0x1
+6817:RET CM_LOOKUP_RET proc=imagent x0=0x0

@@ -435,4 +435,6 @@ boot67 root cause for remaining lsd wall (ПРОВЕРЕНО a2s + disasm):
 Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKUP/CM_SYSPATH returns;
   seed systemgroup.com.apple.lsd.iconscache + MCM System/ + Backup/SystemContainers.
 
-| boot68 | Image.pth23 | mnt2 + systemgroup seeds + AKS stub | qemu11 43G lva=off | running… | out/logs/boot68 |
+| boot68 | Image.pth23 | mnt2 + systemgroup seeds + AKS stub | qemu11 43G lva=off | ПРОВЕРЕНО: AKS metaclass+instance; containermanagerd IOKMATCH AKS; **CM_LOOKUP still x0=0** for class=12 com.apple.lsd (MCM cannot create systemData). IOMFB notify still works. Next: DSC stub for container_system_path_for_identifier. | out/logs/boot68 |
+
+| boot69 | Image.pth23 | + DSC stub container_system_path_for_identifier → fixed path | qemu11 43G lva=off | running… | out/logs/boot69 |
