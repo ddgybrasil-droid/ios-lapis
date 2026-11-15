@@ -383,4 +383,4 @@ boot62 next wall (ПРОВЕРЕНО): lsd respawn + xpcproxy SIGABRT; NAMEI on
 ГИПОТЕЗА: same CFBundle Info.plist NULL path as boot59 CFCheck.
 Fix: vendored `rootfs/ipsw-coreservices/`; `tools/apply_coreservices_frameworks.sh`.
 
-| boot63 | Image.pth20 | mnt2 + trampolines + CoreServices | qemu11 43G lva=off | running… | out/logs/boot63 |
+| boot63 | Image.pth20 | mnt2 + trampolines + CoreServices | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): trampolines still **0**; CoreServices/MobileCoreServices/CoreServicesStore Info.plist NAMEI **0** (added). SpringBoard×1 stays. **lsd wall remains**: ~16 lsd spawns + ~16 xpcproxy SIGABRT (same frames); FAR=0x38 EXC_BAD_ACCESS still seen. ГИПОТЕЗА Info.plist-only for CoreServices: **not sufficient**. Next: personas (`kpersona_find` / usermanagerd), LS DB/prefs content, symbolicate lsd/xpcproxy abort. | out/logs/boot63 + docs/status/logs/boot63/gdb-events-key.txt |
