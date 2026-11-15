@@ -384,3 +384,22 @@ boot62 next wall (ПРОВЕРЕНО): lsd respawn + xpcproxy SIGABRT; NAMEI on
 Fix: vendored `rootfs/ipsw-coreservices/`; `tools/apply_coreservices_frameworks.sh`.
 
 | boot63 | Image.pth20 | mnt2 + trampolines + CoreServices | qemu11 43G lva=off | ПРОВЕРЕНО (cloud): trampolines still **0**; CoreServices/MobileCoreServices/CoreServicesStore Info.plist NAMEI **0** (added). SpringBoard×1 stays. **lsd wall remains**: ~16 lsd spawns + ~16 xpcproxy SIGABRT (same frames); FAR=0x38 EXC_BAD_ACCESS still seen. ГИПОТЕЗА Info.plist-only for CoreServices: **not sufficient**. Next: personas (`kpersona_find` / usermanagerd), LS DB/prefs content, symbolicate lsd/xpcproxy abort. | out/logs/boot63 + docs/status/logs/boot63/gdb-events-key.txt |
+
+## Chunk 26 (boot64: personas via usermanagerd stub + IOMFB metaclasses + framework batch)
+
+Root cause (ПРОВЕРЕНО boot63): `usermanagerd --init` prints
+  `DEVICE HAS EPHEMERAL DATA VOLUME, SKIP INIT` because ADT
+  `/chosen/ephemeral-storage=1` (required for keybagd). No PERSONA_OP_ALLOC
+  ever runs → launchd `kpersona_find_by_type` ESRCH for types 4/6.
+
+Fix (not instruction-NOP of unrelated code):
+  - `tools/patch_fullroot_usermanagerd_ephemeral.py`: rewrite only
+    `j__os_variant_uses_ephemeral_storage` stub in usermanagerd to
+    `mov w0,#0; ret` (keybagd still uses real libdarwin).
+  - personas.plist + UserManagement* Info.plist + FeatureFlags.
+  - `bringup/libramrod.dylib` for lockdownd.
+  - Batch ~191 on-disk framework resources from boot63∩441 (≤80 MiB).
+  - Kernel Image.pth21: `lapis_iomfb.c` registers IOMobileFramebuffer /
+    IOSurfaceRoot / IOHIDEventService metaclasses (IOMedia pattern).
+
+| boot64 | Image.pth21 | mnt2 + personas/UMD + IOMFB + fw batch | qemu11 43G lva=off | running… | out/logs/boot64 |

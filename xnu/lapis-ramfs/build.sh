@@ -21,12 +21,12 @@ NM="${NM:-aarch64-linux-gnu-nm}"
 CFLAGS="-Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align \
     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin \
     -fno-ident -fno-exceptions -Wall -Wno-unused-parameter"
-for src in lapis_ramfs.c lapis_amfi.c lapis_iomedia.c lapis_sandbox.c; do
+for src in lapis_ramfs.c lapis_amfi.c lapis_iomedia.c lapis_iomfb.c lapis_sandbox.c; do
   # shellcheck disable=SC2086
   $CC $CFLAGS -c "$src" -o "${src%.c}.o"
 done
 DS=""
-OBJS="lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_sandbox.o"
+OBJS="lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_iomfb.o lapis_sandbox.o"
 DEF=$($NM --defined-only $OBJS | awk 'NF==3{print $3}' | sort -u)
 for s in $($NM -u $OBJS | awk 'NF==2{print $2}' | sort -u); do
   echo "$DEF" | grep -qx "$s" && continue
@@ -53,6 +53,6 @@ sha256sum ramfs.bin | tee ramfs.bin.sha256
   echo "OBJS=$OBJS"
   echo "ramfs.bin_bytes=$sz"
   cat ramfs.bin.sha256
-  $NM ramfs.elf | grep -E " lapis_(ramfs_wrap|amfi_boot|sandbox_register|iomedia_register)$"
+  $NM ramfs.elf | grep -E " lapis_(ramfs_wrap|amfi_boot|sandbox_register|iomedia_register|iomfb_register)$"
 } | tee TOOLCHAIN.txt
-$NM ramfs.elf | grep -E " lapis_(ramfs_wrap|sandbox_register)$"
+$NM ramfs.elf | grep -E " lapis_(ramfs_wrap|sandbox_register|iomfb_register)$"
