@@ -247,10 +247,12 @@ IPSW 23F77 OS APFS (ПРОВЕРЕНО on this agent, apfs-fuse of 094-54982-099
 
 ГИПОТЕЗА: SYS_EXIT rval=0 is clean failure after config plist open fails (boot55: User.plist ENOENT then immediate exit). Once plists are present on lapisfs, daemon should create runtime_state + `/private/var/containers` on the writable ramfs `/private/var`.
 
-Minimal rootfs fix (НЕ СДЕЛАНО apply/boot here — no mnt2 on this VM; host applies on a copy):
-  recipe `docs/status/Image.mcm-framework-recipe.txt` —
-  `lapisfs_add.py` COPY of fullroot-mnt2 ← IPSW `ContainerManagerCommon.framework/`;
-  then `lapisfs_owners.py … --modes /private/var` (keep mobile 501:501).
-  Optional: logging subsystem + featureflags plists (ENOENT in boot55, non-fatal).
+Minimal rootfs fix:
+  IPSW bytes vendored at `rootfs/ipsw-mcm/` (ПРОВЕРЕНО byte-identical to APFS User/System.plist).
+  Host on a COPY: `cp --sparse=always fullroot-mnt2.img fullroot-mnt2.mcm.img`
+  then `tools/apply_mcm_framework.sh fullroot-mnt2.mcm.img METADATA.tsv`
+  (or recipe `docs/status/Image.mcm-framework-recipe.txt`).
 
-Next boot goal: containermanagerd_system stays up (no immediate rval=0), `/private/var/containers` appears, backboardd/SpringBoard still past nil-path. Then IOMobileFramebuffer / IOSurface / HID; personas.
+| boot57 | Image.pth20 | mnt2.mcm + owners | qemu11 lva=off | НЕ СДЕЛАНО on this cloud VM: `fullroot-mnt2.img` absent (only 283-entry 5.0G fullroots). Authorised («да») but cannot run here. Host: apply script + same boot56-retry harness. Expect: no immediate SYS_EXIT rval=0 from containermanagerd_system after User/System.plist; `/private/var/containers` created; backboardd/SpringBoard still past nil-path. | - |
+
+Next: host boot57. Then IOMobileFramebuffer / IOSurface / HID; personas.
