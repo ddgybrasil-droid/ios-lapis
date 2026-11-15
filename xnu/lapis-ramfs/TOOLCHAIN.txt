@@ -2,13 +2,13 @@ CC=aarch64-linux-gnu-gcc
 aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
 LD=aarch64-linux-gnu-ld
 GNU ld (GNU Binutils for Ubuntu) 2.42
-KSYMS=/workspace/tpro-fix/ksyms.txt
+KSYMS=/tmp/r14drv/project/src/github-v4/drivers/out/ksyms.txt
 CFLAGS=-Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin     -fno-ident -fno-exceptions -Wall -Wno-unused-parameter
 OBJS=lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_iomfb.o lapis_sandbox.o
-ramfs.bin_bytes=12848
-be147f367c0a8b52883c6e4be8e89c1d70d7ce3c0668c298106a6a0cebd155a0  ramfs.bin
+ramfs.bin_bytes=13192
+8e860f5f8a024da26f6b29a6db7877bbc3f07b3c4c2657e3e41f7b0a5ed6c20e  ramfs.bin
 fffffe0007440584 T lapis_amfi_boot
 fffffe00074405b4 T lapis_iomedia_register
-fffffe00074408a4 T lapis_iomfb_register
+fffffe0007440978 T lapis_iomfb_register
 fffffe000743fe78 T lapis_ramfs_wrap
-fffffe0007440974 T lapis_sandbox_register
+fffffe0007440a48 T lapis_sandbox_register

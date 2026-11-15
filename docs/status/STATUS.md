@@ -437,4 +437,16 @@ Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKU
 
 | boot68 | Image.pth23 | mnt2 + systemgroup seeds + AKS stub | qemu11 43G lva=off | ПРОВЕРЕНО: AKS metaclass+instance; containermanagerd IOKMATCH AKS; **CM_LOOKUP still x0=0** for class=12 com.apple.lsd (MCM cannot create systemData). IOMFB notify still works. Next: DSC stub for container_system_path_for_identifier. | out/logs/boot68 |
 
-| boot69 | Image.pth23 | + DSC stub container_system_path_for_identifier → fixed path | qemu11 43G lva=off | running… | out/logs/boot69 |
+| boot69 | Image.pth23 | + DSC stub syspath (lost container_init on .31 replace) | qemu11 43G lva=off | ПРОВЕРЕНО: **regression** — launchd `_container_init(): sandbox_get_container_expected() failed: -1` (syspath stub replaced .31 without re-applying container_init+pac_strip+FIPS). | out/logs/boot69 |
+
+## Chunk 29 (boot70–72: restore DSC bring-up + clear lsd + CoverSheet)
+
+ПРОВЕРЕНО:
+- Replacing DSC `.31` requires `tools/reapply_dsc_bringup_patches.sh` (container_init → pac_strip → FIPS reseal → syspath stub → CD rehash).
+- boot70: container_init restored but FIPS integrity mismatch → userspace panic `fips`.
+- boot71: FIPS resealed; **Early boot complete**; **lsd SIGABRT = 0** (was ~16); CM_SYSPATH stub returns `str='/private/var/containers/Data/System/com.apple.lsd'` (ПРОВЕРЕНО). New wall: SpringBoard SIGABRT loop — CoverSheet `+[CSMainPageContentViewController _phoneListWidth]` via `UIScreen.mainScreen` (nil/zero bounds without display).
+- boot72: CoverSheet `_phoneListWidth` → constant 834.0; Image.pth24 IOMFB display size props; MG cache seed.
+
+| boot70 | Image.pth23 | restore container_init+pac_strip+syspath | qemu11 43G lva=off | ПРОВЕРЕНО: past `_container_init`; **FIPS_POST integrity FAILED** (−74) → launchd panic fips. | out/logs/boot70 |
+| boot71 | Image.pth23 | + FIPS reseal | qemu11 43G lva=off | ПРОВЕРЕНО: FIPS PASS; Early boot; **lsd wall cleared**; SpringBoard CoverSheet `_phoneListWidth` SIGABRT×14. | out/logs/boot71 |
+| boot72 | Image.pth24 | + CoverSheet width stub + IOMFB 2420×1668 props + MG plist | qemu11 43G lva=off | running… | out/logs/boot72 |

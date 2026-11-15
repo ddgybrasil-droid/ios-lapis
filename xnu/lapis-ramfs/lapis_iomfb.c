@@ -37,6 +37,17 @@ extern void IORegistryEntry_setProperty_bool(void *, const char *, unsigned char
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcb");
 extern void IORegistryEntry_setProperty_cstr(void *, const char *, const char *)
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcS1_");
+extern void IORegistryEntry_setProperty_obj(void *, const char *, void *)
+	__asm__("_ZN15IORegistryEntry11setPropertyEPKcP8OSObject");
+extern void *OSNumber_withNumber(unsigned long long, unsigned int)
+	__asm__("_ZN8OSNumber10withNumberEyj");
+
+static void set_u32(void *obj, const char *key, unsigned int val)
+{
+	void *n = OSNumber_withNumber(val, 32);
+	if (n)
+		IORegistryEntry_setProperty_obj(obj, key, n);
+}
 
 #define VT_ENTRIES 32
 #define VT_ALLOC   23
@@ -103,8 +114,17 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 	if (hid_support)
 		IORegistryEntry_setProperty_bool(obj, "HIDServiceSupport", 1);
 	/* IOMFB clients often look for a named framebuffer resource. */
-	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M')
+	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {
 		IORegistryEntry_setProperty_cstr(obj, "IOFBShared", "lapis");
+		/* iPad Pro M4 11" panel (iPad16,3 / TB520FU bring-up). */
+		set_u32(obj, "IODisplayWidth", 2420);
+		set_u32(obj, "IODisplayHeight", 1668);
+		set_u32(obj, "IODisplayPixelsWide", 2420);
+		set_u32(obj, "IODisplayPixelsHigh", 1668);
+		set_u32(obj, "IODisplayFrequency", 120);
+		set_u32(obj, "AppleMaxHorizontalPixels", 2420);
+		set_u32(obj, "AppleMaxVerticalPixels", 1668);
+	}
 
 	root = IOService_getServiceRoot();
 	if (root)
