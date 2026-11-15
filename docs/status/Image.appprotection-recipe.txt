@@ -1,0 +1,20 @@
+# Minimal fullroot fix for appprotectiond CFBundle NULL SIGSEGV (boot58)
+# Source: IPSW 23F77 OS dmg — AppProtection.framework on-disk resources only.
+#
+# ПРОВЕРЕНО (boot58): NAMEI_FAIL …/AppProtection.framework then
+#   ___CFCheckCFInfoPACSignature <- _CFBundleGetInfoDictionary <- … <-
+#   _CFBundleCopyResourceURL <- NSBundle URLForResource <- AppProtection/APDServer.
+# IPSW has Info.plist + Localizable.loctable + momd + _CodeSignature (Mach-O in DSC).
+#
+# Apply IN PLACE on the working image (no new copy; lapisfs_add keeps existing):
+#   tools/apply_appprotection_framework.sh fullroot-mnt2.icu.img METADATA.tsv
+#
+# Optional audit (other frameworks with IPSW Info.plist missing from rootfs):
+#   python3 tools/list_missing_framework_info.py fullroot-mnt2.icu.img /path/to/apfs-root
+#   see also docs/status/boot55-frameworks-needing-info.txt (441 candidates from boot55).
+#
+# Boot (host; only with explicit «да»):
+#   tools/emu_run_gdb.sh Image.pth20 fullroot-mnt2.icu.img out/logs/boot59 720
+#
+# Expect: no appprotectiond SIGSEGV on this CFBundle chain; containermanagerd/_system
+# alive; SpringBoard/backboardd running.

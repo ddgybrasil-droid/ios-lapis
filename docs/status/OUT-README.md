@@ -29,3 +29,5 @@ Then (chunk 19, on a COPY): lapisfs_add IPSW ContainerManagerCommon.framework re
   (User.plist/System.plist + #Include chain) — see docs/status/Image.mcm-framework-recipe.txt; re-run lapisfs_owners --modes /private/var.
 Then (chunk 20, on a COPY): tools/apply_icu_data.sh — IPSW `/usr/share/icu/icudt78l.dat` (+ locale UTF-8, zoneinfo.default);
   see docs/status/Image.icu-data-recipe.txt. Fixes CFDateFormatterCreateISO8601Formatter NULL → MCM SIGSEGV.
+Then (chunk 21, IN PLACE): tools/apply_appprotection_framework.sh — IPSW AppProtection.framework resources;
+  see docs/status/Image.appprotection-recipe.txt. Fixes appprotectiond CFBundle Info.plist NULL SIGSEGV.
