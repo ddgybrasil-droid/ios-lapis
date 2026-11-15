@@ -14,11 +14,18 @@ class _RetSite(gdb.Breakpoint):
         if t is not None:
             x0=r('x0'); extra=''
             if (x0 & 0xffffffff) == 0x9f: extra=' (xpcerr=159 Sandbox restriction)'
+            if (x0 & 0xffffffff) == 0x35: extra=' (container err 0x35 null-path)'
+            # Userland C-string return (CM_SYSPATH path, etc.)
+            if 0x100000000 <= x0 < 0x300000000:
+                try:
+                    s=ustr(x0,256)
+                    if s: extra+=' str=%r'%s
+                except Exception: pass
             P('RET %s x0=%#x%s'%(t,x0,extra))
         return False
 def RetBP(addr,tag):
     if addr not in _ret_bps:
-        if len(_ret_bps)>=64: return
+        if len(_ret_bps)>=128: return
         _ret_bps[addr]=_RetSite(addr)
     _ret_pend[(addr,r('sp'))]=tag
 def mk(name,limit):
@@ -312,7 +319,8 @@ BP('ramfs_setattr',on_rsetattr,RAMFS_SETATTR)
 # The cache slide is per boot: taken from vm_shared_region_start_address() (unslid base 0x180000000).
 DSC_BASE=0x180000000
 DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0x1e2761b08,
-          'container_system_path_for_identifier':0x1e276a4e8}
+          'container_system_path_for_identifier':0x1e276a4e8,
+          'container_legacy_lookup':0x1e275de24}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -357,8 +365,13 @@ def _ufn(n):
                 RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
         elif n=='container_xpc_create_connection':
             P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))
+        elif n=='container_legacy_lookup':
+            # w0=class (12=systemData), x1=identifier
+            P('CM_LOOKUP proc=%s class=%d id=%r flags=%#x'%(pn,r('x0')&0xffffffff,ustr(r('x1'),128) if r('x1') else None,r('x4')))
+            RetBP(r('x30'),'CM_LOOKUP_RET proc=%s'%pn)
         else:
             P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
+            RetBP(r('x30'),'CM_SYSPATH_RET proc=%s'%pn)
         return False
     return fn
 BP('_vm_shared_region_start_address',on_vsrsa)

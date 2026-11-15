@@ -1,0 +1,197 @@
+94:CON LAPIS iomfb: metaclass IOMobileFramebuffer ok
+95:CON LAPIS iomfb: metaclass IOSurfaceRoot ok
+96:CON LAPIS iomfb: metaclass IOHIDEventService ok
+97:CON LAPIS iomfb: published instance
+98:CON LAPIS iomfb: published instance
+99:CON LAPIS iomfb: published instance
+322:DSC_SLIDE start=0x185024000 slide=0x5024000
+359:PERSONA op=6 proc=Ca
+361:IOKMATCH service proc=C ['IOProviderClass', 'AppleKeyStore']
+369:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 <Notice>: failed to find AppleKeyStore service
+1902:CON Creating /.b/8//containers/
+1907:CON Creating /.b/8//containers/Data/
+1908:NAMEI_FAIL err=2 path='/.b/8//containers/Data' proc=['mount']
+1911:CON Creating /.b/8//containers/Data/System/
+1912:NAMEI_FAIL err=2 path='/.b/8//containers/Data/System' proc=['mount']
+1923:CON Creating /.b/8//containers/Shared/
+1924:NAMEI_FAIL err=2 path='/.b/8//containers/Shared' proc=['mount']
+1927:CON Creating /.b/8//containers/Shared/SystemGroup/
+1928:NAMEI_FAIL err=2 path='/.b/8//containers/Shared/SystemGroup' proc=['mount']
+1940:CON Creating /.b/8//containers/Bundle/
+1941:NAMEI_FAIL err=2 path='/.b/8//containers/Bundle' proc=['mount']
+1944:CON Creating /.b/8//containers/Bundle/Application/
+1945:NAMEI_FAIL err=2 path='/.b/8//containers/Bundle/Application' proc=['mount']
+1952:CON Creating /.b/8//containers/Bundle/PluginKitPlugin/
+1953:NAMEI_FAIL err=2 path='/.b/8//containers/Bundle/PluginKitPlugin' proc=['mount']
+1961:CON Creating /.b/8//containers/Bundle/VPNPlugin/
+1962:NAMEI_FAIL err=2 path='/.b/8//containers/Bundle/VPNPlugin' proc=['mount']
+1969:CON Creating /.b/8//containers/Bundle/Framework/
+1970:NAMEI_FAIL err=2 path='/.b/8//containers/Bundle/Framework' proc=['mount']
+1982:CON Creating /.b/8//containers/Temp/
+1983:NAMEI_FAIL err=2 path='/.b/8//containers/Temp' proc=['mount']
+2044:CON Creating /private/var/containers/
+2048:CON Creating /private/var/containers/Temp/
+2049:NAMEI_FAIL err=2 path='/private/var/containers/Temp' proc=['mount']
+2052:CON Creating /private/var/containers/Bundle/
+2053:NAMEI_FAIL err=2 path='/private/var/containers/Bundle' proc=['mount']
+2056:CON Creating /private/var/containers/Bundle/Framework/
+2057:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/Framework' proc=['mount']
+2060:CON Creating /private/var/containers/Bundle/VPNPlugin/
+2061:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/VPNPlugin' proc=['mount']
+2064:CON Creating /private/var/containers/Bundle/PluginKitPlugin/
+2065:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/PluginKitPlugin' proc=['mount']
+2068:CON Creating /private/var/containers/Bundle/Application/
+2069:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/Application' proc=['mount']
+2072:CON Creating /private/var/containers/Shared/
+2073:NAMEI_FAIL err=2 path='/private/var/containers/Shared' proc=['mount']
+2076:CON Creating /private/var/containers/Shared/SystemGroup/
+2077:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup' proc=['mount']
+2080:CON Creating /private/var/containers/Data/
+2081:NAMEI_FAIL err=2 path='/private/var/containers/Data' proc=['mount']
+2084:CON Creating /private/var/containers/Data/System/
+2085:NAMEI_FAIL err=2 path='/private/var/containers/Data/System' proc=['mount']
+2882:PERSONA op=6 proc=['MobileAssetEarly', 'MobileAssetEarlyBootTask']
+2928:NAMEI_FAIL err=2 path='/System/Library/PrivateFrameworks/AppleKeyStore.framework/AppleKeyStore' proc=['usermanagerd']
+2933:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist' proc=['MobileAssetEarly']
+2951:CON ****** IN UMD_INIT ****
+2960:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2961:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2964:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2965:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2966:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2967:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2968:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2970:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2971:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2972:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2974:CON ****** DONE UMD_INIT ****
+3044:PERSONA op=6 proc=['init_featureflag', 'init_featureflags']
+3273:CON [System Event] [72519541784] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+3274:PERSONA op=6 proc=['launchd', 'launchd']
+3278:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+3321:PERSONA op=9 proc=['launchd', 'launchd']
+3322:PERSONA op=5 proc=['launchd', 'launchd']
+3576:PERSONA op=9 proc=['launchd', 'launchd']
+3577:PERSONA op=5 proc=['launchd', 'launchd']
+3578:PERSONA op=9 proc=['launchd', 'launchd']
+3579:PERSONA op=5 proc=['launchd', 'launchd']
+3581:PERSONA op=9 proc=['launchd', 'launchd']
+3582:PERSONA op=5 proc=['launchd', 'launchd']
+3583:SPAWN #28 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+3606:PERSONA op=9 proc=['launchd', 'launchd']
+3607:PERSONA op=5 proc=['launchd', 'launchd']
+3645:PERSONA op=9 proc=['launchd', 'launchd']
+3646:PERSONA op=5 proc=['launchd', 'launchd']
+3661:PERSONA op=9 proc=['launchd', 'launchd']
+3662:PERSONA op=5 proc=['launchd', 'launchd']
+3672:PERSONA op=9 proc=['launchd', 'launchd']
+3673:PERSONA op=5 proc=['launchd', 'launchd']
+3682:PERSONA op=9 proc=['launchd', 'launchd']
+3683:PERSONA op=5 proc=['launchd', 'launchd']
+3712:PERSONA op=9 proc=['launchd', 'launchd']
+3713:PERSONA op=5 proc=['launchd', 'launchd']
+3735:PERSONA op=9 proc=['launchd', 'launchd']
+3736:PERSONA op=5 proc=['launchd', 'launchd']
+3742:PERSONA op=9 proc=['launchd', 'launchd']
+3743:PERSONA op=5 proc=['launchd', 'launchd']
+3753:PERSONA op=9 proc=['launchd', 'launchd']
+3754:PERSONA op=5 proc=['launchd', 'launchd']
+3767:PERSONA op=9 proc=['launchd', 'launchd']
+3768:PERSONA op=5 proc=['launchd', 'launchd']
+3783:PERSONA op=9 proc=['launchd', 'launchd']
+3784:PERSONA op=5 proc=['launchd', 'launchd']
+3816:PERSONA op=9 proc=['launchd', 'launchd']
+3817:PERSONA op=5 proc=['launchd', 'launchd']
+3828:PERSONA op=9 proc=['launchd', 'launchd']
+3829:PERSONA op=5 proc=['launchd', 'launchd']
+3834:PERSONA op=9 proc=['launchd', 'launchd']
+3835:PERSONA op=5 proc=['launchd', 'launchd']
+3843:PERSONA op=9 proc=['launchd', 'launchd']
+3844:PERSONA op=5 proc=['launchd', 'launchd']
+3851:PERSONA op=9 proc=['launchd', 'launchd']
+3852:PERSONA op=5 proc=['launchd', 'launchd']
+3859:PERSONA op=9 proc=['launchd', 'launchd']
+3860:PERSONA op=5 proc=['launchd', 'launchd']
+3868:PERSONA op=9 proc=['launchd', 'launchd']
+3869:PERSONA op=5 proc=['launchd', 'launchd']
+3875:PERSONA op=9 proc=['launchd', 'launchd']
+3876:PERSONA op=5 proc=['launchd', 'launchd']
+4123:SPAWN #124 path='/usr/bin/IOMFB_FDR_Loader'
+4130:IOKMATCH service proc=['keybagd'] ['IOProviderClass', 'AppleKeyStore']
+4138:CON Allowing spawn of iOS binary IOMFB_FDR_Loader since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+4180:NAMEI_FAIL err=2 path='/usr/bin/Info.plist' proc=['IOMFB_FDR_Loader']
+4189:CSOPS proc=['IOMFB_FDR_Loader'] pid=94 ops=0 usize=4
+4202:CSOPS proc=['IOMFB_FDR_Loader'] pid=94 ops=16 usize=1032
+4203:CSOPS proc=['IOMFB_FDR_Loader'] pid=94 ops=16 usize=1032
+4670:IOKMATCH service proc=['remotepairingdev'] ['IOProviderClass', 'AppleKeyStore']
+4682:CM_SYSPATH proc=C id=None
+4771:IOKMATCH service proc=['ReportCrash'] ['IOProviderClass', 'AppleKeyStore']
+4929:SPAWN #168 path='/usr/libexec/lsd'
+4943:NAMEI_FAIL err=2 path='/System/Library/Frameworks/CoreMedia.framework/CoreMedia' proc=['IOMFB_FDR_Loader']
+4970:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist.rebuild' proc=['MobileGestaltHel']
+5013:IOKMATCH service proc=['bluetoothd'] ['IOProviderClass', 'AppleKeyStore']
+5019:CM_SYSPATH proc=roxy id='<invalid at shift 14 desc 0x0>'
+5028:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework/MediaToolbox' proc=['IOMFB_FDR_Loader']
+5034:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework/Lenovo Yoga Pad Pro 12.7' proc=['IOMFB_FDR_Loader']
+5171:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//en.lproj/Default' proc=['IOMFB_FDR_Loader']
+5172:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//Base.lproj/Default' proc=['IOMFB_FDR_Loader']
+5173:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//English.lproj/Default' proc=['IOMFB_FDR_Loader']
+5204:IOKMATCH service proc=['containermanager'] ['IOProviderClass', 'AppleKeyStore']
+5214:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.configurationprofiles/Library/ConfigurationProfiles/PublicInfo/MCMeta.plist' proc=['AppleCredentialM']
+5216:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5306:IOKMATCH service proc=['passd'] ['IOProviderClass', 'AppleKeyStore']
+5483:IOKMATCH service proc=['DumpPanic'] ['IOProviderClass', 'AppleKeyStore']
+5488:CM_SYSPATH proc=fairplayd.A2 id=None
+5516:SPAWN #189 path='/usr/libexec/lsd'
+5607:IOKMATCH notify proc=['IOMFB_FDR_Loader'] ['IOProviderClass', 'IOMobileFramebuffer']
+5608:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5630:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5654:SPAWN #195 path='/usr/libexec/lsd'
+5679:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5700:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5720:SPAWN #201 path='/usr/libexec/lsd'
+5723:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5759:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5780:SPAWN #204 path='/usr/libexec/lsd'
+5783:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5798:CM_SYSPATH proc=fairplayd.A2 id=None
+5802:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5822:SPAWN #207 path='/usr/libexec/lsd'
+5829:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5833:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5851:SPAWN #209 path='/usr/libexec/lsd'
+5858:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5863:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5881:SPAWN #211 path='/usr/libexec/lsd'
+5885:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5887:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+5905:SPAWN #213 path='/usr/libexec/lsd'
+5936:CM_SYSPATH proc=C id='com.apple.lsd'
+5943:SIGABRT_PTHREAD_KILL proc=C pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0 0x1866
+5961:SPAWN #216 path='/usr/libexec/lsd'
+5966:CM_SYSPATH proc=C id='com.apple.lsd'
+5972:SIGABRT_PTHREAD_KILL proc=C pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0 0x1866
+5992:SPAWN #218 path='/usr/libexec/lsd'
+5996:CM_SYSPATH proc=roxy id='com.apple.lsd'
+5999:SYS_EXIT rval=1 proc=['IOMFB_FDR_Loader', 'IOMFB_FDR_Loader']
+6003:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6019:SPAWN #220 path='/usr/libexec/lsd'
+6024:CM_SYSPATH proc=roxy id='com.apple.lsd'
+6028:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6053:SPAWN #223 path='/usr/libexec/lsd'
+6059:CM_SYSPATH proc=roxy id='com.apple.lsd'
+6079:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6096:SPAWN #226 path='/usr/libexec/lsd'
+6100:CM_SYSPATH proc=roxy id='com.apple.lsd'
+6110:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6140:SPAWN #228 path='/usr/libexec/lsd'
+6144:CM_SYSPATH proc=roxy id='com.apple.lsd'
+6147:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6224:SPAWN #234 path='/usr/libexec/lsd'
+6230:CM_SYSPATH proc=roxy id='com.apple.lsd'
+6267:CM_SYSPATH proc=fairplayd.A2 id=None
+6303:IOKMATCH service proc=['triald'] ['IOProviderClass', 'AppleKeyStore']
+6304:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2372651d0 lr=0x1e76477dc  FRAMES 0x2372651d0 0x1e76477dc 0x1940bdc98 0x1851eefd4 0x1851f0b90 0x1850ef868 0x1851fb1f8 0x1851fce18 0x1851e9360 0x1850ed38c 0x1867a8e8c 0x1867af3e4 0x1c29451e4 0x1c293b2e0
+6343:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.configurationprofiles' proc=['profiled']
+6434:CM_SYSPATH proc=C id=None
+6448:SPAWN #244 path='/usr/libexec/lsd'

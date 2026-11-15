@@ -406,4 +406,33 @@ Fix (not instruction-NOP of unrelated code):
 
 | boot65 | Image.pth21 | + `/private/var/keybags` | qemu11 43G lva=off | ПРОВЕРЕНО: persona manifest ABORT **0** (keybags dir fixed); kpersona 0; UMD_INIT OK. SpringBoard×1. **lsd wall remains**: ~16 lsd + ~15 xpcproxy SIGABRT (no ABORT reason string). Next: symbolicate lsd/xpcproxy frames; seed Containers/*; real IOMFB IOService instance. | out/logs/boot65 |
 
-| boot66 | Image.pth21 (iomfb strings) | + Containers skeleton + empty LS prefs | qemu11 43G lva=off | running… | out/logs/boot66 |
+| boot66 | Image.pth21 (iomfb strings) | + mobile Containers + empty LS prefs | qemu11 43G lva=off | ПРОВЕРЕНО: persona OK; SpringBoard×1; **lsd wall root cause symbolicated**: `_LSDefaults systemContainerBaseURL` → objc_exception → abort (boot65 was `systemGroupContainerURL`/`userContainerURL`). FAR=0x38 = libsqlite3 in BSSqlite truncate (secondary). `/private/var/containers` still ENOENT (system tree never created). IOMFB_FDR_Loader notify on IOMobileFramebuffer then exit 1 (metaclass only, no instance). | out/logs/boot66 |
+
+
+## Chunk 27 (boot66: lsd = missing system container URL; IOMFB instances)
+
+ПРОВЕРЕНО (boot66, DSC slide 0xbf40000, pristine `ipsw dyld a2s`):
+- boot65 abort: `-[_LSDefaults systemGroupContainerURL]` / `userContainerURL` → `__LSServerMain`
+- boot66 abort: `-[_LSDefaults systemContainerBaseURL]` → `__LSServerMain` (progress after mobile Containers seed; still fatal)
+- FAR=0x38 at `libsqlite3` `func+220` via `-[BSSqliteDatabaseConnection truncateDatabaseAndReturnError:]` (secondary)
+- `/private/var/containers/{Data/System,Shared/SystemGroup,...}` NAMEI_FAIL — containermanagerd_system never created the system container tree (absent on IPSW; runtime)
+- IOMFB metaclasses register; `IOMFB_FDR_Loader` `IOKMATCH notify IOMobileFramebuffer` then SYS_EXIT 1 — no published instance
+
+Fix applied for boot67:
+- `tools/apply_lsd_seeds.sh` + `rootfs/ipsw-lsd-seeds/`: FeatureFlags Domain (26 plists incl. LaunchServices), `/private/var/db/lsd`, `/private/var/containers/*` skeleton, MCM cache/staging dirs
+- Kernel Image.pth22: `lapis_iomfb.c` publishes real IOService instances (IOMobileFramebuffer / IOSurfaceRoot / IOHIDEventService+HIDServiceSupport) via `registerService`
+
+| boot67 | Image.pth22 | mnt2 + lsd seeds + IOMFB instances | qemu11 43G lva=off | ПРОВЕРЕНО: 3× `published instance`; IOMFB_FDR_Loader **IOKMATCH notify IOMobileFramebuffer** (instance visible) then exit 1. `/private/var/containers` tree created. **lsd still SIGABRT** on `systemContainerBaseURL` — `_container_legacy_lookup(class=12 systemData, id=com.apple.lsd)` returns NULL (entitlements OK: system-container present). containermanagerd matches missing AppleKeyStore. | out/logs/boot67 |
+
+## Chunk 28 (boot68: AppleKeyStore stub + CM_LOOKUP ret trace)
+
+boot67 root cause for remaining lsd wall (ПРОВЕРЕНО a2s + disasm):
+  `container_system_path_for_identifier` → `__container_legacy_lookup(0xc /*systemData*/, "com.apple.lsd")`
+  → NULL → `_LSDefaults systemContainerBaseURL` throws → abort.
+  lsd entitlements include `com.apple.security.system-container` (not an AMFI miss).
+  containermanagerd IOKMATCH AppleKeyStore (absent) before creating system containers.
+
+Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKUP/CM_SYSPATH returns;
+  seed systemgroup.com.apple.lsd.iconscache + MCM System/ + Backup/SystemContainers.
+
+| boot68 | Image.pth23 | mnt2 + systemgroup seeds + AKS stub | qemu11 43G lva=off | running… | out/logs/boot68 |
