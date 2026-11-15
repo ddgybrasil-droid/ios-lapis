@@ -253,6 +253,34 @@ Minimal rootfs fix:
   then `tools/apply_mcm_framework.sh fullroot-mnt2.mcm.img METADATA.tsv`
   (or recipe `docs/status/Image.mcm-framework-recipe.txt`).
 
-| boot57 | Image.pth20 | mnt2.mcm + owners | qemu11 lva=off | НЕ СДЕЛАНО on this cloud VM: `fullroot-mnt2.img` absent (only 283-entry 5.0G fullroots). Authorised («да») but cannot run here. Host: apply script + same boot56-retry harness. Expect: no immediate SYS_EXIT rval=0 from containermanagerd_system after User/System.plist; `/private/var/containers` created; backboardd/SpringBoard still past nil-path. | - |
+| boot57 | Image.pth20 | mnt2.mcm + owners | qemu11 lva=off | ПРОВЕРЕНО (host): MCM User/System.plist ENOENT gone; no SYS_EXIT rval=0 from containermanagerd*; Sandbox OK; SpringBoard running; no backboardd nil-path abort. New wall: SIGSEGV EXC_BAD_ACCESS ns=2 code=0xb FAR=0x8 in ___CFCheckCFInfoPACSignature+4 (x0=NULL) from CFDateFormatterSetFormat during MCMMigrationStatus ISO8601 init; respawn loop; `/private/var/containers` still absent. | host |
 
-Next: host boot57. Then IOMobileFramebuffer / IOSurface / HID; personas.
+## Chunk 20 (containermanagerd SIGSEGV: missing ICU data for CFDateFormatter)
+Crash (ПРОВЕРЕНО host boot57 FPCHAIN, DSC slide 0x1232c000):
+  `-[MCMContainerMigrator performSynchronousBuildUpgradeMigration:…]`
+  → `-[MCMMigrationStatus setMigrationCompleteForType:]`
+  → `-[NSISO8601DateFormatter init]`
+  → `CFDateFormatterCreateISO8601Formatter`
+  → `CFDateFormatterSetFormat` with CFDateFormatterRef == NULL
+  → `___CFCheckCFInfoPACSignature` (`add x8,x0,#8; ldar`) FAR=0x8.
+  Not PAC mismatch (brk #0xc470 not taken).
+
+Open-source CF (ПРОВЕРЕНО `CFDateFormatter.c`):
+  `__CreateCFDateFormatter` → `__ResetUDateFormat` → `__cficu_udat_open`; on failure `_df` stays NULL → Create returns NULL.
+  `CFDateFormatterCreateISO8601Formatter` does not NULL-check before `CFDateFormatterSetFormat`.
+
+Missing data (ПРОВЕРЕНО boot55 NAMEI + IPSW APFS LuckF23F77…OS):
+  `/usr/share/icu/icudt78l.dat` (34 MiB, sha256 e95268c3…) — ENOENT in guest, present in IPSW
+  `/usr/share/icu/icutzformat.txt`, `/usr/share/locale/UTF-8/LC_CTYPE`
+  `/usr/share/zoneinfo.default` (incl. posixrules; boot55 also ENOENT `/var/db/timezone/zoneinfo/posixrules`)
+  Do not invent `runtime_state` / `/private/var/containers`.
+
+ГИПОТЕЗА: udat_open fails without icudt78l.dat → CreateISO8601 returns NULL → SetFormat SIGSEGV. Adding IPSW ICU (+ locale + zoneinfo.default) should let migration proceed and create `/private/var/containers`.
+
+Minimal rootfs fix (НЕ СДЕЛАНО apply/boot here — no mnt2 on this VM):
+  vendored `rootfs/ipsw-icu/`; host: `tools/apply_icu_data.sh fullroot-mnt2.icu.img METADATA.tsv`
+  recipe `docs/status/Image.icu-data-recipe.txt`.
+
+| boot58 | Image.pth20 | mnt2.mcm+icu | qemu11 lva=off | НЕ СДЕЛАНО (host): expect no CFDateFormatter NULL SIGSEGV; containermanagerd_system stays up; `/private/var/containers` appears. | - |
+
+Next: host boot58. Then IOMobileFramebuffer / IOSurface / HID; personas.

@@ -1,0 +1,25 @@
+# Minimal fullroot fix for containermanagerd CFDateFormatter NULL (boot57)
+# Source: IPSW 23F77 OS dmg 094-54982-099.dmg — bytes not invented.
+#
+# ПРОВЕРЕНО (crash stack, open-source CFDateFormatter.c):
+#   CFDateFormatterCreateISO8601Formatter → __CreateCFDateFormatter → __ResetUDateFormat
+#   → __cficu_udat_open; on U_FAILURE leaves _df NULL → Create returns NULL →
+#   CreateISO8601Formatter still calls CFDateFormatterSetFormat(NULL, …) →
+#   ___CFCheckCFInfoPACSignature add x0,#8; ldar (FAR=0x8). Not a PAC mismatch.
+#
+# ПРОВЕРЕНО (boot55 NAMEI + IPSW APFS):
+#   /usr/share/icu/icudt78l.dat        ENOENT in guest; 34 MiB file on IPSW (icudt78l)
+#   /usr/share/icu/icutzformat.txt     ENOENT; 3-byte file on IPSW
+#   /usr/share/locale/UTF-8/LC_CTYPE   on IPSW (52 KiB)
+#   /usr/share/zoneinfo.default        on IPSW (~537 KiB, includes posixrules)
+#   runtime_state /containers          ABSENT on IPSW (do not seed)
+#
+# Apply on a COPY:
+#   cp --sparse=always fullroot-mnt2.mcm.img fullroot-mnt2.icu.img   # or from mnt2
+#   tools/apply_icu_data.sh fullroot-mnt2.icu.img METADATA.tsv
+#
+# Boot (host; do not run without «да»):
+#   tools/emu_run_gdb.sh Image.pth20 fullroot-mnt2.icu.img out/logs/boot58 720
+#
+# Expect: no SIGSEGV in ___CFCheckCFInfoPACSignature from MCM ISO8601 init;
+# containermanagerd_system stays up; /private/var/containers appears.
