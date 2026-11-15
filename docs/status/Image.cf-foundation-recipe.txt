@@ -1,0 +1,38 @@
+# Minimal fullroot fix for appprotectiond CFCheck NULL via CoreFoundation bundle
+# (boot59). Source: IPSW 23F77 OS dmg — CoreFoundation + Foundation on-disk only.
+#
+# ПРОВЕРЕНО (boot59): AppProtection.framework Info.plist present (sha256 7b205531…);
+#   only NAMEI_FAIL for appprotectiond is …/AppProtection.framework/AppProtection
+#   (CFBundleExecutable; Mach-O in DSC — do not invent). Still SIGSEGV:
+#   ___CFCheckCFInfoPACSignature (elr unslid 0x1834f48cc = +4, FAR=0x8)
+#   <- _CFBundleGetInfoDictionary+24
+#   <- __copyBundleLocalizationsFromResources+64
+#   <- __copyAppleLocalizations+124
+#   <- … <- _CFBundleCopyResourceURL <- AppProtection / _APDServerEntry.
+# ПРОВЕРЕНО (DSC .01): at 0x1834f48c8: add x8,x0,#8; ldar x9,[x8] → x0=NULL.
+# ПРОВЕРЕНО (IPSW): CoreFoundation.framework has Info.plist + Error.loctable +
+#   empty *.lproj + _CodeSignature; no on-disk CoreFoundation Mach-O.
+#   Foundation.framework same pattern (+ loctables). Payload ~2.17 MiB files;
+#   empty *.lproj omitted from git (no file content); not required for GetInfoDictionary.
+# ГИПОТЕЗА: __copyAppleLocalizations uses CF bundle (com.apple.CoreFoundation);
+#   without on-disk Info.plist CFBundleRef is NULL → GetInfoDictionary CFCheck FAR=0x8.
+# НЕ СДЕЛАНО: full symbolicated walk of __copyAppleLocalizations+100..124 (no local
+#   symbol table for that private name in this VM’s DSC linkedit exports).
+#
+# Apply IN PLACE on the working image (after AppProtection apply):
+#   tools/apply_cf_foundation_frameworks.sh fullroot-mnt2.icu.img METADATA.tsv
+#
+# Optional — other boot59 NAMEI ∩ 441 needing-info (budget ≤150 MiB, excl. CF/Foundation
+# already applied; needs host gdb-events):
+#   python3 tools/apply_framework_info_from_namei.py fullroot-mnt2.icu.img \
+#     out/logs/boot59/gdb-events.txt /path/to/apfs-root METADATA.tsv --budget-mib 150
+#   (use --dry-run first for size report)
+#
+# Budget note: Info.plist-only for all 441 ≈ 0.36 MiB; full on-disk excl. executables
+# for all 441 ≈ 1887 MiB (over budget — do not bulk-copy).
+#
+# Boot (host; only with explicit «да»):
+#   tools/emu_run_gdb.sh Image.pth20 fullroot-mnt2.icu.img out/logs/boot60 720
+#
+# Expect: appprotectiond does not SIGSEGV on this CFCheck chain; containermanagerd/_system
+# alive; SpringBoard running.

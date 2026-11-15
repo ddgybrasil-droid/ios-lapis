@@ -31,3 +31,7 @@ Then (chunk 20, on a COPY): tools/apply_icu_data.sh — IPSW `/usr/share/icu/icu
   see docs/status/Image.icu-data-recipe.txt. Fixes CFDateFormatterCreateISO8601Formatter NULL → MCM SIGSEGV.
 Then (chunk 21, IN PLACE): tools/apply_appprotection_framework.sh — IPSW AppProtection.framework resources;
   see docs/status/Image.appprotection-recipe.txt. Fixes appprotectiond CFBundle Info.plist NULL SIGSEGV.
+Then (chunk 22, IN PLACE): tools/apply_cf_foundation_frameworks.sh — IPSW CoreFoundation + Foundation
+  on-disk resources (~2.17 MiB); see docs/status/Image.cf-foundation-recipe.txt. Targets boot59
+  __copyAppleLocalizations → GetInfoDictionary CFCheck NULL (FAR=0x8). Optional remainder:
+  tools/apply_framework_info_from_namei.py against boot59 gdb-events (budget ≤150 MiB).

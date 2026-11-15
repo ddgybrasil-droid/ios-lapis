@@ -305,6 +305,38 @@ Other frameworks (list only, not copied): boot55 NAMEI_FAIL ∩ IPSW Info.plist 
   in `docs/status/boot55-frameworks-needing-info.txt`. Host audit:
   `python3 tools/list_missing_framework_info.py IMG IPSW_ROOT`.
 
-| boot59 | Image.pth20 | mnt2.icu+AppProtection | qemu11 lva=off | НЕ СДЕЛАНО (host): expect no appprotectiond SIGSEGV on this CFBundle chain; MCM alive; SpringBoard/backboardd running. | - |
+| boot59 | Image.pth20 | mnt2.icu+AppProtection | qemu11 lva=off | ПРОВЕРЕНО (host): AppProtection Info.plist present (sha256 7b205531…); NAMEI_FAIL on framework dir gone; MCM alive; SpringBoard running. Wall remains: appprotectiond 5 spawns / 4 crashes — only NAMEI is …/AppProtection (CFBundleExecutable, DSC-only); SIGSEGV ___CFCheckCFInfoPACSignature FAR=0x8 via __copyAppleLocalizations → GetInfoDictionary. | host |
 
-Next: host boot59. Deferred: `/private/var/containers`, posixrules/icutz, lsd corpses, bulk framework Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
+## Chunk 22 (appprotectiond: CoreFoundation/Foundation on-disk Info.plist)
+Crash (ПРОВЕРЕНО host boot59): same CFCheck FAR=0x8, but AppProtection bundle resources already present.
+  FPCHAIN: `___CFCheckCFInfoPACSignature` <- `_CFBundleGetInfoDictionary+24` <-
+  `__copyBundleLocalizationsFromResources+64` <- `__copyAppleLocalizations+124` <-
+  `__copyBundleLocalizationsFromResources+304` <- `__CFBundleCopyBundleLocalizations+144` <-
+  … <- `_CFBundleCopyResourceURL` <- AppProtection / `_APDServerEntry`.
+  elr unslid `0x1834f48cc` = CFCheck+4.
+
+DSC (ПРОВЕРЕНО `/tmp/dsc` .01): at `0x1834f48c8`: `add x8,x0,#8; ldar x9,[x8]` → `x0=NULL` (FAR=0x8).
+
+IPSW (ПРОВЕРЕНО): `/System/Library/Frameworks/CoreFoundation.framework/Info.plist` + `Error.loctable`
+  (+ empty `*.lproj`, `_CodeSignature`); no on-disk `CoreFoundation` Mach-O. Same for Foundation
+  (+ loctables). Vendored payload ~2.17 MiB. Listed in `boot55-frameworks-needing-info.txt`.
+
+ГИПОТЕЗА: `__copyAppleLocalizations` resolves `com.apple.CoreFoundation` and calls
+  `CFBundleGetInfoDictionary` without NULL-check; without on-disk CF `Info.plist` the
+  CFBundleRef is NULL → this crash. AppProtection is the trigger, not the missing dict.
+НЕ СДЕЛАНО: full private-symbol walk of `__copyAppleLocalizations+100..124` (name not in
+  DSC export strings here). Second hypothesis (missing CFBundleExecutable Mach-O): not fixed
+  (do not invent stub). Deferred: `/private/var/containers`, lsd SIGABRT.
+
+Budget (ПРОВЕРЕНО sizes vs IPSW): CF+Foundation full on-disk ≈ 2.17 MiB; Info.plist-only
+  for all 441 ≈ 0.36 MiB; full on-disk excl. executables for all 441 ≈ 1887 MiB (over 150 MiB
+  — do not bulk-copy). boot59 NAMEI ∩ 441: apply via host log +
+  `tools/apply_framework_info_from_namei.py` (НЕ СДЕЛАНО here — no boot59 gdb-events on VM).
+
+Minimal fix (НЕ СДЕЛАНО apply/boot here): vendored `rootfs/ipsw-cf-foundation/`;
+  in-place `tools/apply_cf_foundation_frameworks.sh fullroot-mnt2.icu.img METADATA.tsv`
+  recipe `docs/status/Image.cf-foundation-recipe.txt`.
+
+| boot60 | Image.pth20 | mnt2 + CF/Foundation | qemu11 lva=off | НЕ СДЕЛАНО (host): expect appprotectiond no SIGSEGV on this CFCheck chain; MCM alive; SpringBoard running. | - |
+
+Next: host boot60. Deferred: `/private/var/containers`, posixrules/icutz, lsd corpses, boot59 NAMEI∩441 Info.plist. Then IOMobileFramebuffer / IOSurface / HID; personas.
