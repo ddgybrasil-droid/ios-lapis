@@ -25,3 +25,5 @@ Current tested kernel: kernel/Image.ipados.lapis_pthread.boot (a5410683...). mnt
 Then (chunk 3, in place on fullroot-mnt2.img): 7zz x <IPSW OS dmg 094-54982-099.dmg> System/Library/Filesystems/apfs.fs/apfs_boot_util System/Library/Filesystems/tmpfs.fs/*
   lapisfs_add.py fullroot-mnt2.img System/Library/Filesystems/apfs.fs/apfs_boot_util=... System/Library/Filesystems/tmpfs.fs/mount_tmpfs=...   (list: rootfs/ipsw-extra-files.txt)
 Then (chunk 4): tools/reseal_corecrypto_fips_hmac.py fullroot-mnt2.img --write   (recompute corecrypto FIPS HMAC after PAC strip)
+Then (chunk 19, on a COPY): lapisfs_add IPSW ContainerManagerCommon.framework resources
+  (User.plist/System.plist + #Include chain) — see docs/status/Image.mcm-framework-recipe.txt; re-run lapisfs_owners --modes /private/var.

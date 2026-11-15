@@ -1,0 +1,32 @@
+# Minimal fullroot fix for containermanagerd exit-0 loop (post boot56-retry / pth20)
+# Source: IPSW 23F77 OS dmg 094-54982-099.dmg (APFS volume LuckF23F77…OS). Do not invent plist bytes.
+#
+# ПРОВЕРЕНО (IPSW APFS mount):
+#   /System/Library/PrivateFrameworks/ContainerManagerCommon.framework/{User,System}.plist exist
+#   (+ Base/Platform/Containers/Container.Class.*/Container.Global.*/Container.User.*/Info/_CodeSignature)
+#   /private/var/containers          — ABSENT on OS volume (daemon creates at runtime)
+#   .../MobileContainerManager/runtime_state.plist — ABSENT (daemon creates at runtime)
+#
+# Apply on a COPY of fullroot-mnt2.img (never the pristine ufs-fullroot.img):
+#
+#   FW=…/extract/System/Library/PrivateFrameworks/ContainerManagerCommon.framework
+#   # copy FW from mounted/extracted IPSW OS dmg (apfs-fuse or 7zz), then:
+#   cp --sparse=always fullroot-mnt2.img fullroot-mnt2.mcm.img
+#   python3 tools/lapisfs_add.py fullroot-mnt2.mcm.img \
+#     System/Library/PrivateFrameworks/ContainerManagerCommon.framework="$FW"
+#   # optional (ENOENT in boot55, non-fatal before User.plist):
+#   #   System/Library/Preferences/Logging/Subsystems/com.apple.containermanager.plist=…
+#   #   System/Library/FeatureFlags/Domain/containermanagerd.plist=…
+#   python3 tools/lapisfs_owners.py fullroot-mnt2.mcm.img METADATA.tsv \
+#     --modes /private/var
+#   # METADATA.tsv = path/mode/uid/gid from IPSW (same as chunk 14). Ensures
+#   # /private/var/mobile stays 501:501; new framework files match IPSW root:wheel.
+#
+# Do NOT seed runtime_state.plist or /private/var/containers — not present in IPSW.
+#
+# Boot command (НЕ ЗАПУСКАТЬ without explicit «да»):
+#   tools/emu_run_gdb.sh … Image.pth20 fullroot-mnt2.mcm.img   # same harness as boot56-retry
+#
+# Expect next boot: no immediate SYS_EXIT rval=0 from containermanagerd_system after
+# User.plist/System.plist open; /private/var/containers appears; backboardd/SpringBoard
+# still past BSSystemContainer nil-path.
