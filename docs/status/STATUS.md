@@ -610,4 +610,4 @@ Image.pth42 sha256 692dc69df8a4ccef242eb01167fb9d0d748728394168d6284008a8790c499
 - GDB: richer `xpc_look_up_endpoint` arg dump (kr vs port*).
 Image.pth43 sha256 d4f568f9ad4d0462d4922f32744dc0c000fdcdf8fd43dfd4ca0949299cbeb56c.
 
-| boot98 | Image.pth43 | IOSurface +0x22=1 + IOGPU struct layouts | qemu11 43G lva=off | running… | out/logs/boot98 |
+| boot98 | Image.pth43 | IOSurface +0x22=1 + IOGPU struct layouts | qemu11 43G lva=off | **ПРОВЕРЕНО (partial)**: IOGPU sel=2/0/4 → IOSurface sel=13 → **sel=32** (new vs boot97; connect held). RB also reaches cfprefsd/lsd/keybag XPC lookups before GPU. Next: RE sel=32 scalar; RB ConnectionListener / `service state: running`; IOMFB FDR + cfprefsd. | out/logs/boot98 |
