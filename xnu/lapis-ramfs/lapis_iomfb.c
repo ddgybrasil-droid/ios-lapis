@@ -102,6 +102,8 @@ extern void *IOSharedDataQueue_withCapacity(unsigned int)
 	__asm__("_ZN17IOSharedDataQueue12withCapacityEj");
 extern void *IOSharedDataQueue_getMemoryDescriptor(void *)
 	__asm__("_ZN17IOSharedDataQueue19getMemoryDescriptorEv");
+extern int IOSharedDataQueue_enqueue(void *, void *, unsigned int)
+	__asm__("_ZN17IOSharedDataQueue7enqueueEPvj");
 extern void IODataQueue_setNotificationPort(void *, void *)
 	__asm__("_ZN11IODataQueue19setNotificationPortEP8ipc_port");
 /* kIODirectionOutIn|kIOMemoryKernelUserShared — shareable to userspace. */
@@ -844,14 +846,26 @@ int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
 	void *q;
+	/* Minimal IODataQueue payload (size field is prepended by enqueue).
+	 * boot154: BB burns CPU after HID NOTE64 + IOMFB open while waiting
+	 * on an empty mapped queue / digitizer sentinel. One enqueue wakes
+	 * the mach notification port so IODataQueuePeek/Dequeue can proceed. */
+	unsigned char pulse[8];
+	int i, enq;
 
 	(void)type;
 	(void)ref;
+	for (i = 0; i < 8; i++)
+		pulse[i] = 0;
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
+		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
+		IOLog(enq ? "LAPIS iomfb: regnote ok enqfail\n"
+			  : "LAPIS iomfb: regnote ok enq\n");
+		return 0;
 	}
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;

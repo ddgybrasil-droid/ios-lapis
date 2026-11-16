@@ -991,4 +991,8 @@ Image.pth74.
 
 ## Chunk 103 (boot154: digitizer surface dims + device_type)
 
-| boot154 | Image.pth84 | DigitizerSurfaceWidth/Height; device_type/compatible on IOMFB+ParavirtGPU | qemu11 43G lva=off | **ГИПОТЕЗА**: no BB CPU burn; digitizer bind completes; IOMFB/CA IOCONN or SB→backboard. | out/logs/boot154 |
+| boot154 | Image.pth84 | DigitizerSurfaceWidth/Height; device_type/compatible on IOMFB+ParavirtGPU | qemu11 43G lva=off | **ПРОВЕРЕНО**: DigitizerSurface **never queried**. device_type still miss on walk. HID+IOMFB open hold; **0** post-open IOCONN. BB **CPU burn** + cfprefsd burn remain. SB→chrono+RB; BB→frontboard. | out/logs/boot154 |
+
+## Chunk 104 (boot155: HID queue pulse enqueue after NOTE64)
+
+| boot155 | Image.pth85 | IOSharedDataQueue::enqueue 8B pulse after setNotificationPort | qemu11 43G lva=off | **ГИПОТЕЗА**: regnote ok enq; BB CPU burn gone; Peek/Dequeue advances; IOMFB/CA or SB→backboard. | out/logs/boot155 |
