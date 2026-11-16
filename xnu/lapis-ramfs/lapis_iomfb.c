@@ -112,6 +112,9 @@ void *lapis_copyExistingServices_orig(void *dict, unsigned int options,
 void *lapis_addMatchingNotification_orig(void *type, void *matching,
 					 void *handler, void *target,
 					 void *ref, int priority);
+/* boot113/114: is_io_object_conforms_to — hand-rolled metaclasses fail metaCast. */
+int lapis_is_io_object_conforms_to_orig(void *obj, const char *name,
+					unsigned int *out);
 __asm__(
 	".text\n"
 	".align 2\n"
@@ -136,6 +139,12 @@ __asm__(
 	".global lapis_addMatchingNotification_orig\n"
 	".type lapis_addMatchingNotification_orig, %function\n"
 	"lapis_addMatchingNotification_orig:\n"
+	"\tnop\n"
+	"\tnop\n"
+	"\tret\n"
+	".global lapis_is_io_object_conforms_to_orig\n"
+	".type lapis_is_io_object_conforms_to_orig, %function\n"
+	"lapis_is_io_object_conforms_to_orig:\n"
 	"\tnop\n"
 	"\tnop\n"
 	"\tret\n"
@@ -437,6 +446,38 @@ out:
 			OSObject_release(ctx->notifier);
 		/* ctx itself was IOMallocZero — no free API linked; leak ok. */
 	}
+}
+
+/*
+ * boot113: GetMainDisplay/populate drains our IOMFB notify (IOITER_NEXT ok) but
+ * never IOSOPEN. Hand-rolled OSMetaClass fails metaCast, so
+ * IOObjectConformsTo(service, "IOMobileFramebuffer") returns false and the
+ * framework discards the match. Force-true when the object is our published
+ * stub for that class name.
+ * ABI: is_io_object_conforms_to(obj, className, boolean_t *out) → kern_return_t.
+ */
+int lapis_is_io_object_conforms_to(void *obj, const char *name,
+				  unsigned int *out)
+{
+	int kr;
+	void *stub;
+
+	kr = lapis_is_io_object_conforms_to_orig(obj, name, out);
+	if (!out)
+		return kr;
+	if (*out)
+		return kr;
+	if (!obj || !name || !is_lapis_match_name(name))
+		return kr;
+	stub = lapis_published_stub(name);
+	if (!stub)
+		return kr;
+	if (stub == obj) {
+		*out = 1;
+		IOLog("LAPIS iomfb: conformsTo force\n");
+	}
+	OSObject_release(stub);
+	return kr;
 }
 
 void *lapis_addMatchingNotification(void *type, void *matching, void *handler,

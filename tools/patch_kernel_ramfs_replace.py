@@ -236,6 +236,12 @@ ces_hook = sym('lapis_copyExistingServices')
 ces_orig = sym('lapis_copyExistingServices_orig')
 amn_hook = sym('lapis_addMatchingNotification')
 amn_orig = sym('lapis_addMatchingNotification_orig')
+# boot114: IOObjectConformsTo fails on hand-rolled metaclasses (FDR drains
+# IOMFB notify without opening). Patch is_io_object_conforms_to.
+CONFORMS = 0xfffffe0007b13c00
+CONFORMS_PROLOGUE = 0xb40001c0  # cbz x0, <err>
+conforms_hook = sym('lapis_is_io_object_conforms_to')
+conforms_orig = sym('lapis_is_io_object_conforms_to_orig')
 for name, va in (('lapis_copyMatchingService', cms_hook),
                  ('lapis_copyMatchingService_orig', cms_orig),
                  ('lapis_getMatchingServices', gms_hook),
@@ -243,7 +249,9 @@ for name, va in (('lapis_copyMatchingService', cms_hook),
                  ('lapis_copyExistingServices', ces_hook),
                  ('lapis_copyExistingServices_orig', ces_orig),
                  ('lapis_addMatchingNotification', amn_hook),
-                 ('lapis_addMatchingNotification_orig', amn_orig)):
+                 ('lapis_addMatchingNotification_orig', amn_orig),
+                 ('lapis_is_io_object_conforms_to', conforms_hook),
+                 ('lapis_is_io_object_conforms_to_orig', conforms_orig)):
     if not (BLOB_VA <= va < BLOB_VA + len(blob)):
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
 for site, want, hook, orig, label in (
@@ -251,6 +259,8 @@ for site, want, hook, orig, label in (
     (GMS, CMS_PROLOGUE, gms_hook, gms_orig, 'getMatchingServices'),
     (CES, CES_PROLOGUE, ces_hook, ces_orig, 'copyExistingServices'),
     (AMN, AMN_PROLOGUE, amn_hook, amn_orig, 'addMatchingNotification'),
+    (CONFORMS, CONFORMS_PROLOGUE, conforms_hook, conforms_orig,
+     'is_io_object_conforms_to'),
 ):
     cur = rd32(img, site)
     if cur != want and decode_b(cur, site) is None:
@@ -335,3 +345,5 @@ print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
 print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOServiceUserNotification', USN_GNO, USN_CNO))
 print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOUserIterator', IUI_GNO, IUI_CNO))
+print('  is_io_object_conforms_to %#x -> %#x (tramp %#x)' % (
+    CONFORMS, conforms_hook, conforms_orig))

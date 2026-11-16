@@ -725,4 +725,12 @@ Image.pth57.
 - Keep `compatible=paravirtualizedgraphics,gpu`; **remove** `device_type` so getDisplayListNumber only counts Paravirt `DisplayPortCount=1`.
 Image.pth58.
 
-| boot113 | Image.pth58 | disp0 no device_type; Paravirt count=1 | qemu11 43G lva=off | **ГИПОТЕЗА**: Ref_FB=1 → one deferred FB completes populate → GetMainDisplay opens → FDR IOSOPEN. | out/logs/boot113 |
+| boot113 | Image.pth58 | disp0 no device_type; Paravirt count=1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Paravirt GMS + IOMFB Next still ok; **still no FDR IOSOPEN**. Ref_FB double-count was not the blocker — after Next, framework likely drops the stub via failed `IOObjectConformsTo` (hand-rolled metaCast). | out/logs/boot113 |
+
+## Chunk 63 (boot114: force IOObjectConformsTo for lapis stubs)
+
+- B-patch `is_io_object_conforms_to` → if stock metaCast fails and classname is a lapis match name and `obj` is our published stub, set `*out=1`.
+- Keep Paravirt DT compatible + no device_type + deferred IOMFB.
+Image.pth59.
+
+| boot114 | Image.pth59 | conformsTo force for published stubs | qemu11 43G lva=off | **ГИПОТЕЗА**: conformsTo force → populate counts FB → GetMainDisplay IOSOPEN. | out/logs/boot114 |
