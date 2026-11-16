@@ -963,4 +963,8 @@ Image.pth74.
 
 ## Chunk 96 (boot147: HIDPlugins path + UC class + async/note MIG)
 
-| boot147 | Image.pth77 | usr/appleinternal HIDPlugins; UC IOClass+LapisUC; NOTE/ASYNC/GETSVC hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: HID plugin path ENOENT gone; post-open NOTE/ASYNC/IOCONN or conformsTo LapisUC. | out/logs/boot147 |
+| boot147 | Image.pth77 | usr/appleinternal HIDPlugins; UC IOClass+LapisUC; NOTE/ASYNC/GETSVC hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: `/usr/appleinternal/lib/HIDPlugins` NAMEI gone. IOMFB open+nuc, conn obj non-null. **0** IOCONN/NOTE/ASYNC/conformsTo. RE: `IOMobileFramebufferOpen` post-path uses canvas-width/height + sel8 GetDisplaySize — BB raw-opens only (no Open post-path). | out/logs/boot147 |
+
+## Chunk 97 (boot148: canvas-* props + sel8 + get_class/map_shared hooks)
+
+| boot148 | Image.pth78 | canvas-width/height + MaxSrc*; sel8 size; IOGETCLASS/MAPSH hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: size props visible; IOCONN sel8 or IOREGPROP canvas-*; IOGETCLASS on conn. | out/logs/boot148 |

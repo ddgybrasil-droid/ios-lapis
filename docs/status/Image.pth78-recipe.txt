@@ -1,0 +1,7 @@
+Image.pth78 = Image.pth77 + lapis_iomfb.c:
+  - IOMFB service+UC: canvas-width/height, MaxSrcBuffer*, IOMFBMaxSrcPixels
+  - externalMethod selector 8 → 2420×1668 (kern_GetDisplaySize)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth77 /tmp/Image.pth78

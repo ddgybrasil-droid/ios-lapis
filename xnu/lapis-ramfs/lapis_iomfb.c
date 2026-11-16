@@ -665,6 +665,10 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	set_u32(client, "IODisplayPixelsWide", 2420);
 	set_u32(client, "IODisplayPixelsHigh", 1668);
 	set_u32(client, "IODisplayFrequency", 120);
+	set_u32(client, "canvas-width", 2420);
+	set_u32(client, "canvas-height", 1668);
+	set_u32(client, "MaxSrcBufferWidth", 2420);
+	set_u32(client, "MaxSrcBufferHeight", 1668);
 	IORegistryEntry_setProperty_bool(client, "IOMFBMainDisplay", 1);
 	IORegistryEntry_setProperty_cstr(client, "IOClass",
 					 "IOMobileFramebufferUserClient");
@@ -799,15 +803,14 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 			u16[0x22 / 2] = 1; /* connect-success gate */
 		}
 		/*
-		 * boot146: common IOMFB GetDisplaySize-shaped outs are 8/16 bytes
-		 * (width, height[, scale]). Prefer panel geometry over the
-		 * generic "presence" header so userspace does not treat the
-		 * framebuffer as 1×selector.
+		 * boot146/147 RE: kern_GetDisplaySize uses selector 8 with an
+		 * 8-byte (two u32 / two doubles after convert) structure out.
+		 * Also accept generic 8/16-byte size-shaped outs.
 		 */
-		else if (sz == 8 || sz == 16) {
+		else if (selector == 8 || sz == 8 || sz == 16) {
 			u32[0] = 2420;
 			u32[1] = 1668;
-			if (sz == 16) {
+			if (sz >= 16) {
 				u32[2] = 1;
 				u32[3] = 120;
 			}
@@ -908,6 +911,20 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "IODisplayFrequency", 120);
 		set_u32(obj, "AppleMaxHorizontalPixels", 2420);
 		set_u32(obj, "AppleMaxVerticalPixels", 1668);
+		/*
+		 * boot147 RE of IOMobileFramebufferOpen: after IOServiceOpen it
+		 * CFProperty-gets canvas-width / canvas-height (not IODisplay*).
+		 * BB itself raw-opens (we see IOSOPEN without the Open post-path),
+		 * but other callers and later size probes use these keys.
+		 */
+		set_u32(obj, "canvas-width", 2420);
+		set_u32(obj, "canvas-height", 1668);
+		set_u32(obj, "canvas_width", 2420);
+		set_u32(obj, "canvas_height", 1668);
+		set_u32(obj, "MaxSrcBufferWidth", 2420);
+		set_u32(obj, "MaxSrcBufferHeight", 1668);
+		set_u32(obj, "MaxSrcRectWidth", 2420);
+		set_u32(obj, "IOMFBMaxSrcPixels", 2420 * 1668);
 		/* GetMainDisplay / embedded-panel match (IOMFB.framework). */
 		IORegistryEntry_setProperty_bool(obj, "IOMFBMainDisplay", 1);
 		set_u32(obj, "IOMFBDisplayExternal", 0);

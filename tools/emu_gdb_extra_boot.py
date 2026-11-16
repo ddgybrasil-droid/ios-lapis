@@ -628,10 +628,12 @@ def on_iosopen():
     return False
 
 # boot114/115: does FDR call IOObjectConformsTo on the IOMFB stub?
+# boot147: also log SpringBoard — Open's post-path uses ConformsTo("IOService").
 def on_conforms():
     try:
         pn=cur_pname(); pn0=(pn[0] if pn else '') or ''
-        if 'IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower():
+        if ('IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower()
+                and 'SpringBoard' not in pn0):
             return False
         # x1 = class name (kernel pointer to C string)
         try:
@@ -748,6 +750,24 @@ BP('_is_io_connect_set_notification_port_64', _mk_ioconn('NOTE64'), addr=0xfffff
 BP('_is_io_connect_get_service', _mk_ioconn('GETSVC'), addr=0xfffffe0007b1773c)
 BP('_is_io_connect_add_client', _mk_ioconn('ADDCL'), addr=0xfffffe0007b180c8)
 BP('_is_io_connect_set_properties', _mk_ioconn('SETPROP'), addr=0xfffffe0007b1816c)
+BP('_is_io_connect_map_shared_memory', _mk_ioconn('MAPSH'), addr=0xfffffe0007b178ec)
+BP('_is_io_connect_get_notification_semaphore', _mk_ioconn('NOTESEM'), addr=0xfffffe0007b14d8c)
+
+_iogetclass_cnt = {'n': 0}
+def on_io_get_class():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if not _ui_iokit_proc(pn0):
+            return False
+        _iogetclass_cnt['n'] += 1
+        if _iogetclass_cnt['n'] > 80:
+            return False
+        P('IOGETCLASS proc=%s obj=%#x' % (pn, r('x0')))
+        RetBP(r('x30'), 'IOGETCLASS_RET proc=%s' % (pn0 or '?'))
+    except Exception as e:
+        P('ERR iogetclass %s' % e)
+    return False
+BP('_is_io_object_get_class', on_io_get_class, addr=0xfffffe0007b139e0)
 
 _ioreg_cnt = {'n': 0}
 def _mk_ioreg(tag):
