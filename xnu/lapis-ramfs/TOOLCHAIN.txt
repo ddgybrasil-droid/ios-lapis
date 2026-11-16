@@ -6,7 +6,7 @@ KSYMS=/agent/repos/ios-lapis/tpro-fix/ksyms.txt
 CFLAGS=-Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin     -fno-ident -fno-exceptions -Wall -Wno-unused-parameter
 OBJS=lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_iomfb.o lapis_sandbox.o
 ramfs.bin_bytes=17368
-a11cef40b6d776eb827cc9b666134a2d63f32628313698107a0bad383940f393  ramfs.bin
+c5a8ced708269cbb2606e987191596fd6be136445b200d3913a5eb5b1ffcacdc  ramfs.bin
 fffffe0007440584 T lapis_amfi_boot
 fffffe00074405b4 T lapis_iomedia_register
 fffffe000744135c T lapis_iomfb_register

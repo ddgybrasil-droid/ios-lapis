@@ -660,7 +660,14 @@ Image.pth49 (ramfs a9e828e9…).
 
 ## Chunk 54 (boot105: deferred ping after AMN returns)
 
-- After force-queue, `thread_call_allocate` + `thread_call_enter` → sleep 200ms → `getNextObject` drain (arms) → `IOServiceUserNotification::handler` re-add → sendPing once FDR listens.
+- After force-queue, `thread_call_allocate` + `thread_call_enter` → sleep 200ms → drain (arms) → `handler` re-add → sendPing once FDR listens.
 Image.pth50 (ramfs a11cef40…).
 
-| boot105 | Image.pth50 | deferred IOMFB notify ping | qemu11 43G lva=off | **ГИПОТЕЗА**: deferred ping → FDR IOSOPEN→nuc. | out/logs/boot105 |
+| boot105 | Image.pth50 | deferred IOMFB notify ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: scheduled deferred ping ran; **PANIC** `brk #0xbffc` at `getNextObject` symbol `0x7b11668` (poison stub → `IOUserClient.cpp:1094`). Real drain is `copyNextObject` @`0x7b11678`. lr in lapis deferred callback. | out/logs/boot105 |
+
+## Chunk 55 (boot106: deferred ping via copyNextObject)
+
+- Same deferred path but call `copyNextObject` (retained) instead of poisoned `getNextObject`.
+Image.pth51.
+
+| boot106 | Image.pth51 | deferred ping via copyNextObject | qemu11 43G lva=off | **ГИПОТЕЗА**: deferred ping completes → FDR IOSOPEN→nuc. | out/logs/boot106 |

@@ -88,9 +88,11 @@ extern void OSObject_retain(void *) __asm__("_ZNK8OSObject6retainEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
-/* boot105: deferred wake after AMN returns so FDR's mach port is listening. */
-extern void *IOServiceUserNotification_getNextObject(void *)
-	__asm__("_ZN25IOServiceUserNotification13getNextObjectEv");
+/* boot105/106: deferred wake after AMN returns so FDR's mach port is listening.
+ * NOTE: getNextObject @0x7b11668 is a poison stub (brk #0xbffc); the real
+ * drain entry is copyNextObject @0x7b11678 (boot105 panic IOUserClient.cpp:1094). */
+extern void *IOServiceUserNotification_copyNextObject(void *)
+	__asm__("_ZN25IOServiceUserNotification14copyNextObjectEv");
 extern int IOServiceUserNotification_handler(void *, void *, void *)
 	__asm__("_ZN25IOServiceUserNotification7handlerEPvP9IOService");
 typedef void (*lapis_thread_call_func_t)(void *, void *);
@@ -367,9 +369,10 @@ static void lapis_deferred_iomfb_ping(void *param0, void *param1)
 		return;
 	/* Let IOKMATCH return to userland and the notify port start waiting. */
 	IOSleep(200);
-	while ((obj = IOServiceUserNotification_getNextObject(target)))
+	/* copyNextObject (not getNextObject — that symbol is a brk stub). */
+	while ((obj = IOServiceUserNotification_copyNextObject(target)))
 		OSObject_release(obj);
-	/* Queue empty → getNextObject set armed@+0x48. Re-add → sendPing. */
+	/* Queue empty → copyNextObject set armed@+0x48. Re-add → sendPing. */
 	s = lapis_published_stub("IOMobileFramebuffer");
 	if (s) {
 		unsigned int *st = (unsigned int *)((char *)s + 0x48);
