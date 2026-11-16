@@ -694,4 +694,12 @@ Image.pth53.
 - gdb: `_is_io_iterator_next` logs for IOMFB_FDR/backboardd.
 Image.pth54.
 
-| boot109 | Image.pth54 | deferred-only IOMFB + IOITER probe | qemu11 43G lva=off | **ГИПОТЕЗА**: empty-arm then deferred ping → FDR Next→IOSOPEN. | out/logs/boot109 |
+| boot109 | Image.pth54 | deferred-only IOMFB + IOITER probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES skip + empty Next (arm) + deferred ping → **IOITER_NEXT x0=0** (stub delivered); **still no FDR IOSOPEN**. RE: `IOMobileFramebufferGetMainDisplay` does NOT open the notify object — it needs `AppleParavirtGPU.DisplayPortCount` (getParavirtDisplayCount) + FB enumerate wait, then open. Without ParavirtGPU Ref_FB stays wrong → drain-without-open. RB IOGPU→sel OK. cfprefsd still burns CPU. | out/logs/boot109 |
+
+## Chunk 59 (boot110: AppleParavirtGPU DisplayPortCount=1)
+
+- Publish `AppleParavirtGPU` stub with `DisplayPortCount=1` so GetMainDisplay's getParavirtDisplayCount expects exactly one FB (our IOMFB).
+- Keep boot109 deferred-only IOMFB delivery + getNextObject→copyNextObject.
+Image.pth55 (ramfs 4a86bb4e…).
+
+| boot110 | Image.pth55 | AppleParavirtGPU + DisplayPortCount=1 | qemu11 43G lva=off | **ГИПОТЕЗА**: Paravirt Ref_FB=1 + deferred IOMFB ping → GetMainDisplay completes → FDR IOSOPEN/nuc. | out/logs/boot110 |

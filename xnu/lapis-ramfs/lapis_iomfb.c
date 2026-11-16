@@ -190,7 +190,9 @@ static int is_lapis_match_name(const char *name)
 	       streq(name, "IOCoreSurfaceRoot") ||
 	       streq(name, "IOHIDEventService") || streq(name, "AppleKeyStore") ||
 	       streq(name, "AppleCLCD") || streq(name, "AGXAccelerator") ||
-	       streq(name, "IOAccelerator");
+	       streq(name, "IOAccelerator") ||
+	       /* boot110: GetMainDisplay counts FBs via AppleParavirtGPU.DisplayPortCount */
+	       streq(name, "AppleParavirtGPU");
 }
 
 /*
@@ -729,6 +731,19 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
 	}
 
+	/*
+	 * boot109/110 RE of IOMobileFramebufferGetMainDisplay (iPadOS 26):
+	 * getParavirtDisplayCount → IOServiceGetMatchingServices(AppleParavirtGPU)
+	 * then IORegistryEntryCreateCFProperty(DisplayPortCount). Populate waits
+	 * until enumerated FB count == that port count, then opens. Without this
+	 * node Ref_FB stays wrong and FDR drains our deferred ping without IOSOPEN.
+	 */
+	if (m->name[0] == 'A' && m->name[1] == 'p' && m->name[2] == 'p' &&
+	    m->name[5] == 'P') {
+		set_u32(obj, "DisplayPortCount", 1);
+		IORegistryEntry_setProperty_cstr(obj, "IOClass", "AppleParavirtGPU");
+	}
+
 	/* GPU / Metal clients probe these on matched accelerator nodes. */
 	if ((m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'G') ||
 	    (m->name[0] == 'A' && m->name[1] == 'G' && m->name[2] == 'X') ||
@@ -779,7 +794,8 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 
 void lapis_iomfb_register(void)
 {
-	struct lapis_mc iomfb, surface, coresurf, hid, aks, gpu, gpudev, clcd, agx, accel;
+	struct lapis_mc iomfb, surface, coresurf, hid, aks, gpu, gpudev, clcd, agx,
+		accel, pgpu;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
@@ -807,6 +823,9 @@ void lapis_iomfb_register(void)
 		IOLog("LAPIS iomfb: metaclass AGXAccelerator ok\n");
 	if (register_mc(&accel, "IOAccelerator") == 0)
 		IOLog("LAPIS iomfb: metaclass IOAccelerator ok\n");
+	/* GetMainDisplay getParavirtDisplayCount (boot110). */
+	if (register_mc(&pgpu, "AppleParavirtGPU") == 0)
+		IOLog("LAPIS iomfb: metaclass AppleParavirtGPU ok\n");
 
 	publish_one(&iomfb, 0);
 	publish_one(&surface, 0);
@@ -818,6 +837,7 @@ void lapis_iomfb_register(void)
 	publish_one(&clcd, 0);
 	publish_one(&agx, 0);
 	publish_one(&accel, 0);
+	publish_one(&pgpu, 0);
 
 	/* Self-test: which matching path can see our IOGPU stub? */
 	{

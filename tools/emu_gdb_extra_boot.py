@@ -262,7 +262,7 @@ def _iok(tag,ma,cnt):
         s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
     except Exception as e: s=['<%s>'%e]
     k=(n[0] if n else '?',tag,tuple(s))
-    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService') for x in s)
+    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount') for x in s)
     if k not in _iok_seen:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
@@ -280,10 +280,12 @@ def on_io_iterator_next():
     try:
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
-        if 'IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower():
+        pl = pn0.lower()
+        if ('IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pl and
+            'SpringBoard' not in pn0 and 'springboard' not in pl):
             return False
         _ionext_n['n'] += 1
-        if _ionext_n['n'] > 40:
+        if _ionext_n['n'] > 80:
             return False
         P('IOITER_NEXT proc=%s' % (pn,))
         RetBP(r('x30'), 'IOITER_NEXT_RET proc=%s' % (pn0 or '?',))
