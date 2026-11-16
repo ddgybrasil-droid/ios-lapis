@@ -215,8 +215,15 @@ static void *lapis_published_stub(const char *name)
 	/* boot93: runningboardd name-matches IOCoreSurfaceRoot after IOGPU. */
 	if (!s && streq(name, "IOCoreSurfaceRoot"))
 		s = IORegistryEntry_copyProperty(root, "IOSurfaceRoot");
-	if (s)
-		IOLog("LAPIS iomfb: match via resource\n");
+	if (s) {
+		/* Fixed messages only — avoid printf %s on Apple stack ABI. */
+		if (streq(name, "AppleParavirtGPU"))
+			IOLog("LAPIS iomfb: match via resource ParavirtGPU\n");
+		else if (streq(name, "IOMobileFramebuffer"))
+			IOLog("LAPIS iomfb: match via resource IOMFB\n");
+		else
+			IOLog("LAPIS iomfb: match via resource\n");
+	}
 	return s;
 }
 

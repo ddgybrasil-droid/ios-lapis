@@ -702,4 +702,12 @@ Image.pth54.
 - Keep boot109 deferred-only IOMFB delivery + getNextObject→copyNextObject.
 Image.pth55 (ramfs 4a86bb4e…).
 
-| boot110 | Image.pth55 | AppleParavirtGPU + DisplayPortCount=1 | qemu11 43G lva=off | **ГИПОТЕЗА**: Paravirt Ref_FB=1 + deferred IOMFB ping → GetMainDisplay completes → FDR IOSOPEN/nuc. | out/logs/boot110 |
+| boot110 | Image.pth55 | AppleParavirtGPU + DisplayPortCount=1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Paravirt IOService published; FDR still Next-ok / no IOSOPEN. **No** `IOKMATCH` for AppleParavirtGPU — GetMainDisplay only calls GMS(Paravirt) when an `/arm-io` child has `compatible=AppleParavirtGPU`. Existing `disp0` was `lapis,display` so the Paravirt block was skipped. cfprefsd still burns CPU. | out/logs/boot110 |
+
+## Chunk 60 (boot111: ADT disp0 compatible=AppleParavirtGPU)
+
+- ADT `/arm-io/disp0/compatible` → `AppleParavirtGPU` so getDisplayListNumber enters Paravirt GMS + reads our stub's `DisplayPortCount=1`.
+- Keep deferred IOMFB ping + named match logs (ParavirtGPU/IOMFB).
+Image.pth56.
+
+| boot111 | Image.pth56 | ADT disp0 compatible=AppleParavirtGPU | qemu11 43G lva=off | **ГИПОТЕЗА**: DT walk hits Paravirt → GMS stub → Ref_FB=1 → deferred FB → GetMainDisplay open → FDR IOSOPEN. | out/logs/boot111 |
