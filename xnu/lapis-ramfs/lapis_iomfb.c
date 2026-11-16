@@ -123,6 +123,10 @@ typedef void *lapis_thread_call_t;
 extern lapis_thread_call_t thread_call_allocate(lapis_thread_call_func_t, void *);
 extern int thread_call_enter(lapis_thread_call_t);
 extern void IOSleep(unsigned int milliseconds);
+/* boot161: wake interest notifiers after IOMFB NUC (post-open silence wall). */
+extern int IOService_messageClients(void *, unsigned int, void *, unsigned long)
+	__asm__("_ZN9IOService14messageClientsEjPvm");
+#define LAPIS_IOMSG_PROPERTY_CHANGE 0xe0000110u
 
 /*
  * Trampolines overwritten by patch_kernel_ramfs_replace.py:
@@ -275,6 +279,15 @@ static void set_hid_identity_props(void *obj)
 						esp);
 		OSObject_release(esp);
 	}
+	/*
+	 * boot160: BB CFProperty-gets HIDServiceAccessEntitlement (0xe00002f0)
+	 * and Unregistered after EventServiceProperties — seed so access check
+	 * and registration state do not reject the digitizer before display bind.
+	 */
+	IORegistryEntry_setProperty_cstr(
+		obj, "HIDServiceAccessEntitlement",
+		"com.apple.private.hid.client.event-dispatch");
+	IORegistryEntry_setProperty_bool(obj, "Unregistered", 0);
 }
 
 #define VT_ENTRIES 32
@@ -799,6 +812,14 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 			IORegistryEntry_setProperty_cstr(
 				client, "IOClass",
 				"IOMobileFramebufferUserClient");
+			/*
+			 * boot160/161: BB raw-opens IOMFB then never IOCONN —
+			 * nudge property-change clients (CA/display observers)
+			 * the same way a real FB would after mode set.
+			 */
+			if (self)
+				IOService_messageClients(
+					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 		}
 	}
 	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
@@ -850,20 +871,33 @@ int lapis_register_notification_port(void *self, void *port,
 	void *q;
 	/*
 	 * boot157: empty queue → BRK after NOTE64. boot159: 8B zeros hold.
-	 * boot160: enqueue a minimal IOHIDEvent-shaped digitizer payload
-	 * (length + type=11) so Peek/Dequeue can classify instead of BRK.
+	 * boot160: len+type=digitizer held but BB still post-open silent.
+	 * boot161: fill IOHIDEventData-ish header (size/type/options) plus
+	 * digitizer touch-range fields so EventServicePlugin can classify.
 	 */
 	unsigned char pulse[64];
 	int i, enq;
 	unsigned int *u32;
+	unsigned long long *u64;
 
 	(void)type;
 	(void)ref;
 	for (i = 0; i < 64; i++)
 		pulse[i] = 0;
 	u32 = (unsigned int *)pulse;
-	u32[0] = 64; /* IOHIDEvent length */
-	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
+	u64 = (unsigned long long *)pulse;
+	u32[0] = 64;  /* size */
+	u32[1] = 11;  /* kIOHIDEventTypeDigitizer */
+	u32[2] = 0;   /* options */
+	u32[3] = 0;   /* depth / reserved */
+	u64[2] = 1;   /* timestamp-ish */
+	/* Digitizer: eventMask + range + rangeMask (coarse) */
+	u32[8] = 0x3;  /* touch + position */
+	u32[9] = 1;    /* touching */
+	u32[10] = 0x3;
+	u32[11] = 0;   /* identity */
+	u32[12] = 1210; /* x ~ mid (panel 2420) */
+	u32[13] = 834;  /* y ~ mid (panel 1668) */
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)

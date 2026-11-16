@@ -1,0 +1,10 @@
+Image.pth91 = Image.pth90 + HID entitlement/Unregistered + IOMFB messageClients
+  boot160: digitizer pulse holds; IOMFB open; 0 post-open IOCONN; BB 0x10000000 spin.
+  - HIDServiceAccessEntitlement + Unregistered=0 on HID stub
+  - richer 64B digitizer IOHIDEvent (touch mid-panel)
+  - IOService::messageClients(kIOMessageServicePropertyChange) after IOMFB NUC
+  - GDB: sample BB MACHMSG2_SPIN msgid 0x10000000 (lr)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth91

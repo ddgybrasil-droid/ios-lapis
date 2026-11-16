@@ -65,19 +65,21 @@ class _RetSite(gdb.Breakpoint):
                         if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
                             try:
                                 if force_bb:
+                                    # boot139 cleared 4 bytes; boot160 lost CLEARED
+                                    # tags — also zero 8 bytes (port name slot).
                                     gdb.selected_inferior().write_memory(
-                                        ptr, b'\x00\x00\x00\x00')
+                                        ptr, b'\x00' * 8)
                                     extra += ' %s*=CLEARED' % label
                                 else:
                                     v = m64(ptr)
                                     extra += ' %s*=%#x' % (label, v)
                                     if v and v < 0x10000:
                                         extra += '(port?)'
-                            except Exception:
+                            except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))
                                 except Exception:
-                                    pass
+                                    extra += ' %s*=err:%r' % (label, e)
                 except Exception as e:
                     extra += ' xl_err=%r' % e
             P('RET %s x0=%#x%s' % (t, x0, extra))
@@ -909,6 +911,14 @@ def on_mach_msg2():
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            return False
+        # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
+        # Sample a few with kernel LR so we can attribute the wait; then drop.
+        if msgid == 0x10000000 and 'backboard' in pn0.lower():
+            _mm2['spin1'] = _mm2.get('spin1', 0) + 1
+            if _mm2['spin1'] <= 8:
+                P('MACHMSG2_SPIN proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
+                    pn0, remote, local, r('x30'), _mm2['spin1']))
             return False
         _mm2['n'] += 1
         if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):

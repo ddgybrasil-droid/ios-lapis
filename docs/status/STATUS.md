@@ -1015,4 +1015,8 @@ Image.pth74.
 
 ## Chunk 109 (boot160: digitizer-shaped HID pulse + MACHMSG2 post-IOMFB window)
 
-| boot160 | Image.pth90 | 64B digitizer IOHIDEvent pulse; VendorID/ProductID; MACHMSG2 reopen | qemu11 43G lva=off | **ГИПОТЕЗА**: digitizer event classified; post-open mach/IOKit visible; IOMFB/CA IOCONN. | out/logs/boot160 |
+| boot160 | Image.pth90 | 64B digitizer IOHIDEvent pulse; VendorID/ProductID; MACHMSG2 reopen | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote ok enq`×3; NOTE64/map/QueueSize/VendorID **x0=0**; frontboard **FORCED 0x9f**; Paravirt→DisplayPortCount→**IOMFB IOSOPEN+nuc**; `MACHMSG2_WINDOW` fired. **0** post-open IOMFB IOCONN/canvas/sel8 (HID IOCONN only). BB→msgid `0x10000000` spin + CPU burn; SB→chrono+RB. DigitizerSurface never queried; `HIDServiceAccessEntitlement`/`Unregistered` **0xe00002f0**; device_type miss on DT walk (non-blocking). | out/logs/boot160 |
+
+## Chunk 110 (boot161: HID entitlement + IOMFB messageClients + spin probe)
+
+| boot161 | Image.pth91 | HIDServiceAccessEntitlement; Unregistered=0; richer digitizer; IOMFB messageClients; BB spin LR | qemu11 43G lva=off | **ГИПОТЕЗА**: HID access + display property-change wake CA/BB past post-open silence → IOMFB IOCONN/sel8. | out/logs/boot161 |
