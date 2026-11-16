@@ -1003,4 +1003,8 @@ Image.pth74.
 
 ## Chunk 106 (boot157: drop w00t flood + full IOREGPROP hooks)
 
-| boot157 | Image.pth87 | no HID pulse; filter w00t MACHMSG2; hook get_property/bytes/rec | qemu11 43G lva=off | **ГИПОТЕЗА**: less BB spin; canvas via plain/bytes IOREGPROP; IOMFB/CA IOCONN. | out/logs/boot157 |
+| boot157 | Image.pth87 | no HID pulse; filter w00t MACHMSG2; hook get_property/bytes/rec | qemu11 43G lva=off | **ПРОВЕРЕНО**: w00t flood gone. **REGRESSION**: BB **BRK** `elr=0x1f0a1dd44` immediately after NOTE64 (no pulse) → respawn; never reached IOMFB. Pulse required. No canvas plain/bytes. | out/logs/boot157 |
+
+## Chunk 107 (boot158: restore HID pulse + keep w00t filter)
+
+| boot158 | Image.pth88 | restore enqueue pulse; keep w00t filter + IOREGPROP hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: no BRK after NOTE64; IOMFB open again; less GDB-amplified spin; canvas? | out/logs/boot158 |

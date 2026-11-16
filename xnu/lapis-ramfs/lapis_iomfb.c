@@ -846,20 +846,25 @@ int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
 	void *q;
+	/* boot157: removing the pulse regressed to BRK right after NOTE64
+	 * (elr=0x1f0a1dd44). Restore enqueue; keep w00t MACHMSG2 filter. */
+	unsigned char pulse[8];
+	int i, enq;
 
 	(void)type;
 	(void)ref;
-	/*
-	 * boot155–156: 8B zero pulse enqueued successfully but did not clear
-	 * BB CPU burn; post-open traffic is mach w00t/0x40000000 spin (likely
-	 * display-link / empty-queue poll). Keep port wiring only — garbage
-	 * HID payloads can make Peek/Dequeue retry harder.
-	 */
+	for (i = 0; i < 8; i++)
+		pulse[i] = 0;
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
+		/* Boolean true(1)=success */
+		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
+		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
+			  : "LAPIS iomfb: regnote ok enqfail\n");
+		return 0;
 	}
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;
