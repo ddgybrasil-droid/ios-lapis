@@ -555,6 +555,6 @@ Image.pth35 sha256 99718069db4ed8099be5f5d09cef02d2d82823cbad0ef9e1785f9bcd38fd5
 
 - Hand-rolled metaclass breaks `metaCast` / serviceMatching; `publishResource` + resourceMatching works.
 - B-patch `IOService::copyMatchingService` onto `lapis_copyMatchingService` which falls back to resourceMatching for our stub names.
-Image.pth36 sha256 .
+Image.pth36 sha256 a023870197e968fed3c9ab44a2cd088dfc0f58cd0e0ee616b4078000d1a34ba6.
 
 | boot91 | Image.pth36 | copyMatchingService resource fallback | qemu11 43G lva=off | running… | out/logs/boot91 |

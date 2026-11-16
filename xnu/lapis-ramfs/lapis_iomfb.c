@@ -60,10 +60,8 @@ extern void IORegistryEntry_setProperty_obj(void *, const char *, void *)
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcP8OSObject");
 extern void *OSNumber_withNumber(unsigned long long, unsigned int)
 	__asm__("_ZN8OSNumber10withNumberEyj");
-extern void *OSSymbol_withCString(const char *)
-	__asm__("_ZN8OSSymbol11withCStringEPKc");
-extern void *OSDictionary_getObject(void *, const void *)
-	__asm__("_ZNK12OSDictionary8getObjectEPK8OSSymbol");
+extern void *OSDictionary_getObject_cstr(void *, const char *)
+	__asm__("_ZNK12OSDictionary9getObjectEPKc");
 extern const char *OSString_getCStringNoCopy(void *)
 	__asm__("_ZNK8OSString16getCStringNoCopyEv");
 
@@ -71,17 +69,19 @@ extern const char *OSString_getCStringNoCopy(void *)
  * Trampoline to original IOService::copyMatchingService.
  * patch_kernel_ramfs_replace.py overwrites the first 8 bytes with:
  *   <saved CMS prologue stp>; b copyMatchingService+4
+ * Keep exactly two patchable instructions at the entry (no compiler prologue).
  */
-__attribute__((naked, used))
-void *lapis_copyMatchingService_orig(void *dict)
-{
-	(void)dict;
-	__asm__ volatile(
-		"nop\n"
-		"nop\n"
-		"ret\n"
-	);
-}
+void *lapis_copyMatchingService_orig(void *dict);
+__asm__(
+	".text\n"
+	".align 2\n"
+	".global lapis_copyMatchingService_orig\n"
+	".type lapis_copyMatchingService_orig, %function\n"
+	"lapis_copyMatchingService_orig:\n"
+	"\tnop\n"
+	"\tnop\n"
+	"\tret\n"
+);
 
 extern const void *IOUserClient_metaClass __asm__("_ZN12IOUserClient9metaClassE");
 extern void *IOUserClient_nw(unsigned long) __asm__("_ZN12IOUserClientnwEm");
@@ -142,16 +142,16 @@ static int is_lapis_match_name(const char *name)
  */
 void *lapis_copyMatchingService(void *dict)
 {
-	void *s, *key, *val, *rd;
+	void *s, *val, *rd;
 	const char *name;
 
 	s = lapis_copyMatchingService_orig(dict);
 	if (s || !dict)
 		return s;
-	key = OSSymbol_withCString("IOProviderClass");
-	if (!key)
-		return 0;
-	val = OSDictionary_getObject(dict, key);
+	/* serviceMatching → IOProviderClass; nameMatching → IONameMatch */
+	val = OSDictionary_getObject_cstr(dict, "IOProviderClass");
+	if (!val)
+		val = OSDictionary_getObject_cstr(dict, "IONameMatch");
 	if (!val)
 		return 0;
 	name = OSString_getCStringNoCopy(val);
