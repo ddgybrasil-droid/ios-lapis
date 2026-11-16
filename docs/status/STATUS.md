@@ -815,4 +815,12 @@ Image.pth67.
 - Image.pth68 (=pth67) + DSC cave.
 Image.pth68.
 
-| boot124 | Image.pth68 | direct IOServiceOpen cave | qemu11 43G lva=off | **ГИПОТЕЗА**: if Next yields a port, FDR IOSOPEN fires; distinguishes Next vs Open-wrapper. | out/logs/boot124 |
+| boot124 | Image.pth68 | direct IOServiceOpen cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next obj=0x3ba480 → **FDR IOSOPEN + nuc ok (x0=0)** — first FDR open of IOMFB stub. Raw connect in *out → FDR FAR=0x111f (needs IOMFB object wrap). | out/logs/boot124 |
+
+## Chunk 74 (boot125: alloc IOMFB object + IOServiceOpen)
+
+- Cave: Next → alloc helper @0x2288065e4 → str service@+0x10 → IOServiceOpen into +0x14 → *out=obj.
+- Image.pth69 + DSC cave.
+Image.pth69.
+
+| boot125 | Image.pth69 | IOMFB alloc+Open wrap cave | qemu11 43G lva=off | **ГИПОТЕЗА**: proper IOMFB object in *out → FDR past open without FAR=0x111f. | out/logs/boot125 |
