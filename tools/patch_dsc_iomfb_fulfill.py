@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
-"""NOP iomfb_match_callback's Act_FB==Ref_FB gate in DSC subcache .44.
+"""Patch IOMobileFramebuffer GetMainDisplay in DSC subcache .44.
 
-RE (IOMobileFramebuffer @0x2288058c0): after a matched FB increments Act_FB,
-fulfill of pthread_dependency only runs when Act_FB == Ref_FB. If
-AppleParavirtGPU.DisplayPortCount fails to deserialize as a 32-bit CFNumber,
-Ref_FB stays 0 while Act_FB becomes 1 → wait never fulfills →
-IOMobileFramebufferGetMainDisplay never reaches IOServiceOpen (boot112–115).
+boot112–117: populate/AMN/Next can deliver our IOMFB stub, but
+IOMobileFramebufferGetMainDisplay still never reaches IOServiceOpen
+(Act/Ref wait + main-flag gates). Replace GetMainDisplay with a direct
+Matching → GetMatchingServices → Next → IOMobileFramebufferOpen path.
 
-NOP the `b.ne` at unslid 0x2288058c8 so any successful Act_FB increment
-fulfills. Single-display bring-up only; multi-display would fulfill early.
+Also keep the match_callback Act/Ref helpers (harmless once GetMainDisplay
+no longer waits on them).
 
-Unslid: 0x2288058c8 in dyld_shared_cache_arm64e.44
-  (subcache map va=0x225874000 → fileoff 0x2f918c8)
+Unslid sites in dyld_shared_cache_arm64e.44 (map va=0x225874000):
+  GetMainDisplay @0x2288047a8 → b cave
+  cave @0x22880511c (was FigInstallVirtualDisplay helper; MediaToolbox absent)
+  fulfill b.ne @0x2288058c8, Act++ cbz @0x2288057b4
 
 Usage:
-  python3 tools/patch_dsc_iomfb_fulfill.py /path/to/dyld_shared_cache_arm64e.44 [--write]
-  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img [--write]
-Then: python3 tools/dsc_cd_rehash.py IMG --write
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py IMG --write
 """
 from __future__ import annotations
 
@@ -27,36 +27,162 @@ from pathlib import Path
 
 SUBCACHE_BASE = 0x225874000
 NOP = 0xD503201F
+GMD = 0x2288047A8
+CAVE = 0x22880511C
+STR = 0x22883898F  # "IOMobileFramebuffer"
+MATCH = 0x22C6CE7F0
+GMS = 0x22C6CE7E0
+NEXT = 0x22C6CE6E0
+REL = 0x22C6CE740
+OPEN = 0x2288059E0
+MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD48
+TASK_ADRP, TASK_OFF = 0x277C1E000, 0xCF8
 
-# (unslid VA, expected stock insn or already-patched, patched insn, label)
-PATCHES = (
-    # match_callback: fulfill even when Act != Ref
+# Small helper NOPs (optional if GetMainDisplay cave is applied).
+HELPER_PATCHES = (
     (0x2288058C8, (0x54000241, NOP), NOP, "fulfill b.ne -> NOP"),
-    # match_callback: always take Act_FB++ path (ignore w22 gate)
     (0x2288057B4, (0x34000B96, NOP), NOP, "Act++ cbz w22 -> NOP"),
-    # GetMainDisplay: first Disp slot is always "main" (skip +0x98==1 test)
-    # stock: cmp w9,#1; b.eq +0x24 → open. Replace b.eq with b.
-    (0x2288047DC, (0x54000120, 0x14000009), 0x14000009, "main check b.eq -> b"),
 )
+
+
+def enc_b(pc: int, tgt: int) -> int:
+    return 0x14000000 | (((tgt - pc) >> 2) & 0x3FFFFFF)
+
+
+def enc_bl(pc: int, tgt: int) -> int:
+    return 0x94000000 | (((tgt - pc) >> 2) & 0x3FFFFFF)
+
+
+def enc_adrp(rd: int, pc: int, tgt: int) -> int:
+    page = tgt & ~0xFFF
+    pc_page = pc & ~0xFFF
+    imm = ((page - pc_page) >> 12) & 0x1FFFFF
+    return 0x90000000 | ((imm >> 2) << 5) | rd | ((imm & 3) << 29)
+
+
+def enc_add_imm(rd: int, rn: int, imm12: int) -> int:
+    return 0x91000000 | ((imm12 & 0xFFF) << 10) | (rn << 5) | rd
+
+
+def enc_ldr_x(rt: int, rn: int, imm: int) -> int:
+    return 0xF9400000 | ((imm // 8) << 10) | (rn << 5) | rt
+
+
+def enc_ldr_w(rt: int, rn: int, imm: int) -> int:
+    return 0xB9400000 | ((imm // 4) << 10) | (rn << 5) | rt
+
+
+def build_cave() -> list[int]:
+    code: list[int] = []
+    pc = CAVE
+
+    def emit(w: int) -> None:
+        nonlocal pc
+        code.append(w)
+        pc += 4
+
+    emit(0xD503237F)  # pacibsp
+    emit(0xD10143FF)  # sub sp, sp, #0x50
+    emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
+    emit(0xA9034FF4)  # stp x20, x19, [sp, #0x30]
+    emit(0xA9047BFD)  # stp x29, x30, [sp, #0x40]
+    emit(0x910103FD)  # add x29, sp, #0x40
+    emit(0xAA0003F3)  # mov x19, x0
+    cbz0 = len(code)
+    emit(0)
+    emit(enc_adrp(0, pc, STR))
+    emit(enc_add_imm(0, 0, STR & 0xFFF))
+    emit(enc_bl(pc, MATCH))
+    emit(0xAA0003F5)  # mov x21, x0
+    cbz1 = len(code)
+    emit(0)
+    emit(enc_adrp(8, pc, MASTER_ADRP))
+    emit(enc_ldr_x(8, 8, MASTER_OFF))
+    emit(enc_ldr_w(0, 8, 0))
+    emit(0xAA1503E1)  # mov x1, x21
+    emit(enc_bl(pc, GMS))
+    emit(0xAA0003F4)  # mov x20, x0
+    cbz2 = len(code)
+    emit(0)
+    emit(0xAA1403E0)
+    emit(enc_bl(pc, NEXT))
+    emit(0xAA0003F6)  # mov x22, x0
+    emit(0xAA1403E0)
+    emit(enc_bl(pc, REL))
+    cbz3 = len(code)
+    emit(0)
+    emit(enc_adrp(8, pc, TASK_ADRP))
+    emit(enc_ldr_x(8, 8, TASK_OFF))
+    emit(enc_ldr_w(1, 8, 0))
+    emit(0xAA1603E0)  # mov x0, x22
+    emit(0x52800002)  # movz w2, #0
+    emit(0xAA1303E3)  # mov x3, x19
+    emit(enc_bl(pc, OPEN))
+    epi = pc
+    emit(0xA9447BFD)
+    emit(0xA9434FF4)
+    emit(0xA94257F6)
+    emit(0x910143FF)  # add sp, sp, #0x50
+    emit(0xD65F03C0)  # ret
+    fail = pc
+    emit(0x52805800)  # movz w0, #0x2c0
+    emit(0x72BC0000)  # movk w0, #0xe000, lsl #16
+    emit(enc_b(pc, epi))
+
+    def patch_cbz_x(idx: int, rt: int, tgt: int) -> None:
+        p = CAVE + idx * 4
+        imm19 = ((tgt - p) >> 2) & 0x7FFFF
+        code[idx] = 0xB4000000 | (imm19 << 5) | rt
+
+    def patch_cbz_w(idx: int, rt: int, tgt: int) -> None:
+        p = CAVE + idx * 4
+        imm19 = ((tgt - p) >> 2) & 0x7FFFF
+        code[idx] = 0x34000000 | (imm19 << 5) | rt
+
+    patch_cbz_x(cbz0, 19, fail)
+    patch_cbz_x(cbz1, 21, fail)
+    patch_cbz_x(cbz2, 20, fail)
+    patch_cbz_w(cbz3, 22, fail)
+    return code
 
 
 def patch_bytes(buf: bytearray, *, write: bool) -> bool:
     changed = False
-    for va, expect, want, label in PATCHES:
+    for va, expect, want, label in HELPER_PATCHES:
         fo = va - SUBCACHE_BASE
         cur = struct.unpack_from("<I", buf, fo)[0]
         if cur == want:
             print(f"{va:#x}: already patched ({label})")
             continue
         if cur not in expect:
-            raise SystemExit(
-                f"{va:#x}: unexpected insn {cur:#x} (want one of "
-                f"{[hex(x) for x in expect]}) for {label}"
-            )
-        print(f"{va:#x}: {label} (fileoff {fo:#x}) {cur:#x} -> {want:#x}")
+            print(f"{va:#x}: skip helper ({label}): insn {cur:#x}")
+            continue
+        print(f"{va:#x}: {label} {cur:#x} -> {want:#x}")
         if write:
             struct.pack_into("<I", buf, fo, want)
         changed = True
+
+    cave = build_cave()
+    gmd_br = enc_b(GMD, CAVE)
+    fo_gmd = GMD - SUBCACHE_BASE
+    cur = struct.unpack_from("<I", buf, fo_gmd)[0]
+    if cur != gmd_br:
+        print(f"{GMD:#x}: GetMainDisplay -> b cave ({cur:#x} -> {gmd_br:#x})")
+        if write:
+            struct.pack_into("<I", buf, fo_gmd, gmd_br)
+        changed = True
+    else:
+        print(f"{GMD:#x}: GetMainDisplay already branches to cave")
+
+    fo_cave = CAVE - SUBCACHE_BASE
+    blob = b"".join(struct.pack("<I", w) for w in cave)
+    if buf[fo_cave : fo_cave + len(blob)] != blob:
+        print(f"{CAVE:#x}: write open cave ({len(blob)} bytes)")
+        if write:
+            buf[fo_cave : fo_cave + len(blob)] = blob
+        changed = True
+    else:
+        print(f"{CAVE:#x}: open cave already present")
     return changed
 
 
@@ -91,7 +217,6 @@ def patch_image(img: Path, *, write: bool) -> None:
             if off in seen:
                 continue
             seen.add(off)
-            # Read a window covering all patch sites.
             base_abs = root_off + off
             f.seek(base_abs)
             buf = bytearray(f.read(size))

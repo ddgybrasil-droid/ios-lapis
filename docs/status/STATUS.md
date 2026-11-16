@@ -759,4 +759,12 @@ Image.pth61.
 - Image.pth62 + CD rehash.
 Image.pth62.
 
-| boot117 | Image.pth62 | Act++/main force + 2s ping | qemu11 43G lva=off | **ГИПОТЕЗА**: GetMainDisplay opens first enumerated FB → FDR IOSOPEN. | out/logs/boot117 |
+| boot117 | Image.pth62 | Act++/main force + 2s ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: 2s ping after AMN + Next ok; **still no FDR IOSOPEN**. Act/main force insufficient — GetMainDisplay still not reaching Open after populate. | out/logs/boot117 |
+
+## Chunk 67 (boot118: GetMainDisplay → Matching/Open cave)
+
+- Replace `IOMobileFramebufferGetMainDisplay` with cave: Matching → GetMatchingServices → Next → `IOMobileFramebufferOpen` (bypasses populate wait/main-flag).
+- Image.pth62 + DSC `.44` cave + CD rehash.
+Image.pth62.
+
+| boot118 | Image.pth62 | GetMainDisplay open cave | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR GetMainDisplay hits Open directly → IOSOPEN. | out/logs/boot118 |
