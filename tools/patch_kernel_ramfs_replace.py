@@ -223,26 +223,34 @@ for site, want_prolog, tgt, label in (
 CMS = 0xfffffe0007ac0444
 GMS = 0xfffffe0007ac03fc
 CES = 0xfffffe0007ab5758
+# boot102: force match handler after stock drain (FDR still hung post-reset).
+AMN = 0xfffffe0007ac0930  # IOService::addMatchingNotification(6-arg)
 CMS_PROLOGUE = 0xa9be4ff4  # stp x20, x19, [sp, #-0x20]!
 CES_PROLOGUE = 0xd101c3ff  # sub sp, sp, #0x70
+AMN_PROLOGUE = 0xd10103ff  # sub sp, sp, #0x40
 cms_hook = sym('lapis_copyMatchingService')
 cms_orig = sym('lapis_copyMatchingService_orig')
 gms_hook = sym('lapis_getMatchingServices')
 gms_orig = sym('lapis_getMatchingServices_orig')
 ces_hook = sym('lapis_copyExistingServices')
 ces_orig = sym('lapis_copyExistingServices_orig')
+amn_hook = sym('lapis_addMatchingNotification')
+amn_orig = sym('lapis_addMatchingNotification_orig')
 for name, va in (('lapis_copyMatchingService', cms_hook),
                  ('lapis_copyMatchingService_orig', cms_orig),
                  ('lapis_getMatchingServices', gms_hook),
                  ('lapis_getMatchingServices_orig', gms_orig),
                  ('lapis_copyExistingServices', ces_hook),
-                 ('lapis_copyExistingServices_orig', ces_orig)):
+                 ('lapis_copyExistingServices_orig', ces_orig),
+                 ('lapis_addMatchingNotification', amn_hook),
+                 ('lapis_addMatchingNotification_orig', amn_orig)):
     if not (BLOB_VA <= va < BLOB_VA + len(blob)):
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
 for site, want, hook, orig, label in (
     (CMS, CMS_PROLOGUE, cms_hook, cms_orig, 'copyMatchingService'),
     (GMS, CMS_PROLOGUE, gms_hook, gms_orig, 'getMatchingServices'),
     (CES, CES_PROLOGUE, ces_hook, ces_orig, 'copyExistingServices'),
+    (AMN, AMN_PROLOGUE, amn_hook, amn_orig, 'addMatchingNotification'),
 ):
     cur = rd32(img, site)
     if cur != want and decode_b(cur, site) is None:
@@ -298,5 +306,6 @@ print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
 print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
 print('  copyExistingServices %#x -> %#x (tramp %#x)' % (CES, ces_hook, ces_orig))
+print('  addMatchingNotification %#x -> %#x (tramp %#x)' % (AMN, amn_hook, amn_orig))
 print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))

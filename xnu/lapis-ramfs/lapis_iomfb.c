@@ -70,6 +70,10 @@ extern void *OSArray_withCapacity(unsigned int)
 	__asm__("_ZN7OSArray12withCapacityEj");
 extern int OSArray_setObject(void *, const void *)
 	__asm__("_ZN7OSArray9setObjectEPK15OSMetaClassBase");
+extern void *OSSet_withCapacity(unsigned int)
+	__asm__("_ZN5OSSet12withCapacityEj");
+extern int OSSet_setObject(void *, const void *)
+	__asm__("_ZN5OSSet9setObjectEPK15OSMetaClassBase");
 extern void *OSCollectionIterator_withCollection(const void *)
 	__asm__("_ZN20OSCollectionIterator14withCollectionEPK12OSCollection");
 /* withCollection leaves valid=false until reset(); in-kernel getNextObject
@@ -78,6 +82,8 @@ extern void *OSCollectionIterator_withCollection(const void *)
  * while CES→invokeNotifier never saw our stub (boot99/100 FDR hang). */
 extern void OSCollectionIterator_reset(void *)
 	__asm__("_ZN20OSCollectionIterator5resetEv");
+extern void *OSCollectionIterator_getNextObject(void *)
+	__asm__("_ZN20OSCollectionIterator13getNextObjectEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
@@ -90,6 +96,9 @@ void *lapis_copyMatchingService_orig(void *dict);
 void *lapis_getMatchingServices_orig(void *dict);
 void *lapis_copyExistingServices_orig(void *dict, unsigned int options,
 				     unsigned int flags);
+void *lapis_addMatchingNotification_orig(void *type, void *matching,
+					 void *handler, void *target,
+					 void *ref, int priority);
 __asm__(
 	".text\n"
 	".align 2\n"
@@ -108,6 +117,12 @@ __asm__(
 	".global lapis_copyExistingServices_orig\n"
 	".type lapis_copyExistingServices_orig, %function\n"
 	"lapis_copyExistingServices_orig:\n"
+	"\tnop\n"
+	"\tnop\n"
+	"\tret\n"
+	".global lapis_addMatchingNotification_orig\n"
+	".type lapis_addMatchingNotification_orig, %function\n"
+	"lapis_addMatchingNotification_orig:\n"
 	"\tnop\n"
 	"\tnop\n"
 	"\tret\n"
@@ -225,27 +240,28 @@ void *lapis_copyMatchingService(void *dict)
 
 /*
  * Shared: one-shot iterator over a published stub. Used by getMatchingServices
- * and copyExistingServices (notification path).
+ * and copyExistingServices (notification path). Stock CES wraps an OSSet;
+ * boot101 still hung with OSArray+reset, so match stock and peek getNextObject.
  */
 static void *lapis_stub_iterator(const char *name)
 {
-	void *s, *arr, *it;
+	void *s, *set, *it;
 
 	s = lapis_published_stub(name);
 	if (!s)
 		return 0;
-	arr = OSArray_withCapacity(1);
-	if (arr && OSArray_setObject(arr, s)) {
-		it = OSCollectionIterator_withCollection(arr);
+	set = OSSet_withCapacity(1);
+	if (set && OSSet_setObject(set, s)) {
+		it = OSCollectionIterator_withCollection(set);
 		if (it)
 			OSCollectionIterator_reset(it);
 		OSObject_release(s);
-		OSObject_release(arr);
+		OSObject_release(set);
 		return it;
 	}
 	OSObject_release(s);
-	if (arr)
-		OSObject_release(arr);
+	if (set)
+		OSObject_release(set);
 	return 0;
 }
 
@@ -303,11 +319,53 @@ void *lapis_copyExistingServices(void *dict, unsigned int options,
 		}
 		it = lapis_stub_iterator(name);
 		if (it) {
-			IOLog("LAPIS iomfb: CES via resource\n");
+			void *peek = OSCollectionIterator_getNextObject(it);
+			IOLog(peek ? "LAPIS iomfb: CES via resource\n"
+				   : "LAPIS iomfb: CES iter EMPTY\n");
+			/* Drain consumed the only entry — re-arm for invoke. */
+			OSCollectionIterator_reset(it);
 			return it;
 		}
 	}
 	return lapis_copyExistingServices_orig(dict, options, flags);
+}
+
+/*
+ * boot101: CES+reset still left FDR hung (no IOSOPEN). Force the matching
+ * notification handler with our published stub after stock
+ * addMatchingNotification drains existing — covers empty-iterator and
+ * armed/ping edge cases. MIG calls this overload (type, matching, handler,
+ * target, ref, priority).
+ */
+typedef int (*lapis_match_handler_t)(void *target, void *ref, void *service,
+				     void *notifier);
+
+void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
+				    void *target, void *ref, int priority)
+{
+	void *ret;
+	const char *name;
+	void *s;
+	unsigned int *st;
+
+	ret = lapis_addMatchingNotification_orig(type, matching, handler,
+						 target, ref, priority);
+	if (!ret || !matching || !handler || !target)
+		return ret;
+
+	name = lapis_match_dict_name(matching);
+	if (!name || !is_lapis_match_name(name))
+		return ret;
+
+	s = lapis_published_stub(name);
+	if (!s)
+		return ret;
+	st = (unsigned int *)((char *)s + 0x48);
+	*st = (*st & ~1u) | 0x1e;
+	((lapis_match_handler_t)handler)(target, ref, s, ret);
+	OSObject_release(s);
+	IOLog("LAPIS iomfb: forced match handler\n");
+	return ret;
 }
 
 /*

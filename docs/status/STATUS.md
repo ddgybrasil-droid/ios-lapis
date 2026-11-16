@@ -634,4 +634,12 @@ Image.pth45 sha256 243c21885ed0bd55517150482219531b5eed983c54db6bf61ec6614ab0af2
 - gdb `shm_open` oflag @uap+8, mode @uap+0x10.
 Image.pth46 (ramfs cdd66f32…).
 
-| boot101 | Image.pth46 | iterator reset before CES return | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR CES→invokeNotifier→IOSOPEN→nuc; cfprefsd shm oflags readable. | out/logs/boot101 |
+| boot101 | Image.pth46 | iterator reset before CES return | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+RET ok; RB sel=32 ok; shm oflag@+8 now 0 (plausible). FDR still **hung** (no IOSOPEN) — reset insufficient alone. | out/logs/boot101 |
+
+## Chunk 51 (boot102: force match handler + OSSet CES)
+
+- `lapis_addMatchingNotification`: after stock drain, call handler(target,ref,stub,notifier) for lapis match names.
+- CES stub iterator uses OSSet (stock) + peek/re-reset; Image B-patches AMN @0xfffffe0007ac0930.
+Image.pth47 (ramfs 19ea0455…).
+
+| boot102 | Image.pth47 | force match handler after AMN | qemu11 43G lva=off | **ГИПОТЕЗА**: forced handler queues stub → FDR IOSOPEN→nuc. | out/logs/boot102 |
