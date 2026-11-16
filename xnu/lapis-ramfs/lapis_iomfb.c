@@ -252,6 +252,33 @@ static const char *lapis_match_dict_name(void *dict)
 	return OSString_getCStringNoCopy(val);
 }
 
+/*
+ * boot137: backboardd AddMatchingNotification uses
+ *   { IOProviderClass=IOService, IOPropertyMatch={ HIDServiceSupport=true } }
+ * lapis_match_dict_name returns "IOService" (not a stub name) → stock CES
+ * empty → IOITER_NEXT 0xe00002c0 → BRK. Resolve property-match to our HID stub.
+ */
+static const char *lapis_resolve_match_stub(void *dict)
+{
+	const char *name;
+	void *pm, *hs;
+
+	if (!dict)
+		return 0;
+	name = lapis_match_dict_name(dict);
+	if (name && is_lapis_match_name(name))
+		return name;
+	pm = OSDictionary_getObject_cstr(dict, "IOPropertyMatch");
+	if (pm) {
+		hs = OSDictionary_getObject_cstr(pm, "HIDServiceSupport");
+		if (hs)
+			return "IOHIDEventService";
+	}
+	if (OSDictionary_getObject_cstr(dict, "HIDServiceSupport"))
+		return "IOHIDEventService";
+	return 0;
+}
+
 void *lapis_copyMatchingService(void *dict)
 {
 	void *s;
@@ -260,7 +287,7 @@ void *lapis_copyMatchingService(void *dict)
 	if (!dict)
 		return lapis_copyMatchingService_orig(dict);
 
-	name = lapis_match_dict_name(dict);
+	name = lapis_resolve_match_stub(dict);
 	if (name) {
 		s = lapis_published_stub(name);
 		if (s)
@@ -343,7 +370,7 @@ void *lapis_getMatchingServices(void *dict)
 	if (!dict)
 		return lapis_getMatchingServices_orig(dict);
 
-	name = lapis_match_dict_name(dict);
+	name = lapis_resolve_match_stub(dict);
 	if (name) {
 		it = lapis_stub_iterator(name);
 		if (it)
@@ -370,7 +397,7 @@ void *lapis_copyExistingServices(void *dict, unsigned int options,
 	if (!dict)
 		return lapis_copyExistingServices_orig(dict, options, flags);
 
-	name = lapis_match_dict_name(dict);
+	name = lapis_resolve_match_stub(dict);
 	/*
 	 * boot108/109: do NOT feed IOMobileFramebuffer through CES. Stock AMN
 	 * would queue into the userNotify during MIG (armed=0, no ping); FDR
@@ -805,8 +832,14 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		return;
 	}
 	IORegistryEntry_setName(obj, m->name, 0);
-	if (hid_support)
+	if (hid_support) {
 		IORegistryEntry_setProperty_bool(obj, "HIDServiceSupport", 1);
+		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOHIDEventService");
+		/* Minimal identity so clients past empty-match asserts. */
+		set_u32(obj, "VendorID", 0x5ac);
+		set_u32(obj, "ProductID", 1);
+		set_u32(obj, "LocationID", 1);
+	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {
 		IORegistryEntry_setProperty_cstr(obj, "IOFBShared", "lapis");

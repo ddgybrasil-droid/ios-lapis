@@ -18,6 +18,10 @@ DIRS=(
   private/var/logs/hidfw-crashlogs
   System/Library/HIDPlugins
   System/Library/HIDPlugins/SessionFilters
+  Library/Apple/System/Library/HIDPlugins
+  Library/Apple/System/Library/HIDPlugins/SessionFilters
+  System/Library/Preferences/Logging/Subsystems
+  Library/Preferences/Logging/Subsystems
   private/var/preferences
   private/var/mobile/Library/Preferences
   private/var/Managed Preferences/mobile
@@ -49,6 +53,9 @@ python3 "$ROOT/tools/lapisfs_add.py" "$IMG" \
   "private/var/mobile/Library/Preferences/com.apple.iohid.plist=$iohid" \
   "private/var/preferences/com.apple.iohid.plist=$iohid" \
   "private/var/Managed Preferences/mobile/com.apple.iohid.plist=$iohid" \
-  "private/var/Managed Preferences/com.apple.iohid.plist=$iohid"
+  "private/var/Managed Preferences/com.apple.iohid.plist=$iohid" \
+  "System/Library/Preferences/Logging/Subsystems/com.apple.iohid.plist=$iohid" \
+  "Library/Preferences/Logging/Subsystems/com.apple.iohid.plist=$iohid" \
+  "System/Library/Preferences/Logging/Subsystems/com.apple.runningboard.plist=$iohid"
 rm -f "$tmp" "$iohid"
 echo "springboard seeds applied to $IMG"

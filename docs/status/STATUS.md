@@ -921,4 +921,10 @@ Image.pth74.
 - Force backboardd `ACCHWComponentAuthService` + `com.apple.runningboard` lookups to return 0x9f; fix mach_msg2 args*.
 Image.pth74.
 
-| boot137 | Image.pth74 | BB FORCED_XPCERR_0x9f + args* MACHMSG2 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB skips half-up RB/ACCHW and reaches HIDServiceSupport like boot55. | out/logs/boot137 |
+| boot137 | Image.pth74 | BB FORCED_XPCERR_0x9f + args* MACHMSG2 | qemu11 43G lva=off | **ПРОВЕРЕНО**: `FORCED_XPCERR_0x9f` on ACCHW+RB; **IOKMATCH HIDServiceSupport** from backboardd (boot55 path restored). MACHMSG2 args* sane (opt=0x3, ports, 36× RET=0). IOITER_NEXT **empty** (0xe00002c0) — CES misses `{IOProviderClass=IOService, IOPropertyMatch=HIDServiceSupport}` because resolve only saw "IOService". Then BRK/SIGKILL. Next: resolve HID property-match → IOHIDEventService stub (Image.pth75). | out/logs/boot137 |
+
+## Chunk 87 (boot138: HIDServiceSupport CES fulfill)
+
+- Image.pth75: `lapis_resolve_match_stub` maps IOPropertyMatch.HIDServiceSupport → IOHIDEventService; richer HID props; logging/HIDPlugin seeds.
+
+| boot138 | Image.pth75 | HID property-match CES + seeds | qemu11 43G lva=off | **ГИПОТЕЗА**: CES returns HID stub → IOITER non-empty → BB past BRK toward display/IOMFB. | out/logs/boot138 |
