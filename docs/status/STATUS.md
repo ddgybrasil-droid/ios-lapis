@@ -857,4 +857,13 @@ Image.pth72.
 - Image.pth73 (=pth72 kernel) + DSC .01 NOP + CD rehash + FF stubs.
 Image.pth73.
 
-| boot129 | Image.pth73 | CFPrefs shmem O_CREAT NOP + FF stubs | qemu11 43G lva=off | **ГИПОТЕЗА**: cfprefsd creates `apple.cfprefs.{user,system}.daemonv1` with O_CREAT; clients stop ENOENT; SB prefs path clears. | out/logs/boot129 |
+| boot129 | Image.pth73 | CFPrefs shmem O_CREAT NOP + FF stubs | qemu11 43G lva=off | **ПРОВЕРЕНО**: `apple.cfprefs.user.daemonv1` created (keybagd oflag `0x202` → x0=0; boot128 was oflag `0x2` → ENOENT). FDR IOSOPEN holds. SB XPC cfprefsd ports ok. FeatureFlags NAMEI_FAIL 109→31. Next: backboardd/SB still respawn (EXC BRK); `system.daemonv1` not yet opened; HID/display after prefs. | out/logs/boot129 |
+
+## Chunk 79 (boot130: backboardd/SB crash after prefs clear)
+
+- boot129 cleared cfprefs user daemonv1 create wall via DSC `.01` shmem O_CREAT NOP.
+- Next wall: backboardd respawns after `com.apple.runningboard` XPC x0=0; SpringBoard second SPAWN; EXC BRK (OS_REASON ns=2 code=5) near DSC `0x19a78515c` / elr `0x1afb6e654`.
+- Plan: symbolicate BRK, ensure `system.daemonv1` create path, deepen HID/IOMFB open from backboardd.
+Image.pth73 (reuse) + gdb EXC pname dump.
+
+| boot130 | Image.pth73 | symbolicate BB/SB BRK + system.daemonv1 | qemu11 43G lva=off | **ГИПОТЕЗА**: identify abort site; keep prefs fix; push display/HID. | out/logs/boot130 |

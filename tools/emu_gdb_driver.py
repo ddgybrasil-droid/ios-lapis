@@ -26,6 +26,25 @@ class BP(gdb.Breakpoint):
     def stop(s):
         try: return s.fn()
         except Exception as e: P('ERR %s %s'%(s.nm,e)); return False
+def triage_pname():
+    """Best-effort current proc name for EXC/exit (works before EXTRA loads)."""
+    try:
+        # Prefer EXTRA's cur_pname once available.
+        if 'cur_pname' in globals():
+            n = cur_pname()
+            if isinstance(n, (list, tuple)) and n:
+                return n[0]
+            if isinstance(n, str) and n:
+                return n
+        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18)
+        if not p: return '?'
+        import re as _re
+        b=bytes(gdb.selected_inferior().read_memory(p, 0x1000))
+        m=_re.findall(rb'[a-zA-Z0-9_.\-]{4,}\x00', b)
+        names=[x[:-1].decode() for x in m[:4]]
+        return names[0] if names else hex(p)
+    except Exception as e:
+        return 'err:%s'%e
 def on_triage():
     exc=r('x0'); codes=r('x1'); c0=m64(codes); c1=m64(codes+8)
     state['exc']+=1
@@ -44,14 +63,15 @@ def on_triage():
                 except Exception: break
                 chain.append(lr&0xfffffffff); fp=nfp
             P('  FPCHAIN '+' '.join(hex(x) for x in chain))
-        P('EXC_TRIAGE exc=%d code0=%s code1=%s elr=%s far=%s esr=%s'%(exc,h(c0),h(c1),h(sysreg('ELR_EL1')),h(sysreg('FAR_EL1')),h(sysreg('ESR_EL1'))))
+        P('EXC_TRIAGE proc=%s exc=%d code0=%s code1=%s elr=%s far=%s esr=%s'%(
+            triage_pname(), exc, h(c0), h(c1), h(sysreg('ELR_EL1')), h(sysreg('FAR_EL1')), h(sysreg('ESR_EL1'))))
     return False
 def on_reason():
-    P('OS_REASON ns=%d code=%#x'%(r('x0'),r('x1'))); state['reason']=1
+    P('OS_REASON proc=%s ns=%d code=%#x'%(triage_pname(), r('x0'), r('x1'))); state['reason']=1
     return False
 def on_prepexit():
     state.setdefault('pe',0); state['pe']+=1
-    P('PROC_PREPAREEXIT #%d reason_seen=%s'%(state['pe'],state.get('reason')))
+    P('PROC_PREPAREEXIT #%d proc=%s reason_seen=%s'%(state['pe'], triage_pname(), state.get('reason')))
     if state.get('reason'):
         if os.environ.get('CONT_REASON','0')=='1':
             state['reason']=None; return False
