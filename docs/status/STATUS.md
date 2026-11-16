@@ -487,4 +487,12 @@ Image.pth26 sha256 d5441392b10ee7ed96b4b5779fca128319d8943b8ce22702ab5dd8f229df2
 - `apply_runningboard_seeds.sh`: RunningBoard/*.plist + LifecyclePolicy/domains.plist + 133 DomainAttributes.
 Image.pth27 sha256 14511e5297b2e905a80eee8a3de3295a93c8c4a1868504fe9c25b2c315a042c8.
 
-| boot81 | Image.pth27 | soft-entry allow + RunningBoard/LifecyclePolicy seeds | qemu11 43G lva=off | running… | out/logs/boot81 |
+| boot81 | Image.pth27 | soft-entry allow + RunningBoard/LifecyclePolicy seeds | qemu11 43G lva=off | ПРОВЕРЕНО: soft-entry insufficient — early `cbnz@0x…31ac` → deny@0x…379c still kills UserEventAgent (10× denying). SBSTATIC pass=1; 0 SIGABRT; RB/SB/backboard running. | out/logs/boot81 |
+
+## Chunk 33 (boot82: early-deny bypass + deny-block redirect + dyld refresh)
+
+- Patch early cbnz@0x…31ac → fallthrough; deny-block@0x…379c → allow epilogue.
+- Refresh `/usr/lib/dyld` from IPSW (macho_cd_rehash no-op; replace onto mnt2).
+Image.pth28.
+
+| boot82 | Image.pth28 | early-deny bypass + dyld refresh | qemu11 43G lva=off | running… | out/logs/boot82 |
