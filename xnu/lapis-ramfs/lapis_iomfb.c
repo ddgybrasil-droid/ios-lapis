@@ -6,6 +6,11 @@
  * plain IOService objects tagged with our metaclasses and registerService() them.
  * String literals stay in this TU so .rodata.str merges into the ramfs .text blob.
  *
+ * Clients then IOServiceOpen → IOService::newUserClient. Stock IOService returns
+ * kIOReturnUnsupported for the common overloads. arm64e vtables are PAC-signed, so
+ * we do NOT rewrite vtable slots; instead we branch-patch the IOService::newUserClient
+ * entry points to hand out a real IOUserClient (initWithTask + attach/start).
+ *
  * IOLog varargs use the Apple stack ABI; avoid printf-style %s here (garbled on
  * gcc). Fixed messages only.
  */
@@ -28,6 +33,7 @@ extern void *IOService_nw(unsigned long) __asm__("_ZN9IOServicenwEm");
 extern void IOService_ctor_meta(void *, const void *) __asm__("_ZN9IOServiceC1EPK11OSMetaClass");
 extern int IOService_init(void *, void *) __asm__("_ZN9IOService4initEP12OSDictionary");
 extern int IOService_attach(void *, void *) __asm__("_ZN9IOService6attachEPS_");
+extern int IOService_start(void *, void *) __asm__("_ZN9IOService5startEPS_");
 extern void IOService_registerService(void *, unsigned int)
 	__asm__("_ZN9IOService15registerServiceEj");
 extern void *IOService_getServiceRoot(void) __asm__("_ZN9IOService14getServiceRootEv");
@@ -41,6 +47,29 @@ extern void IORegistryEntry_setProperty_obj(void *, const char *, void *)
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcP8OSObject");
 extern void *OSNumber_withNumber(unsigned long long, unsigned int)
 	__asm__("_ZN8OSNumber10withNumberEyj");
+
+/* Stock IOService::newUserClient overloads — patched at register time. */
+extern int IOService_newUserClient_dict(void *, void *, void *, unsigned int, void *, void **)
+	__asm__("_ZN9IOService13newUserClientEP4taskPvjP12OSDictionaryPP12IOUserClient");
+extern int IOService_newUserClient_simple(void *, void *, void *, unsigned int, void **)
+	__asm__("_ZN9IOService13newUserClientEP4taskPvjPP12IOUserClient");
+
+extern const void *IOUserClient_metaClass __asm__("_ZN12IOUserClient9metaClassE");
+extern void *IOUserClient_nw(unsigned long) __asm__("_ZN12IOUserClientnwEm");
+extern void IOUserClient_ctor_meta(void *, const void *)
+	__asm__("_ZN12IOUserClientC1EPK11OSMetaClass");
+extern int IOUserClient_initWithTask_dict(void *, void *, void *, unsigned int, void *)
+	__asm__("_ZN12IOUserClient12initWithTaskEP4taskPvjP12OSDictionary");
+extern int IOUserClient_initWithTask(void *, void *, void *, unsigned int)
+	__asm__("_ZN12IOUserClient12initWithTaskEP4taskPvj");
+
+/* Plain C names: build.sh maps nm `ml_static_protect` → ksyms `_ml_static_protect`. */
+extern int ml_static_protect(uintptr_t, unsigned long, int);
+extern void ml_static_if_flush_icache(void);
+
+#define VM_PROT_READ    0x01
+#define VM_PROT_WRITE   0x02
+#define VM_PROT_EXECUTE 0x04
 
 static void set_u32(void *obj, const char *key, unsigned int val)
 {
@@ -59,6 +88,89 @@ struct lapis_mc {
 };
 
 static void *null_alloc(const void *self) { (void)self; return 0; }
+
+#define kIOReturnNoMemory     0xe00002bd
+#define kIOReturnBadArgument  0xe00002c2
+#define kIOReturnUnsupported  0xe00002c7
+
+/*
+ * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
+ * x0=self, x1=task, x2=security_id, w3=type, x4=properties, x5=out
+ */
+static int lapis_new_user_client(void *self, void *task, void *sec,
+				 unsigned int type, void *props, void **out)
+{
+	unsigned int sz;
+	void *client;
+	int ok;
+
+	if (!out)
+		return kIOReturnBadArgument;
+	*out = 0;
+
+	sz = OSMetaClass_getClassSize(IOUserClient_metaClass);
+	client = IOUserClient_nw(sz);
+	if (!client) {
+		IOLog("LAPIS iomfb: nuc no mem\n");
+		return kIOReturnNoMemory;
+	}
+	IOUserClient_ctor_meta(client, IOUserClient_metaClass);
+	if (props)
+		ok = IOUserClient_initWithTask_dict(client, task, sec, type, props);
+	else
+		ok = IOUserClient_initWithTask(client, task, sec, type);
+	if (!ok) {
+		IOLog("LAPIS iomfb: nuc initWithTask fail\n");
+		return kIOReturnUnsupported;
+	}
+	if (!IOService_attach(client, self)) {
+		IOLog("LAPIS iomfb: nuc attach fail\n");
+		return kIOReturnUnsupported;
+	}
+	if (!IOService_start(client, self)) {
+		IOLog("LAPIS iomfb: nuc start fail\n");
+		return kIOReturnUnsupported;
+	}
+	*out = client;
+	IOLog("LAPIS iomfb: nuc ok\n");
+	return 0;
+}
+
+/* ABI: newUserClient(task*, void*, uint32, IOUserClient**) — forward with props=NULL. */
+static int lapis_new_user_client_simple(void *self, void *task, void *sec,
+					unsigned int type, void **out)
+{
+	return lapis_new_user_client(self, task, sec, type, 0, out);
+}
+
+/* Encode A64 unconditional branch: B <label> (range ±128MB). */
+static void patch_b(void *from, void *to)
+{
+	intptr_t delta = ((uint8_t *)to - (uint8_t *)from) >> 2;
+	uint32_t insn = 0x14000000u | ((uint32_t)delta & 0x03ffffffu);
+	int r;
+
+	r = ml_static_protect((uintptr_t)from, 4, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
+	if (r) {
+		IOLog("LAPIS iomfb: nuc protect W failed\n");
+		return;
+	}
+	*(volatile uint32_t *)from = insn;
+	__asm__ __volatile__("dsb ish" ::: "memory");
+	ml_static_if_flush_icache();
+	r = ml_static_protect((uintptr_t)from, 4, VM_PROT_READ | VM_PROT_EXECUTE);
+	if (r)
+		IOLog("LAPIS iomfb: nuc protect RX failed\n");
+}
+
+static void install_nuc_hooks(void)
+{
+	patch_b((void *)(uintptr_t)IOService_newUserClient_dict,
+		(void *)(uintptr_t)lapis_new_user_client);
+	patch_b((void *)(uintptr_t)IOService_newUserClient_simple,
+		(void *)(uintptr_t)lapis_new_user_client_simple);
+	IOLog("LAPIS iomfb: nuc hooks installed\n");
+}
 
 static int register_mc(struct lapis_mc *out, const char *name)
 {
@@ -136,6 +248,8 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 void lapis_iomfb_register(void)
 {
 	struct lapis_mc iomfb, surface, hid, aks, gpu, clcd;
+
+	install_nuc_hooks();
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");

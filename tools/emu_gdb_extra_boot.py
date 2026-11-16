@@ -435,3 +435,19 @@ def on_mac_syscall():
         RetBP(r('x30'), 'MAC_SYSCALL_RET Sandbox call=%d'%call)
     return False
 BP('___mac_syscall', on_mac_syscall)
+
+# IOServiceOpen → is_io_service_open_extended (x0=service, x3=type, …). Log open attempts
+# on our stub providers so boot84 can prove newUserClient is reached after IOGPU/IOMFB match.
+_iosopen_cnt = {'n': 0}
+def on_iosopen():
+    _iosopen_cnt['n'] += 1
+    if _iosopen_cnt['n'] > 80:
+        return False
+    try:
+        typ = r('x3') & 0xffffffff
+        P('IOSOPEN proc=%s type=%d svc=%#x' % (cur_pname(), typ, r('x0')))
+        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d' % (cur_pname()[0] if cur_pname() else '?', typ))
+    except Exception as e:
+        P('ERR iosopen %s' % e)
+    return False
+BP('_is_io_service_open_extended', on_iosopen)

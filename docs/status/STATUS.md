@@ -504,4 +504,13 @@ Image.pth28.
 - `/usr/bin/Info.plist` for IOMFB_FDR_Loader
 - Timeout 1200s so runningboardd can check in after IOGPU match
 
-| boot83 | Image.pth28 | + RB/Trial/IOMFB seeds; T=1200s | qemu11 43G lva=off | running… | out/logs/boot83 |
+| boot83 | Image.pth28 | + RB/Trial/IOMFB seeds; T=1200s | qemu11 43G lva=off | **ПРОВЕРЕНО**: deny=0; SBSTATIC pass=1; IOGPU+IOMFB IOKMATCH; IOMFB_FDR exit 1 (no userclient); XPC `com.apple.runningboard` still x0=0 **after** IOGPU match; missing KRExperiments.framework + Trial NamespaceDescriptor paths. | out/logs/boot83 |
+
+## Chunk 35 (boot84: newUserClient + KRExperiments)
+
+- `lapis_iomfb.c`: branch-patch `IOService::newUserClient` (dict + simple) via `ml_static_protect` → allocate/init/attach/start real `IOUserClient` (PAC-safe: do not rewrite arm64e vtable slots).
+- `tools/apply_krexperiments_seeds.sh`: KRExperiments.framework + Trial GMPOWER NamespaceDescriptors + empty subject/treatments markers.
+- GDB: `IOSOPEN` / `IOSOPEN_RET` on `_is_io_service_open_extended`.
+Image.pth29 sha256 14e40ec68747fcfb26f7f8a56a60b5efedb02183290f1e2327046c74daeba8a1.
+
+| boot84 | Image.pth29 | nuc hooks + KRExperiments/Trial seeds | qemu11 43G lva=off | running… | out/logs/boot84 |
