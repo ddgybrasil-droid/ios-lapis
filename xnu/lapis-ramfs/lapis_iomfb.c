@@ -236,6 +236,10 @@ static void set_hid_identity_props(void *obj)
 	set_u32(obj, "PrimaryUsage", 0x04);     /* Touch Screen */
 	set_u32(obj, "ReportInterval", 8000);   /* 125 Hz (µs) */
 	set_u32(obj, "BatchInterval", 8000);
+	/* boot153: BB opens IOMFB then burns CPU in digitizer matching; surface
+	 * dims let BKMainDisplayObserver bind HID↔panel (2420×1668). */
+	set_u32(obj, "DigitizerSurfaceWidth", 2420);
+	set_u32(obj, "DigitizerSurfaceHeight", 1668);
 	IORegistryEntry_setProperty_bool(obj, "Built-In", 1);
 	IORegistryEntry_setProperty_bool(obj, "DisplayIntegrated", 1);
 	transport = OSString_withCString("Apple");
@@ -261,6 +265,8 @@ static void set_hid_identity_props(void *obj)
 		dict_set_u32(esp, "PrimaryUsage", 0x04);
 		dict_set_u32(esp, "ReportInterval", 8000);
 		dict_set_u32(esp, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+		dict_set_u32(esp, "DigitizerSurfaceWidth", 2420);
+		dict_set_u32(esp, "DigitizerSurfaceHeight", 1668);
 		IORegistryEntry_setProperty_obj(obj, "HIDEventServiceProperties",
 						esp);
 		OSObject_release(esp);
@@ -1117,6 +1123,11 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		IORegistryEntry_setProperty_bool(obj, "external", 0);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
+		/* boot153: BB walks device_type/compatible before IOMFB open. */
+		IORegistryEntry_setProperty_cstr(obj, "device_type",
+						 "display-subsystem");
+		IORegistryEntry_setProperty_cstr(obj, "compatible",
+						 "IOMobileFramebuffer");
 		{
 			void *plug = OSDictionary_withCapacity(0);
 			if (plug)
@@ -1135,6 +1146,10 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 	    m->name[5] == 'P') {
 		set_u32(obj, "DisplayPortCount", 1);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "AppleParavirtGPU");
+		IORegistryEntry_setProperty_cstr(obj, "device_type",
+						 "display-subsystem");
+		IORegistryEntry_setProperty_cstr(obj, "compatible",
+						 "paravirtualizedgraphics,gpu");
 	}
 
 	/* GPU / Metal clients probe these on matched accelerator nodes. */

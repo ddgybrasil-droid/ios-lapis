@@ -987,4 +987,8 @@ Image.pth74.
 
 ## Chunk 102 (boot153: HID digitizer identity + UC class split)
 
-| boot153 | Image.pth83 | DeviceUsagePairs/DisplayIntegrated/…; HID vs IOMFB IOClass on NUC | qemu11 43G lva=off | **ГИПОТЕЗА**: HID identity props x0=0; IOMFB post-open IOCONN/canvas/sel8; SB→backboard/CA. | out/logs/boot153 |
+| boot153 | Image.pth83 | DeviceUsagePairs/DisplayIntegrated/…; HID vs IOMFB IOClass on NUC | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID identity props **x0=0**; map/NOTE64 hold; **no IOSCLOSE**. IOMFB **IOSOPEN+nuc** still **0** post-open IOCONN. BB→frontboard; SB→cfprefs→chrono→RB. BB **CPU burn** >50%/180s after open (digitizer sentinel / display bind). device_type often miss. | out/logs/boot153 |
+
+## Chunk 103 (boot154: digitizer surface dims + device_type)
+
+| boot154 | Image.pth84 | DigitizerSurfaceWidth/Height; device_type/compatible on IOMFB+ParavirtGPU | qemu11 43G lva=off | **ГИПОТЕЗА**: no BB CPU burn; digitizer bind completes; IOMFB/CA IOCONN or SB→backboard. | out/logs/boot154 |
