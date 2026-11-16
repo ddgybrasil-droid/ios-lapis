@@ -234,6 +234,24 @@ wr32(img, CMS, b(CMS, cms_hook))
 assert decode_b(rd32(img, CMS), CMS) == cms_hook
 assert rd32(img, cms_orig) == CMS_PROLOGUE
 
+# --- IOUserClient::externalMethod → always success ---
+# Stock IOUserClient has no methods; GPU/IOMFB clients IOConnectCall after open
+# and bail if externalMethod returns Unsupported. On this bring-up there are no
+# real IOUserClients, so a global success stub unblocks check-in paths.
+EM = 0xfffffe0007b1bb40
+EM_PROLOGUE = 0xd10183ff  # sub sp, sp, #0x60
+MOV_W0_0 = 0x52800000     # movz w0, #0
+RET = 0xd65f03c0
+cur = rd32(img, EM)
+# Accept stock prologue, already-patched movz w0,#0, or b-to-anywhere we own
+if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
+    raise SystemExit(
+        'IOUserClient::externalMethod @%#x insn %#x not stock %#x / movz0'
+        % (EM, cur, EM_PROLOGUE))
+wr32(img, EM, MOV_W0_0)
+wr32(img, EM + 4, RET)
+assert rd32(img, EM) == MOV_W0_0
+
 open(sys.argv[2], 'wb').write(img)
 blob_sha = hashlib.sha256(blob).hexdigest()
 print('replaced ramfs %d bytes sha256=%s @%#x' % (len(blob), blob_sha, BLOB_VA))
@@ -243,3 +261,4 @@ print('  SITE %#x -> amfi_boot; amfi_boot+8 -> LSTC %#x; amfi_boot+0x14 -> AIR %
 print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
     NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
+print('  externalMethod %#x -> mov w0,#0; ret' % EM)

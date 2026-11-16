@@ -565,4 +565,12 @@ Image.pth36 sha256 a023870197e968fed3c9ab44a2cd088dfc0f58cd0e0ee616b4078000d1a34
 - Hook now `copyProperty(IOResources, name)` for known stubs; also B-patch `IOResources::newUserClient` → `lapis_new_user_client`.
 Image.pth37 sha256 a671daafe9d06d944533e44dcfc3e2eda286af385bb332a0a65bea1ce8716d2b.
 
-| boot92 | Image.pth37 | published-stub match + IOResources NUC | qemu11 43G lva=off | running… | out/logs/boot92 |
+| boot92 | Image.pth37 | published-stub match + IOResources NUC | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOGPU match → **nuc ok** (real stub, not IOResources); backboardd still XPC `com.apple.runningboard` x0=0 after open; SB SIGTRAP respawn. | out/logs/boot92 |
+
+## Chunk 42 (boot93: IOUserClient::externalMethod success stub)
+
+- After open, clients `IOConnectCall*` → stock `IOUserClient::externalMethod` returns Unsupported.
+- B-patch `externalMethod` → `mov w0,#0; ret`; GDB logs selectors; fix `cur_pname` truncation-on-error (`proc=C`).
+Image.pth38 sha256 65f761b218384a3e86e8d79d52cb22ce5d1fa0e4dcb82f4622515d9dd11bba6d.
+
+| boot93 | Image.pth38 | externalMethod success + pname fix | qemu11 43G lva=off | running… | out/logs/boot93 |

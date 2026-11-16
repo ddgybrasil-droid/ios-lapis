@@ -245,9 +245,15 @@ def on_persona():
     return False
 BP('_persona',on_persona)
 def cur_pname():
+    """Return up to 2 name candidates from the proc struct (was [:1] → 'C' on errors)."""
     try:
-        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18); return pname(p)[:1]
+        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18)
+        n=pname(p)
+        if isinstance(n,str):
+            return [n[:48]] if n else ['?']
+        return n[:2] if n else ['?']
     except Exception as e: return ['?']
+
 _iok_seen=set()
 def _iok(tag,ma,cnt):
     n=cur_pname()
@@ -457,3 +463,20 @@ def on_iosopen():
         P('ERR iosopen %s' % e)
     return False
 BP('_is_io_service_open_extended', on_iosopen)
+
+# Log IOUserClient::externalMethod selectors (selector in w1) after our opens.
+_em_cnt = {'n': 0}
+def on_external_method():
+    _em_cnt['n'] += 1
+    if _em_cnt['n'] > 60:
+        return False
+    try:
+        sel = r('x1') & 0xffffffff
+        P('IOEXTMETHOD proc=%s sel=%d self=%#x' % (cur_pname(), sel, r('x0')))
+        RetBP(r('x30'), 'IOEXTMETHOD_RET proc=%s sel=%d' % (
+            cur_pname()[0] if cur_pname() else '?', sel))
+    except Exception as e:
+        P('ERR extmethod %s' % e)
+    return False
+BP('__ZN12IOUserClient14externalMethodEjP25IOExternalMethodArgumentsP24IOExternalMethodDispatchP8OSObjectPv',
+   on_external_method)
