@@ -60,6 +60,28 @@ extern void IORegistryEntry_setProperty_obj(void *, const char *, void *)
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcP8OSObject");
 extern void *OSNumber_withNumber(unsigned long long, unsigned int)
 	__asm__("_ZN8OSNumber10withNumberEyj");
+extern void *OSSymbol_withCString(const char *)
+	__asm__("_ZN8OSSymbol11withCStringEPKc");
+extern void *OSDictionary_getObject(void *, const void *)
+	__asm__("_ZNK12OSDictionary8getObjectEPK8OSSymbol");
+extern const char *OSString_getCStringNoCopy(void *)
+	__asm__("_ZNK8OSString16getCStringNoCopyEv");
+
+/*
+ * Trampoline to original IOService::copyMatchingService.
+ * patch_kernel_ramfs_replace.py overwrites the first 8 bytes with:
+ *   <saved CMS prologue stp>; b copyMatchingService+4
+ */
+__attribute__((naked, used))
+void *lapis_copyMatchingService_orig(void *dict)
+{
+	(void)dict;
+	__asm__ volatile(
+		"nop\n"
+		"nop\n"
+		"ret\n"
+	);
+}
 
 extern const void *IOUserClient_metaClass __asm__("_ZN12IOUserClient9metaClassE");
 extern void *IOUserClient_nw(unsigned long) __asm__("_ZN12IOUserClientnwEm");
@@ -91,6 +113,58 @@ static void *null_alloc(const void *self) { (void)self; return 0; }
 #define kIOReturnNoMemory     0xe00002bd
 #define kIOReturnBadArgument  0xe00002c2
 #define kIOReturnUnsupported  0xe00002c7
+
+static int streq(const char *a, const char *b)
+{
+	if (!a || !b)
+		return 0;
+	while (*a && *a == *b) {
+		a++;
+		b++;
+	}
+	return *a == *b;
+}
+
+static int is_lapis_match_name(const char *name)
+{
+	return streq(name, "IOGPU") || streq(name, "IOGPUDevice") ||
+	       streq(name, "IOMobileFramebuffer") || streq(name, "IOSurfaceRoot") ||
+	       streq(name, "IOHIDEventService") || streq(name, "AppleKeyStore") ||
+	       streq(name, "AppleCLCD") || streq(name, "AGXAccelerator") ||
+	       streq(name, "IOAccelerator");
+}
+
+/*
+ * boot90: serviceMatching/nameMatching fail (hand-rolled metaclass metaCast),
+ * but resourceMatching works after publishResource. Fall back so userspace
+ * IOServiceMatching("IOGPU") still resolves. Image B-patches
+ * IOService::copyMatchingService onto this.
+ */
+void *lapis_copyMatchingService(void *dict)
+{
+	void *s, *key, *val, *rd;
+	const char *name;
+
+	s = lapis_copyMatchingService_orig(dict);
+	if (s || !dict)
+		return s;
+	key = OSSymbol_withCString("IOProviderClass");
+	if (!key)
+		return 0;
+	val = OSDictionary_getObject(dict, key);
+	if (!val)
+		return 0;
+	name = OSString_getCStringNoCopy(val);
+	if (!is_lapis_match_name(name))
+		return 0;
+	rd = IOService_resourceMatching(name, 0);
+	if (!rd)
+		return 0;
+	s = lapis_copyMatchingService_orig(rd);
+	if (s)
+		IOLog("LAPIS iomfb: match via resource\n");
+	return s;
+}
 
 /*
  * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
