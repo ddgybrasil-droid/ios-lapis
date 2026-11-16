@@ -906,4 +906,11 @@ Image.pth73 (reuse).
 - Fix: only count/log UI procs; ret-hook sync send+rcv only.
 Image.pth73.
 
-| boot135 | Image.pth73 | MACHMSG2 UI-only filter | qemu11 43G lva=off | **ГИПОТЕЗА**: MACHMSG2 captures SB/BB sync wait on RB; guides next stub/DSC fix. | out/logs/boot135 |
+| boot135 | Image.pth73 | MACHMSG2 UI-only filter | qemu11 43G lva=off | **ПРОВЕРЕНО**: MACHMSG2 fires for SB/BB/RB (600-cap hit *before* RB sel32). RETs: mostly x0=0; **18× MACH_RCV_TIMED_OUT (0x10004003)**. Register decode was wrong (classic mach_msg ABI). Same wall: RB IOGPU→sel32 → SB RB lookups → no HID. Next: packed mach_msg2 ABI + gate after RB spawn; Image.pth74 sel32 scalar=0. | out/logs/boot135 |
+
+## Chunk 85 (boot136: packed MACHMSG2 + IOSurface sel32 scalar0)
+
+- Fix mach_msg2 register unpack; gate logs until runningboardd; Image.pth74 (`scalar_out[0]=0` on sel32).
+Image.pth74.
+
+| boot136 | Image.pth74 | packed MACHMSG2 + sel32 scalar0 | qemu11 43G lva=off | **ГИПОТЕЗА**: post-sel32 sync msgs show RB dest/timeouts; scalar0 may let RB finish serve → HID. | out/logs/boot136 |

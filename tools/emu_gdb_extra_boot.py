@@ -630,10 +630,15 @@ def on_shm_open():
     return False
 BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
 
-# boot134/135: SB/BB stall after com.apple.runningboard ports — prove whether
-# they block inside mach_msg2_trap (sync XPC). Filter UI *before* counting:
-# boot134 burned the 400-cap on early launchd traffic → 0 UI MACHMSG2 lines.
-_mm2 = {'n': 0}
+# boot136: mach_msg2_trap ABI (XNU): 8 packed regs, not classic mach_msg.
+#   x0=data x1=options
+#   x2=msgh_bits|(send_size<<32)  x3=remote|(local<<32)
+#   x4=voucher|(msgid<<32)        x5=desc_count|(rcv_name<<32)
+#   x6=rcv_size|(priority<<32)    x7=timeout
+# boot135: UI-only filter worked but 600-cap burned before RB sel32; 18×
+# MACH_RCV_TIMED_OUT (0x10004003). Gate: skip until runningboardd seen, then
+# log failures + sync send/rcv with real remote ports only.
+_mm2 = {'n': 0, 'rb': 0}
 def _ui_proc(pn0):
     pl = (pn0 or '').lower()
     return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
@@ -643,26 +648,34 @@ def on_mach_msg2():
         pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
         if not _ui_proc(pn0):
             return False
-        _mm2['n'] += 1
-        if _mm2['n'] > 600:
+        if 'runningboard' in pn0.lower():
+            _mm2['rb'] = 1
+        # Wait until RB has started so we keep budget for the handshake wall.
+        if not _mm2['rb'] and 'runningboard' not in pn0.lower():
             return False
-        # mach_msg2_trap(msg, option, send_size, rcv_size, rcv_name, …) — log headers.
-        msg = r('x0'); opt = r('x1') & 0xffffffff
-        send_sz = r('x2') & 0xffffffff; rcv_sz = r('x3') & 0xffffffff
-        rcv_name = r('x4') & 0xffffffff
-        msgid = 0; bits = 0
-        user_msg = msg and (0x100000000 <= msg < 0x300000000)
-        kmsg = msg and ((msg >> 40) == 0xfffffe)
-        if user_msg or kmsg:
-            try:
-                bits = m32(msg); msgid = m32(msg + 0x14)
-            except Exception:
-                pass
-        P('MACHMSG2 proc=%s opt=%#x send=%d rcv=%d rcv_name=%#x msgid=%#x bits=%#x' % (
-            pn0, opt, send_sz, rcv_sz, rcv_name, msgid, bits))
-        # Only arm ret for send+rcv (sync) — these are the hang suspects.
-        if (opt & 0x3) == 0x3 or (send_sz and rcv_sz):
-            RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%#x' % (pn0, msgid))
+        opt64 = r('x1')
+        mb_ss = r('x2'); mr_lp = r('x3'); mv_id = r('x4')
+        dc_rn = r('x5'); rs_pr = r('x6'); timeout = r('x7') & 0xffffffff
+        bits = mb_ss & 0xffffffff
+        send_sz = (mb_ss >> 32) & 0xffffffff
+        remote = mr_lp & 0xffffffff
+        local = (mr_lp >> 32) & 0xffffffff
+        msgid = (mv_id >> 32) & 0xffffffff
+        rcv_name = (dc_rn >> 32) & 0xffffffff
+        rcv_sz = rs_pr & 0xffffffff
+        sending = bool(opt64 & 1); recving = bool(opt64 & 2)
+        # Skip pure recv-poll noise without a remote send target.
+        if not sending and recving and remote == 0 and _mm2['n'] > 80:
+            return False
+        _mm2['n'] += 1
+        if _mm2['n'] > 400:
+            return False
+        P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
+            pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
+            rcv_name, msgid, timeout))
+        if sending and recving:
+            RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
+                pn0, msgid, remote))
     except Exception as e:
         P('ERR mach_msg2 %s' % e)
     return False
