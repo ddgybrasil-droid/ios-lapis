@@ -913,4 +913,12 @@ Image.pth73.
 - Fix mach_msg2 register unpack; gate logs until runningboardd; Image.pth74 (`scalar_out[0]=0` on sel32).
 Image.pth74.
 
-| boot136 | Image.pth74 | packed MACHMSG2 + sel32 scalar0 | qemu11 43G lva=off | **ГИПОТЕЗА**: post-sel32 sync msgs show RB dest/timeouts; scalar0 may let RB finish serve → HID. | out/logs/boot136 |
+| boot136 | Image.pth74 | packed MACHMSG2 + sel32 scalar0 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MACHMSG2 still garbage — `mach_msg2_trap` takes **args struct\*** in x0 (not 8 fields in regs); 400-cap burned; **0 RET**. SB got RB port; no IOGPU/sel32 yet in window; **0 HID**. Next: deref args; force BB ACCHW+RB lookup → 0x9f (boot55 HID path). | out/logs/boot136 |
+
+## Chunk 86 (boot137: BB XPC 0x9f skip + args* MACHMSG2)
+
+- boot55: BB hit HIDServiceSupport after ACCHW x0=0x9f (no RB). Modern BB gets ports then stalls.
+- Force backboardd `ACCHWComponentAuthService` + `com.apple.runningboard` lookups to return 0x9f; fix mach_msg2 args*.
+Image.pth74.
+
+| boot137 | Image.pth74 | BB FORCED_XPCERR_0x9f + args* MACHMSG2 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB skips half-up RB/ACCHW and reaches HIDServiceSupport like boot55. | out/logs/boot137 |

@@ -28,6 +28,18 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as e:
                     extra+=' obj_err=%r'%e
             if t.startswith('XPC_LOOKUP_RET'):
+                # boot137: boot55 reached HIDServiceSupport when ACCHW/RB lookups
+                # returned 0x9f (sandbox). Modern boots get ports then stall on half-up
+                # RB. Force the boot55 miss for backboardd only (SB still uses RB).
+                if ("proc=backboardd" in t and (
+                        "name='com.apple.runningboard'" in t or
+                        "name='com.apple.ACCHWComponentAuthService'" in t)):
+                    try:
+                        gdb.execute('set $x0 = 0x9f', to_string=True)
+                        x0 = 0x9f
+                        extra += ' FORCED_XPCERR_0x9f'
+                    except Exception as e:
+                        extra += ' force_err=%r' % e
                 try:
                     sp0,x4,x6,x7=_dsc.get('_xl_out',(0,0,0,0))
                     for label,ptr in (('x4',x4),('x6',x6),('x7',x7)):
@@ -630,14 +642,10 @@ def on_shm_open():
     return False
 BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
 
-# boot136: mach_msg2_trap ABI (XNU): 8 packed regs, not classic mach_msg.
-#   x0=data x1=options
-#   x2=msgh_bits|(send_size<<32)  x3=remote|(local<<32)
-#   x4=voucher|(msgid<<32)        x5=desc_count|(rcv_name<<32)
-#   x6=rcv_size|(priority<<32)    x7=timeout
-# boot135: UI-only filter worked but 600-cap burned before RB sel32; 18×
-# MACH_RCV_TIMED_OUT (0x10004003). Gate: skip until runningboardd seen, then
-# log failures + sync send/rcv with real remote ports only.
+# boot137: mach_msg2_trap(struct mach_msg2_trap_args *args) — x0 is ARGS PTR
+# (boot136 treated regs as fields → garbage; 400-cap burned; 0 RETs).
+# Struct: data, options, bits|send<<32, remote|local<<32, voucher|id<<32,
+#         desc|rcv_name<<32, rcv_size|prio<<32, timeout.
 _mm2 = {'n': 0, 'rb': 0}
 def _ui_proc(pn0):
     pl = (pn0 or '').lower()
@@ -650,12 +658,16 @@ def on_mach_msg2():
             return False
         if 'runningboard' in pn0.lower():
             _mm2['rb'] = 1
-        # Wait until RB has started so we keep budget for the handshake wall.
         if not _mm2['rb'] and 'runningboard' not in pn0.lower():
             return False
-        opt64 = r('x1')
-        mb_ss = r('x2'); mr_lp = r('x3'); mv_id = r('x4')
-        dc_rn = r('x5'); rs_pr = r('x6'); timeout = r('x7') & 0xffffffff
+        ap = r('x0')
+        # Trap entry: x0 → mach_msg2_trap_args on kernel stack.
+        if (ap >> 40) != 0xfffffe:
+            return False
+        opt64 = m64(ap + 8)
+        mb_ss = m64(ap + 16); mr_lp = m64(ap + 24); mv_id = m64(ap + 32)
+        dc_rn = m64(ap + 40); rs_pr = m64(ap + 48)
+        timeout = m64(ap + 56) & 0xffffffff
         bits = mb_ss & 0xffffffff
         send_sz = (mb_ss >> 32) & 0xffffffff
         remote = mr_lp & 0xffffffff
@@ -664,11 +676,13 @@ def on_mach_msg2():
         rcv_name = (dc_rn >> 32) & 0xffffffff
         rcv_sz = rs_pr & 0xffffffff
         sending = bool(opt64 & 1); recving = bool(opt64 & 2)
-        # Skip pure recv-poll noise without a remote send target.
-        if not sending and recving and remote == 0 and _mm2['n'] > 80:
+        # Real mach ports are small names; skip nonsense / recv-only polls.
+        if remote > 0x10000 and not recving:
+            return False
+        if not sending and recving and _mm2['n'] > 40:
             return False
         _mm2['n'] += 1
-        if _mm2['n'] > 400:
+        if _mm2['n'] > 300:
             return False
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
