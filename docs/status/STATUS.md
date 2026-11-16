@@ -495,4 +495,13 @@ Image.pth27 sha256 14511e5297b2e905a80eee8a3de3295a93c8c4a1868504fe9c25b2c315a04
 - Refresh `/usr/lib/dyld` from IPSW (macho_cd_rehash no-op; replace onto mnt2).
 Image.pth28.
 
-| boot82 | Image.pth28 | early-deny bypass + dyld refresh | qemu11 43G lva=off | running… | out/logs/boot82 |
+| boot82 | Image.pth28 | early-deny bypass + dyld refresh | qemu11 43G lva=off | **ПРОВЕРЕНО**: **denying SIGKILL = 0** (was 10+); **0 SIGABRT**; SBSTATIC pass=1×3; IOMFB_FDR **IOKMATCH IOMobileFramebuffer** then exit 1; runningboardd **IOKMATCH IOGPU** late (timeout before mach check-in); XPC runningboard still early-race x0=0. | out/logs/boot82 |
+
+## Chunk 34 (boot83: longer run + RB/Trial/IOMFB seeds)
+
+- Empty `runningboardAdditionalEntitlementsConfiguration.plist`
+- Trial NamespaceDescriptors dirs + COREOS GMPOWER plist if present
+- `/usr/bin/Info.plist` for IOMFB_FDR_Loader
+- Timeout 1200s so runningboardd can check in after IOGPU match
+
+| boot83 | Image.pth28 | + RB/Trial/IOMFB seeds; T=1200s | qemu11 43G lva=off | running… | out/logs/boot83 |
