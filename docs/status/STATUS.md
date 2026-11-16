@@ -866,4 +866,12 @@ Image.pth73.
 - Plan: symbolicate BRK, ensure `system.daemonv1` create path, deepen HID/IOMFB open from backboardd.
 Image.pth73 (reuse) + gdb EXC pname dump.
 
-| boot130 | Image.pth73 | symbolicate BB/SB BRK + system.daemonv1 | qemu11 43G lva=off | **ГИПОТЕЗА**: identify abort site; keep prefs fix; push display/HID. | out/logs/boot130 |
+| boot130 | Image.pth73 | symbolicate BB/SB BRK + system.daemonv1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: EXC `proc=SpringBoard` BRK (ns=2 code=5); DSC slide `0x1445c000`; unslid BRK `0x1a401e654` in BaseBoardUI (`UIViewController+BaseBoardUI.m` / BSUI failure format). Preceded by NAMEI `/var/mobile/Library/Caches/MappedImageCache/Wallpaper`. daemonv1 O_CREAT holds; FDR open holds; early BRK was `logd` not BB. | out/logs/boot130 |
+
+## Chunk 80 (boot131: MappedImageCache/Wallpaper seed)
+
+- Seed `private/var/mobile/Library/Caches/MappedImageCache/Wallpaper` (missing in boot130; SB BaseBoardUI assert).
+- Image.pth73 + springboard seeds.
+Image.pth73.
+
+| boot131 | Image.pth73 | MappedImageCache/Wallpaper dir seed | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past BaseBoardUI Wallpaper assert; next display/HID. | out/logs/boot131 |
