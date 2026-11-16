@@ -19,12 +19,15 @@ DIRS=(
   System/Library/HIDPlugins
   System/Library/HIDPlugins/SessionFilters
   System/Library/HIDPlugins/ServicePlugins
+  System/Library/HIDPlugins/ConnectionPlugins
   Library/Apple/System/Library/HIDPlugins
   Library/Apple/System/Library/HIDPlugins/SessionFilters
   Library/Apple/System/Library/HIDPlugins/ServicePlugins
+  Library/Apple/System/Library/HIDPlugins/ConnectionPlugins
   AppleInternal/Library/HIDPlugins
   AppleInternal/Library/HIDPlugins/SessionFilters
   AppleInternal/Library/HIDPlugins/ServicePlugins
+  AppleInternal/Library/HIDPlugins/ConnectionPlugins
   System/Library/Preferences/Logging/Subsystems
   Library/Preferences/Logging/Subsystems
   private/var/preferences

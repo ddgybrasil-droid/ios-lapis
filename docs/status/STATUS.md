@@ -931,4 +931,8 @@ Image.pth74.
 
 ## Chunk 88 (boot139: clear forced XPC out-port)
 
-| boot139 | Image.pth75 | FORCED_XPCERR + CLEARED out-port | qemu11 43G lva=off | **ГИПОТЕЗА**: BB no longer uses half-open RB/ACCHW port → no mutex/heap BRK; HID path continues to display. | out/logs/boot139 |
+| boot139 | Image.pth75 | FORCED_XPCERR + CLEARED out-port | qemu11 43G lva=off | **ПРОВЕРЕНО**: mutex/malloc BRK **gone**; ACCHW ports CLEARED; HID CES+IOITER OK; BB reached mobilegestalt/frontboard/locationd. Then **SIGABRT** ns=2 code=6: `CM_SYSPATH id=None` → NULL → objc `fileURLWithPath:nil` (boot47 wall). Next: force bundle-id into syspath stub. | out/logs/boot139 |
+
+## Chunk 89 (boot140: CM_SYSPATH force id for BB)
+
+| boot140 | Image.pth75 | CM_SYSPATH_FORCE_ID + HID CES | qemu11 43G lva=off | **ГИПОТЕЗА**: syspath returns `/private/var/containers/Data/System/com.apple.backboardd` → BB past BaseBoard path setup toward display/IOMFB. | out/logs/boot140 |

@@ -505,8 +505,26 @@ def _ufn(n):
                 r('x0')&0xffffffff,r('x1'),r('x2'),reason,pn))
             _uframes('ABORT_REASON_FRAMES')
         elif n=='container_system_path_for_identifier':
-            P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
-            RetBP(r('x30'),'CM_SYSPATH_RET proc=%s'%pn)
+            # boot139: BB past HID then SIGABRT — CM_SYSPATH id=NULL → stub
+            # returns NULL → NSURL fileURLWithPath:nil (same boot47/55 wall).
+            # DSC syspath stub is patched; feed a real bundle-id CString from DSC.
+            idv = r('x0')
+            ids = ustr(idv, 128) if idv else None
+            P('CM_SYSPATH proc=%s id=%r' % (pn, ids))
+            if not idv and _dsc.get('slide') is not None:
+                # Unslid CStrings in pristine 23F77 DSC (exact "com.apple.*" only).
+                _id_va = {
+                    'backboardd': 0x21efbfc5e,       # PowerlogLiteOperators
+                    'SpringBoard': 0x1c1445950,      # SpringBoardHome
+                }.get(pn)
+                if _id_va:
+                    a = _id_va + _dsc['slide']
+                    try:
+                        gdb.execute('set $x0 = %#x' % a, to_string=True)
+                        P('CM_SYSPATH_FORCE_ID proc=%s va=%#x' % (pn, a))
+                    except Exception as e:
+                        P('CM_SYSPATH_FORCE_ERR %r' % e)
+            RetBP(r('x30'), 'CM_SYSPATH_RET proc=%s' % pn)
         elif n=='SBStatic_status':
             st=r('x0')&0xffffffff
             masked=st&0x0fffffff&0xfc000001
