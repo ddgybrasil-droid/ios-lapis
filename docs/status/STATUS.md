@@ -979,4 +979,8 @@ Image.pth74.
 
 ## Chunk 100 (boot151: HID QueueSize + IOSharedDataQueue map)
 
-| boot151 | Image.pth81 | QueueSize=0x4000; clientMemory→IOSharedDataQueue; regnote→setNotificationPort | qemu11 43G lva=off | **ГИПОТЕЗА**: QueueSize x0=0; IOMAPMEM x0=0; no BB BRK; HID conn stays past NOTE64; IOMFB IOCONN follows. | out/logs/boot151 |
+| boot151 | Image.pth81 | QueueSize=0x4000; clientMemory→IOSharedDataQueue; regnote→setNotificationPort | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **PWTKS** `Unexpected fault in kernel static region` pc=`lapis_hid_queue+0x20` FAR=`g_hid_shared_queue` — ramfs blob is `.text`-only (RX); static BSS write faulted during publish. Never reached HID. | out/logs/boot151 |
+
+## Chunk 101 (boot152: stash HID queue on UC property, no BSS)
+
+| boot152 | Image.pth82 | LapisHIDQ via copyProperty/setProperty; QueueSize; SharedDataQueue map | qemu11 43G lva=off | **ГИПОТЕЗА**: no early PWTKS; QueueSize x0=0; IOMAPMEM hidq x0=0; NOTE64 holds; no BB BRK. | out/logs/boot152 |

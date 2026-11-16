@@ -107,7 +107,8 @@ extern void IODataQueue_setNotificationPort(void *, void *)
 /* kIODirectionOutIn|kIOMemoryKernelUserShared — shareable to userspace. */
 #define LAPIS_IOMEM_KUS 0x00000803u
 #define LAPIS_HID_QUEUE_SIZE 0x4000u
-static void *g_hid_shared_queue;
+/* boot151 panic: no .bss in ramfs blob (objcopy -j .text). Stash queue on UC. */
+static void *lapis_hid_queue_for(void *owner);
 /* boot105/106: deferred wake after AMN returns so FDR's mach port is listening.
  * NOTE: getNextObject @0x7b11668 is a poison stub (brk #0xbffc); the real
  * drain entry is copyNextObject @0x7b11678 (boot105 panic IOUserClient.cpp:1094). */
@@ -719,6 +720,11 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
 	/* HID UC path also lands here; QueueSize mirrors the service prop. */
 	set_u32(client, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+	{
+		void *q = lapis_hid_queue_for(client);
+		if (q)
+			OSObject_release(q);
+	}
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
 	return 0;
@@ -731,17 +737,27 @@ int lapis_new_user_client_simple(void *self, void *task, void *sec,
 	return lapis_new_user_client(self, task, sec, type, 0, out);
 }
 
-static void *lapis_hid_queue(void)
+/*
+ * Return retained IOSharedDataQueue for this UC (property LapisHIDQ).
+ * No static/BSS — ramfs blob is .text only (boot151 PWTKS on g_hid write).
+ */
+static void *lapis_hid_queue_for(void *owner)
 {
-	if (!g_hid_shared_queue) {
-		g_hid_shared_queue =
-			IOSharedDataQueue_withCapacity(LAPIS_HID_QUEUE_SIZE);
-		if (!g_hid_shared_queue)
-			IOLog("LAPIS iomfb: hid queue alloc fail\n");
-		else
-			IOLog("LAPIS iomfb: hid queue ok\n");
+	void *q;
+
+	if (!owner)
+		return 0;
+	q = IORegistryEntry_copyProperty(owner, "LapisHIDQ");
+	if (q)
+		return q;
+	q = IOSharedDataQueue_withCapacity(LAPIS_HID_QUEUE_SIZE);
+	if (!q) {
+		IOLog("LAPIS iomfb: hid queue alloc fail\n");
+		return 0;
 	}
-	return g_hid_shared_queue;
+	IORegistryEntry_setProperty_obj(owner, "LapisHIDQ", q);
+	IOLog("LAPIS iomfb: hid queue ok\n");
+	return q; /* withCapacity retain for caller */
 }
 
 /*
@@ -756,18 +772,20 @@ int lapis_register_notification_port(void *self, void *port,
 {
 	void *q;
 
-	(void)self;
 	(void)type;
 	(void)ref;
-	q = lapis_hid_queue();
-	if (q && port)
-		IODataQueue_setNotificationPort(q, port);
+	q = lapis_hid_queue_for(self);
+	if (q) {
+		if (port)
+			IODataQueue_setNotificationPort(q, port);
+		OSObject_release(q);
+	}
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;
 }
 
 /*
- * boot94/151: clientMemoryForType. HID type0 must be an IOSharedDataQueue
+ * boot94/151/152: clientMemoryForType. HID type0 must be an IOSharedDataQueue
  * mapping (IODataQueueMemory); plain withCapacity hits
  * vm_map_remap_extract rejecting kernel_object (boot150 IOMAPMEM 0xe00002c2).
  * Image B-patches IOUserClient::clientMemoryForType onto this.
@@ -778,7 +796,6 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 	void *md = 0;
 	void *q;
 
-	(void)self;
 	if (!memory)
 		return kIOReturnBadArgument;
 	*memory = 0;
@@ -787,9 +804,11 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 
 	/* type 0: HID EventService queue (also fine for other type0 probes). */
 	if (type == 0) {
-		q = lapis_hid_queue();
-		if (q)
+		q = lapis_hid_queue_for(self);
+		if (q) {
 			md = IOSharedDataQueue_getMemoryDescriptor(q);
+			OSObject_release(q);
+		}
 		if (md) {
 			OSObject_retain(md);
 			*memory = md;
@@ -993,7 +1012,6 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		set_u32(obj, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 		set_hid_cfplugin_types(obj);
-		(void)lapis_hid_queue();
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {
