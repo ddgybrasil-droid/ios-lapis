@@ -999,4 +999,8 @@ Image.pth74.
 
 ## Chunk 105 (boot156: force BB frontboard XPC 0x9f)
 
-| boot156 | Image.pth86 | enqueue log polarity fix; BB frontboard.systemappservices→0x9f; MACHMSG2 BB uncapped | qemu11 43G lva=off | **ГИПОТЕЗА**: FORCED frontboard; BB past SB wait → IOMFB/CA IOCONN or less CPU burn. | out/logs/boot156 |
+| boot156 | Image.pth86 | enqueue log polarity fix; BB frontboard.systemappservices→0x9f; MACHMSG2 BB uncapped | qemu11 43G lva=off | **ПРОВЕРЕНО**: FORCED frontboard **0x9f**; `regnote ok enq`. IOMFB open still **0** IOCONN. Post-open = **w00t/0x40000000** mach spin (2200+); uncapped MACHMSG2 GDB traps likely worsen burn. No canvas. | out/logs/boot156 |
+
+## Chunk 106 (boot157: drop w00t flood + full IOREGPROP hooks)
+
+| boot157 | Image.pth87 | no HID pulse; filter w00t MACHMSG2; hook get_property/bytes/rec | qemu11 43G lva=off | **ГИПОТЕЗА**: less BB spin; canvas via plain/bytes IOREGPROP; IOMFB/CA IOCONN. | out/logs/boot157 |

@@ -846,27 +846,20 @@ int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
 	void *q;
-	/* Minimal IODataQueue payload (size field is prepended by enqueue).
-	 * boot154: BB burns CPU after HID NOTE64 + IOMFB open while waiting
-	 * on an empty mapped queue / digitizer sentinel. One enqueue wakes
-	 * the mach notification port so IODataQueuePeek/Dequeue can proceed. */
-	unsigned char pulse[8];
-	int i, enq;
 
 	(void)type;
 	(void)ref;
-	for (i = 0; i < 8; i++)
-		pulse[i] = 0;
+	/*
+	 * boot155–156: 8B zero pulse enqueued successfully but did not clear
+	 * BB CPU burn; post-open traffic is mach w00t/0x40000000 spin (likely
+	 * display-link / empty-queue poll). Keep port wiring only — garbage
+	 * HID payloads can make Peek/Dequeue retry harder.
+	 */
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
-		/* IODataQueue::enqueue returns Boolean: true(1)=success. */
-		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
-		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
-			  : "LAPIS iomfb: regnote ok enqfail\n");
-		return 0;
 	}
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;

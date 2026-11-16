@@ -803,6 +803,10 @@ def _mk_ioreg(tag):
 BP('_is_io_registry_entry_get_property_bin', _mk_ioreg('bin'), addr=0xfffffe0007b165a8)
 BP('_is_io_registry_entry_get_property_bin_buf', _mk_ioreg('buf'), addr=0xfffffe0007b16098)
 BP('_is_io_registry_entry_get_properties_bin', _mk_ioreg('all'), addr=0xfffffe0007b16084)
+# boot156: Open post-path may use non-bin property MIG (canvas-width silent).
+BP('_is_io_registry_entry_get_property', _mk_ioreg('plain'), addr=0xfffffe0007b159e4)
+BP('_is_io_registry_entry_get_property_bytes', _mk_ioreg('bytes'), addr=0xfffffe0007b15728)
+BP('_is_io_registry_entry_get_property_recursively', _mk_ioreg('rec'), addr=0xfffffe0007b15bd0)
 
 _iomap_cnt = {'n': 0}
 def on_io_map_mem():
@@ -896,10 +900,13 @@ def on_mach_msg2():
             return False
         if not sending and recving and _mm2['n'] > 40:
             return False
+        # boot156: uncapped BB logging drowned the run in w00t/0x40000000
+        # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
+        # Drop those two; keep real IOKit/XPC-sized traffic.
+        if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            return False
         _mm2['n'] += 1
-        # boot155: 300-cap burned before IOMFB open — keep logging BB forever
-        # (cheap) so post-open w00t/CA traffic stays visible.
-        if _mm2['n'] > 300 and 'backboard' not in pn0.lower():
+        if _mm2['n'] > 400:
             return False
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
