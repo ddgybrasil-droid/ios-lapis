@@ -47,8 +47,21 @@ def bl(src, dst):
     return 0x94000000 | (((dst - src) // 4) & 0x3ffffff)
 
 
+def b(src, dst):
+    return 0x14000000 | (((dst - src) // 4) & 0x3ffffff)
+
+
 def decode_bl(insn, pc):
     if (insn & 0xFC000000) != 0x94000000:
+        return None
+    imm = insn & 0x3FFFFFF
+    if imm & 0x2000000:
+        imm -= 0x4000000
+    return pc + imm * 4
+
+
+def decode_b(insn, pc):
+    if (insn & 0xFC000000) != 0x14000000:
         return None
     imm = insn & 0x3FFFFFF
     if imm & 0x2000000:
@@ -164,11 +177,36 @@ SITES = [
     (0xfffffe0007b49cc8, 0xfffffe0007b49cd4, QB),
     (0xfffffe0007b49ce4, 0xfffffe0007b49cf4, CP),
 ]
-for a, b, o in SITES:
-    ca, cb = rd32(img, a), rd32(img, b)
+for a, b_end, o in SITES:
+    ca, cb = rd32(img, a), rd32(img, b_end)
     assert (ca, cb) in ((NOP, MOV1), (LDR(o), BLR8)), (hex(a), hex(ca), hex(cb))
     wr32(img, a, LDR(o))
-    wr32(img, b, BLR8)
+    wr32(img, b_end, BLR8)
+
+# --- IOService::newUserClient → lapis_new_user_client (PAC-safe entry patch) ---
+# arm64e vtables are signed; rewriting slots breaks braa. Patch the function bodies
+# that the signed pointers still target. Stock simple overload is mov w0,#unsupported;ret.
+NUC_DICT = 0xfffffe0007ac253c   # newUserClient(task*,void*,uint,OSDictionary*,IOUserClient**)
+NUC_SIMPLE = 0xfffffe0007ac27ec  # newUserClient(task*,void*,uint,IOUserClient**)
+NUC_DICT_PROLOGUE = 0xa9ba6ffc     # stp x28,x27,[sp,#-0x60]!
+NUC_SIMPLE_PROLOGUE = 0x528058e0  # movz w0, #0x2c7
+nuc = sym('lapis_new_user_client')
+nuc_s = sym('lapis_new_user_client_simple')
+for name, va in (('lapis_new_user_client', nuc),
+                 ('lapis_new_user_client_simple', nuc_s)):
+    if not (BLOB_VA <= va < BLOB_VA + len(blob)):
+        raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
+for site, want_prolog, tgt, label in (
+    (NUC_DICT, NUC_DICT_PROLOGUE, nuc, 'dict'),
+    (NUC_SIMPLE, NUC_SIMPLE_PROLOGUE, nuc_s, 'simple'),
+):
+    cur = rd32(img, site)
+    if cur != want_prolog and decode_b(cur, site) != tgt:
+        raise SystemExit(
+            'IOService::newUserClient %s @%#x insn %#x neither stock %#x nor b %#x'
+            % (label, site, cur, want_prolog, tgt))
+    wr32(img, site, b(site, tgt))
+    assert decode_b(rd32(img, site), site) == tgt
 
 open(sys.argv[2], 'wb').write(img)
 blob_sha = hashlib.sha256(blob).hexdigest()
@@ -176,3 +214,5 @@ print('replaced ramfs %d bytes sha256=%s @%#x' % (len(blob), blob_sha, BLOB_VA))
 print('  wrap %#x sandbox %#x amfi_boot %#x' % (wrap, sandbox, boot))
 print('  SITE %#x -> amfi_boot; amfi_boot+8 -> LSTC %#x; amfi_boot+0x14 -> AIR %#x' % (
     SITE, LSTC, AIR))
+print('  newUserClient dict %#x -> %#x; simple %#x -> %#x' % (
+    NUC_DICT, nuc, NUC_SIMPLE, nuc_s))

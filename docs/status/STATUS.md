@@ -506,11 +506,14 @@ Image.pth28.
 
 | boot83 | Image.pth28 | + RB/Trial/IOMFB seeds; T=1200s | qemu11 43G lva=off | **ПРОВЕРЕНО**: deny=0; SBSTATIC pass=1; IOGPU+IOMFB IOKMATCH; IOMFB_FDR exit 1 (no userclient); XPC `com.apple.runningboard` still x0=0 **after** IOGPU match; missing KRExperiments.framework + Trial NamespaceDescriptor paths. | out/logs/boot83 |
 
-## Chunk 35 (boot84: newUserClient + KRExperiments)
+## Chunk 35 (boot84–85: newUserClient + KRExperiments)
 
-- `lapis_iomfb.c`: branch-patch `IOService::newUserClient` (dict + simple) via `ml_static_protect` → allocate/init/attach/start real `IOUserClient` (PAC-safe: do not rewrite arm64e vtable slots).
-- `tools/apply_krexperiments_seeds.sh`: KRExperiments.framework + Trial GMPOWER NamespaceDescriptors + empty subject/treatments markers.
+- `lapis_iomfb.c`: `lapis_new_user_client{,_simple}` allocate/init/attach/start real `IOUserClient`.
+- **boot84 ГИПОТЕЗА rejected**: runtime `ml_static_protect` on `__TEXT_EXEC` panics (`ml_static_protect.cold`).
+- **Fix**: `patch_kernel_ramfs_replace.py` statically `B`-patches `IOService::newUserClient` dict@`0x…253c` + simple@`0x…27ec` onto the lapis stubs (PAC-safe: signed vtable still targets stock VA; body redirected).
+- `tools/apply_krexperiments_seeds.sh`: KRExperiments.framework + Trial GMPOWER NamespaceDescriptors.
 - GDB: `IOSOPEN` / `IOSOPEN_RET` on `_is_io_service_open_extended`.
-Image.pth29 sha256 14e40ec68747fcfb26f7f8a56a60b5efedb02183290f1e2327046c74daeba8a1.
+Image.pth30 sha256 c29096ad1b5df320a2163660a4697ae69e7dbfcc7119d49fd6cb094ce11f5180.
 
-| boot84 | Image.pth29 | nuc hooks + KRExperiments/Trial seeds | qemu11 43G lva=off | running… | out/logs/boot84 |
+| boot84 | Image.pth29 | runtime ml_static_protect nuc | qemu11 43G lva=off | **ПРОВЕРЕНО**: early PANIC in `ml_static_protect.cold` during `lapis_iomfb_register` | out/logs/boot84 |
+| boot85 | Image.pth30 | static NUC B-patch + KRExperiments seeds | qemu11 43G lva=off | running… | out/logs/boot85 |

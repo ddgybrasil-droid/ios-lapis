@@ -53,6 +53,7 @@ sha256sum ramfs.bin | tee ramfs.bin.sha256
   echo "OBJS=$OBJS"
   echo "ramfs.bin_bytes=$sz"
   cat ramfs.bin.sha256
-  $NM ramfs.elf | grep -E " lapis_(ramfs_wrap|amfi_boot|sandbox_register|iomedia_register|iomfb_register)$"
+  $NM ramfs.elf | grep -E ' lapis_(ramfs_wrap|amfi_boot|sandbox_register|iomedia_register|iomfb_register)$'
+  $NM ramfs.elf | grep -E ' lapis_new_user_client'
 } | tee TOOLCHAIN.txt
-$NM ramfs.elf | grep -E " lapis_(ramfs_wrap|sandbox_register|iomfb_register)$"
+$NM ramfs.elf | grep -E ' lapis_(ramfs_wrap|sandbox_register|iomfb_register|new_user_client)'
