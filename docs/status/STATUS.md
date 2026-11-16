@@ -951,4 +951,8 @@ Image.pth74.
 
 ## Chunk 93 (boot144: SB pname + property key + CA seeds)
 
-| boot144 | Image.pth75 | SB TPIDR cache + IOREG key=x2 | qemu11 43G lva=off | **ГИПОТЕЗА**: see SB XPC to backboard/CA; property keys show DisplayPortCount/IOFB fields. | out/logs/boot144 |
+| boot144 | Image.pth75 | SB TPIDR cache + IOREG key=x2 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SB pname fixed (SBSTATIC+cfprefs+chrono+RB port). IOREG keys: DisplayPortCount OK → IOMFB open. **0 IOCONN** post-open. BB later WILL_SPAWN (RB still forced 0x9f — likely exits without RB). Next: force ACCHW only; let BB keep real RB. | out/logs/boot144 |
+
+## Chunk 94 (boot145: ACCHW-only force, real RB for BB)
+
+| boot145 | Image.pth75 | ACCHW 0x9f only; RB real | qemu11 43G lva=off | **ГИПОТЕЗА**: BB stays up after IOMFB open, serves display to SB. | out/logs/boot145 |

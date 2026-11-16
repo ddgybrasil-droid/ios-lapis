@@ -28,13 +28,13 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as e:
                     extra+=' obj_err=%r'%e
             if t.startswith('XPC_LOOKUP_RET'):
-                # boot137/139: force BB ACCHW/RB → 0x9f and CLEAR out-ports.
-                # boot141 regression: CLEARED missing — global _xl_out raced with
-                # other XPC_LOOKUPs; ports stayed live → pthread/malloc BRK again.
-                # Out-port ptrs are now embedded in the RetBP tag (out4=/out6=/out7=).
-                force_bb = ("proc=backboardd" in t and (
-                        "name='com.apple.runningboard'" in t or
-                        "name='com.apple.ACCHWComponentAuthService'" in t))
+                # boot137/139: force BB ACCHW → 0x9f (boot55 HID path) + CLEAR ports.
+                # boot144: also forcing runningboard made BB open IOMFB then get
+                # relaunched (KeepAlive) — it needs a real RB connection to stay up
+                # and serve SB. Only force ACCHW now; leave runningboard alone.
+                # Out-port ptrs are embedded in the RetBP tag (out4=/out6=/out7=).
+                force_bb = ("proc=backboardd" in t and
+                            "name='com.apple.ACCHWComponentAuthService'" in t)
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
