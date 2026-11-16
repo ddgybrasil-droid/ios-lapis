@@ -520,8 +520,6 @@ BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_clien
 _shm_cnt = {'n': 0}
 def on_shm_open():
     _shm_cnt['n'] += 1
-    if _shm_cnt['n'] > 40:
-        return False
     try:
         uap = r('x1')
         name_va = m64(uap) if uap else 0
@@ -529,13 +527,17 @@ def on_shm_open():
         mode = m32(uap + 0x10) if uap else 0
         name = ustr(name_va, 96) if name_va else None
         pn = cur_pname()
-        # Prefer cfprefsd / apple.* names; still log a few early hits.
-        interesting = (name and ('cfprefs' in name or name.startswith('apple.'))) or _shm_cnt['n'] <= 8
-        if interesting:
-            P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
-                pn, name, oflag or 0, mode or 0))
-            RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (
-                pn[0] if pn else '?', name))
+        pn0 = (pn[0] if pn else '') or ''
+        # Always log cfprefsd (boot106 hit the 40-cap before it spawned).
+        is_cfprefs = ('cfprefs' in pn0.lower()) or (name and 'cfprefs' in name)
+        interesting = is_cfprefs or (name and name.startswith('apple.')) or _shm_cnt['n'] <= 8
+        if not interesting:
+            if _shm_cnt['n'] > 200:
+                return False
+            return False
+        P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
+            pn, name, oflag or 0, mode or 0))
+        RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (pn0 or '?', name))
     except Exception as e:
         P('ERR shm_open %s' % e)
     return False
