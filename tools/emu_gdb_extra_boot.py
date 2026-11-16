@@ -65,16 +65,19 @@ class _RetSite(gdb.Breakpoint):
                         if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
                             try:
                                 if force_bb:
-                                    # boot139 cleared 4 bytes; boot160 lost CLEARED
-                                    # tags — also zero 8 bytes (port name slot).
+                                    # boot161: 8-byte CLEARED smashed BB stack after
+                                    # frontboard force → EXC FAR=0x1536050. Keep 4.
                                     gdb.selected_inferior().write_memory(
-                                        ptr, b'\x00' * 8)
+                                        ptr, b'\x00\x00\x00\x00')
                                     extra += ' %s*=CLEARED' % label
                                 else:
                                     v = m64(ptr)
-                                    extra += ' %s*=%#x' % (label, v)
-                                    if v and v < 0x10000:
-                                        extra += '(port?)'
+                                    if v is None:
+                                        extra += ' %s*=None' % label
+                                    else:
+                                        extra += ' %s*=%#x' % (label, v)
+                                        if v and v < 0x10000:
+                                            extra += '(port?)'
                             except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))

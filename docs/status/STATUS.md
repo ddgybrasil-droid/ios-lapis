@@ -1019,4 +1019,8 @@ Image.pth74.
 
 ## Chunk 110 (boot161: HID entitlement + IOMFB messageClients + spin probe)
 
-| boot161 | Image.pth91 | HIDServiceAccessEntitlement; Unregistered=0; richer digitizer; IOMFB messageClients; BB spin LR | qemu11 43G lva=off | **ГИПОТЕЗА**: HID access + display property-change wake CA/BB past post-open silence → IOMFB IOCONN/sel8. | out/logs/boot161 |
+| boot161 | Image.pth91 | HIDServiceAccessEntitlement; Unregistered=0; richer digitizer; IOMFB messageClients; BB spin LR | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID entitlement/`Unregistered` now **x0=0** (was 0xe00002f0). Then **REGRESSION**: after frontboard **FORCED+8-byte CLEARED**, BB **EXC_BAD_ACCESS** FAR=`0x1536050` elr=`0x1885525e4` → exit — **never** reached Paravirt/IOMFB (0 DisplayPortCount / 0 MACHMSG2_WINDOW). Richer digitizer alone not proven; CLEARED width smash is the smoking gun. | out/logs/boot161 |
+
+## Chunk 111 (boot162: restore 4-byte CLEARED + boot160 pulse; keep entitlement/messageClients)
+
+| boot162 | Image.pth92 | 4-byte CLEARED; boot160 digitizer pulse; keep HID entitlement + IOMFB messageClients | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot160 path to IOMFB open; entitlement+messageClients advance post-open IOCONN. | out/logs/boot162 |

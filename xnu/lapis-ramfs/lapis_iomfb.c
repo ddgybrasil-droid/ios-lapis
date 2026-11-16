@@ -871,33 +871,20 @@ int lapis_register_notification_port(void *self, void *port,
 	void *q;
 	/*
 	 * boot157: empty queue → BRK after NOTE64. boot159: 8B zeros hold.
-	 * boot160: len+type=digitizer held but BB still post-open silent.
-	 * boot161: fill IOHIDEventData-ish header (size/type/options) plus
-	 * digitizer touch-range fields so EventServicePlugin can classify.
+	 * boot160: len+type=digitizer held (no BRK). boot161: richer touch
+	 * fields + 8-byte CLEARED → BB EXC before IOMFB; keep boot160 pulse.
 	 */
 	unsigned char pulse[64];
 	int i, enq;
 	unsigned int *u32;
-	unsigned long long *u64;
 
 	(void)type;
 	(void)ref;
 	for (i = 0; i < 64; i++)
 		pulse[i] = 0;
 	u32 = (unsigned int *)pulse;
-	u64 = (unsigned long long *)pulse;
-	u32[0] = 64;  /* size */
-	u32[1] = 11;  /* kIOHIDEventTypeDigitizer */
-	u32[2] = 0;   /* options */
-	u32[3] = 0;   /* depth / reserved */
-	u64[2] = 1;   /* timestamp-ish */
-	/* Digitizer: eventMask + range + rangeMask (coarse) */
-	u32[8] = 0x3;  /* touch + position */
-	u32[9] = 1;    /* touching */
-	u32[10] = 0x3;
-	u32[11] = 0;   /* identity */
-	u32[12] = 1210; /* x ~ mid (panel 2420) */
-	u32[13] = 834;  /* y ~ mid (panel 1668) */
+	u32[0] = 64; /* IOHIDEvent length */
+	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
