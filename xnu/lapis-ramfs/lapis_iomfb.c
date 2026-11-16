@@ -62,8 +62,12 @@ extern void *OSNumber_withNumber(unsigned long long, unsigned int)
 	__asm__("_ZN8OSNumber10withNumberEyj");
 extern void *OSDictionary_withCapacity(unsigned int)
 	__asm__("_ZN12OSDictionary12withCapacityEj");
+extern int OSDictionary_setObject_cstr(void *, const char *, const void *)
+	__asm__("_ZN12OSDictionary9setObjectEPKcPK15OSMetaClassBase");
 extern void *OSDictionary_getObject_cstr(void *, const char *)
 	__asm__("_ZNK12OSDictionary9getObjectEPKc");
+extern void *OSString_withCString(const char *)
+	__asm__("_ZN8OSString11withCStringEPKc");
 extern const char *OSString_getCStringNoCopy(void *)
 	__asm__("_ZNK8OSString16getCStringNoCopyEv");
 extern void *IORegistryEntry_copyProperty(void *, const char *)
@@ -166,6 +170,32 @@ static void set_u32(void *obj, const char *key, unsigned int val)
 	void *n = OSNumber_withNumber(val, 32);
 	if (n)
 		IORegistryEntry_setProperty_obj(obj, key, n);
+}
+
+/*
+ * boot148: empty IOCFPlugInTypes lets CreateCFProperty succeed but CFPlugin
+ * never loads IOHIDLib — BB opens IOMFB then never uses the connection.
+ * Point classic HID type UUIDs at IOHIDLib.plugin (present on fullroot).
+ */
+static void set_hid_cfplugin_types(void *obj)
+{
+	void *dict, *path;
+
+	dict = OSDictionary_withCapacity(4);
+	path = OSString_withCString(
+		"IOHIDFamily.kext/PlugIns/IOHIDLib.plugin");
+	if (!dict || !path)
+		return;
+	/* kIOHIDDeviceTypeID / event-service / queue / interface families. */
+	OSDictionary_setObject_cstr(dict,
+		"FA12FA38-6F1A-11D4-BA0C-0005028F18D5", path);
+	OSDictionary_setObject_cstr(dict,
+		"7DDEECA8-A7B4-11DA-8A0E-0014519758EF", path);
+	OSDictionary_setObject_cstr(dict,
+		"0B842ADD-C395-4352-95F6-6585EB515623", path);
+	OSDictionary_setObject_cstr(dict,
+		"40A57A4E-26A0-11D8-9295-000A958A2C78", path);
+	IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", dict);
 }
 
 #define VT_ENTRIES 32
@@ -889,16 +919,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "VendorID", 0x5ac);
 		set_u32(obj, "ProductID", 1);
 		set_u32(obj, "LocationID", 1);
-		/*
-		 * boot144: BB probes IOCFPlugInTypes on the HID match and gets
-		 * 0xe00002f0 (missing). Publish an empty dict so CreateCFProperty
-		 * succeeds; CFPlugin load then no-ops without a UUID entry.
-		 */
-		{
-			void *plug = OSDictionary_withCapacity(0);
-			if (plug)
-				IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", plug);
-		}
+		set_hid_cfplugin_types(obj);
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {

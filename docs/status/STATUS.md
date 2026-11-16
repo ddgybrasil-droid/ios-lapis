@@ -967,4 +967,8 @@ Image.pth74.
 
 ## Chunk 97 (boot148: canvas-* props + sel8 + get_class/map_shared hooks)
 
-| boot148 | Image.pth78 | canvas-width/height + MaxSrc*; sel8 size; IOGETCLASS/MAPSH hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: size props visible; IOCONN sel8 or IOREGPROP canvas-*; IOGETCLASS on conn. | out/logs/boot148 |
+| boot148 | Image.pth78 | canvas-width/height + MaxSrc*; sel8 size; IOGETCLASS/MAPSH hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open+nuc holds; **0** canvas IOREGPROP / IOCONN / IOGETCLASS — BB still raw-opens and stops. Empty IOCFPlugInTypes likely blocks HID CFPlugin → display path never uses the connection. | out/logs/boot148 |
+
+## Chunk 98 (boot149: real HID IOCFPlugInTypes → IOHIDLib)
+
+| boot149 | Image.pth79 | HID UUID→IOHIDLib.plugin; seed IOHIDEventServicePlugin | qemu11 43G lva=off | **ГИПОТЕЗА**: CFPlugin loads; post-HID IOCONN/IOEXT on IOMFB or HID UC; SB backboard XPC. | out/logs/boot149 |
