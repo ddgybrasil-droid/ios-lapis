@@ -580,4 +580,12 @@ Image.pth38 sha256 65f761b218384a3e86e8d79d52cb22ce5d1fa0e4dcb82f4622515d9dd11bb
 - Publish `IOCoreSurfaceRoot`; hook `getMatchingServices` to return a one-element `OSCollectionIterator` over the published stub.
 Image.pth39 sha256 9d794a40f61a4497d57d6c2c95d3543fbbfbd7909d47810748cd074b23a5cc8a.
 
-| boot94 | Image.pth39 | GMS iterator + IOCoreSurfaceRoot | qemu11 43G lva=off | running… | out/logs/boot94 |
+| boot94 | Image.pth39 | GMS iterator + IOCoreSurfaceRoot | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOCoreSurfaceRoot GMS→nuc→IOEXTMETHOD sel=13; XPC runningboard still x0=0. | out/logs/boot94 |
+
+## Chunk 44 (boot95: clientMemoryForType buffer stub)
+
+- After IOSurface open, map shared memory via .
+- B-patch onto  → 64KiB .
+Image.pth40 sha256 d640fc21f71a3b4d8e2abc5ef3e572f6466321165470c312a950ba0d726be10e.
+
+| boot95 | Image.pth40 | clientMemoryForType buffer stub | qemu11 43G lva=off | running… | out/logs/boot95 |

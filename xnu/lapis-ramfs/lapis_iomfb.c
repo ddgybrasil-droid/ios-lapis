@@ -73,6 +73,8 @@ extern int OSArray_setObject(void *, const void *)
 extern void *OSCollectionIterator_withCollection(const void *)
 	__asm__("_ZN20OSCollectionIterator14withCollectionEPK12OSCollection");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
+extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
+	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
 
 /*
  * Trampolines overwritten by patch_kernel_ramfs_replace.py:
@@ -293,6 +295,34 @@ int lapis_new_user_client_simple(void *self, void *task, void *sec,
 				 unsigned int type, void **out)
 {
 	return lapis_new_user_client(self, task, sec, type, 0, out);
+}
+
+/*
+ * boot94: after IOCoreSurfaceRoot open, clients need clientMemoryForType
+ * (shared surface root mapping). Stock IOUserClient returns Unsupported.
+ * Image B-patches IOUserClient::clientMemoryForType onto this.
+ */
+int lapis_client_memory_for_type(void *self, unsigned int type,
+				 unsigned int *options, void **memory)
+{
+	void *md;
+
+	(void)self;
+	(void)type;
+	if (!memory)
+		return kIOReturnBadArgument;
+	*memory = 0;
+	if (options)
+		*options = 0;
+	/* 64 KiB RW buffer — enough for IOSurfaceRoot header probes. */
+	md = IOBufferMemoryDescriptor_withCapacity(0x10000, 3, 0);
+	if (!md) {
+		IOLog("LAPIS iomfb: cmap no mem\n");
+		return kIOReturnNoMemory;
+	}
+	*memory = md;
+	IOLog("LAPIS iomfb: cmap ok\n");
+	return 0;
 }
 
 static int register_mc(struct lapis_mc *out, const char *name)

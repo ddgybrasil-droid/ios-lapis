@@ -480,3 +480,18 @@ def on_external_method():
     return False
 BP('__ZN12IOUserClient14externalMethodEjP25IOExternalMethodArgumentsP24IOExternalMethodDispatchP8OSObjectPv',
    on_external_method)
+
+_cmem_cnt = {'n': 0}
+def on_client_memory():
+    _cmem_cnt['n'] += 1
+    if _cmem_cnt['n'] > 40:
+        return False
+    try:
+        typ = r('x1') & 0xffffffff
+        P('IOCMEM proc=%s type=%d self=%#x' % (cur_pname(), typ, r('x0')))
+        RetBP(r('x30'), 'IOCMEM_RET proc=%s type=%d' % (
+            cur_pname()[0] if cur_pname() else '?', typ))
+    except Exception as e:
+        P('ERR cmem %s' % e)
+    return False
+BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)

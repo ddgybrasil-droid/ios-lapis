@@ -253,7 +253,6 @@ EM_PROLOGUE = 0xd10183ff  # sub sp, sp, #0x60
 MOV_W0_0 = 0x52800000     # movz w0, #0
 RET = 0xd65f03c0
 cur = rd32(img, EM)
-# Accept stock prologue, already-patched movz w0,#0, or b-to-anywhere we own
 if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
     raise SystemExit(
         'IOUserClient::externalMethod @%#x insn %#x not stock %#x / movz0'
@@ -261,6 +260,21 @@ if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
 wr32(img, EM, MOV_W0_0)
 wr32(img, EM + 4, RET)
 assert rd32(img, EM) == MOV_W0_0
+
+# --- IOUserClient::clientMemoryForType → lapis_client_memory_for_type ---
+# boot94: IOSurface path after open needs a mappable IOMemoryDescriptor.
+CMEM = 0xfffffe0007b13200
+CMEM_PROLOGUE = 0x528058e0  # movz w0, #0x2c7 (Unsupported)
+cmem = sym('lapis_client_memory_for_type')
+if not (BLOB_VA <= cmem < BLOB_VA + len(blob)):
+    raise SystemExit('elf/bin mismatch: lapis_client_memory_for_type=%#x' % cmem)
+cur = rd32(img, CMEM)
+if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) != cmem:
+    raise SystemExit(
+        'clientMemoryForType @%#x insn %#x neither stock %#x nor b %#x'
+        % (CMEM, cur, CMEM_PROLOGUE, cmem))
+wr32(img, CMEM, b(CMEM, cmem))
+assert decode_b(rd32(img, CMEM), CMEM) == cmem
 
 open(sys.argv[2], 'wb').write(img)
 blob_sha = hashlib.sha256(blob).hexdigest()
@@ -273,3 +287,4 @@ print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
 print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
 print('  externalMethod %#x -> mov w0,#0; ret' % EM)
+print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
