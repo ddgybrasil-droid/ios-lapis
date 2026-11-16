@@ -21,6 +21,12 @@ class _RetSite(gdb.Breakpoint):
                     s=ustr(x0,256)
                     if s: extra+=' str=%r'%s
                 except Exception: pass
+            if 'outp=0x' in t:
+                try:
+                    op=int(t.split('outp=')[1].split()[0],16)
+                    if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
+                except Exception as e:
+                    extra+=' obj_err=%r'%e
             P('RET %s x0=%#x%s'%(t,x0,extra))
         return False
 def RetBP(addr,tag):

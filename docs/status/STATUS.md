@@ -807,4 +807,12 @@ Image.pth66.
 - Image.pth67 + DSC cave from boot121.
 Image.pth67.
 
-| boot123 | Image.pth67 | fresh stub iter after peek | qemu11 43G lva=off | **ГИПОТЕЗА**: fresh iter → Next port → Open → FDR IOSOPEN. | out/logs/boot123 |
+| boot123 | Image.pth67 | fresh stub iter after peek | qemu11 43G lva=off | **ПРОВЕРЕНО**: fresh `stub iter ok` + IOITER_NEXT kr=0; **still no FDR IOSOPEN** — Next object and/or IOMFB Open wrapper still failing before kernel open. | out/logs/boot123 |
+
+## Chunk 73 (boot124: cave calls IOServiceOpen directly)
+
+- After Next, call `IOServiceOpen` @0x22c6ce800 (skip IOMFB Open alloc wrapper); gdb logs IOITER *out obj.
+- Image.pth68 (=pth67) + DSC cave.
+Image.pth68.
+
+| boot124 | Image.pth68 | direct IOServiceOpen cave | qemu11 43G lva=off | **ГИПОТЕЗА**: if Next yields a port, FDR IOSOPEN fires; distinguishes Next vs Open-wrapper. | out/logs/boot124 |
