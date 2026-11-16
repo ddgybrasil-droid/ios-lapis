@@ -718,4 +718,11 @@ Image.pth56.
 - Keep AppleParavirtGPU IOService + DisplayPortCount=1 + deferred IOMFB ping.
 Image.pth57.
 
-| boot112 | Image.pth57 | ADT disp0 compatible=paravirtualizedgraphics,gpu | qemu11 43G lva=off | **ГИПОТЕЗА**: DT match → GMS(AppleParavirtGPU) → Ref_FB=1 → deferred FB → FDR IOSOPEN. | out/logs/boot112 |
+| boot112 | Image.pth57 | ADT disp0 compatible=paravirtualizedgraphics,gpu | qemu11 43G lva=off | **ПРОВЕРЕНО**: **IOKMATCH services AppleParavirtGPU** + match via resource ParavirtGPU + Next ok; IOMFB notify + deferred + Next ok; **still no FDR IOSOPEN**. Likely Ref_FB=2 (`device_type=display-subsystem` increment + `DisplayPortCount=1`) while only one IOMFB stub is delivered. | out/logs/boot112 |
+
+## Chunk 62 (boot113: drop disp0 device_type — Ref_FB=1)
+
+- Keep `compatible=paravirtualizedgraphics,gpu`; **remove** `device_type` so getDisplayListNumber only counts Paravirt `DisplayPortCount=1`.
+Image.pth58.
+
+| boot113 | Image.pth58 | disp0 no device_type; Paravirt count=1 | qemu11 43G lva=off | **ГИПОТЕЗА**: Ref_FB=1 → one deferred FB completes populate → GetMainDisplay opens → FDR IOSOPEN. | out/logs/boot113 |
