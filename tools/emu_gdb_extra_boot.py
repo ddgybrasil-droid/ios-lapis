@@ -156,7 +156,22 @@ def on_namei_ret():
         NAMEI['fail']+=1
         k=(rv,path)
         if k not in NAMEI.setdefault('seen',set()) and len(NAMEI['seen'])<6000:
-            NAMEI['seen'].add(k); P('NAMEI_FAIL err=%d path=%r proc=%s'%(rv,path,cur_pname()))
+            NAMEI['seen'].add(k)
+            pn = cur_pname()
+            # boot143: SpringBoard often shows as proc=? — cache TPIDR from path.
+            try:
+                th = r('TPIDR_EL1')
+                if path and th and (pn == ['?'] or (pn and pn[0] == '?')):
+                    pl = path.lower()
+                    if 'springboard' in pl:
+                        _pname_by_tpidr[th] = ['SpringBoard']
+                        pn = ['SpringBoard']
+                    elif 'backboardd' in pl:
+                        _pname_by_tpidr[th] = ['backboardd']
+                        pn = ['backboardd']
+            except Exception:
+                pass
+            P('NAMEI_FAIL err=%d path=%r proc=%s' % (rv, path, pn))
     return False
 BP('_namei',on_namei); BP('namei_ret',on_namei_ret,NAMEI_RET)
 SPAWN={'n':0}
@@ -479,9 +494,12 @@ def _ufn(n):
         if n=='xpc_look_up_endpoint':
             name=ustr(r('x0'),128)
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
-            if (('containermanager' in name or 'cfprefs' in name or
-                 pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd'))
-                and _xl_cnt[k]<=5):
+            interesting_svc = any(s in (name or '') for s in (
+                'containermanager', 'cfprefs', 'backboard', 'CARender', 'render',
+                'frontboard', 'runningboard', 'display', 'hid'))
+            if ((interesting_svc or
+                 pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
+                and _xl_cnt[k]<=8):
                 # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
                 # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
                 # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
@@ -542,11 +560,26 @@ def _ufn(n):
                         P('CM_SYSPATH_FORCE_ERR %r' % e)
             RetBP(r('x30'), 'CM_SYSPATH_RET proc=%s' % pn)
         elif n=='SBStatic_status':
+            # boot143: pname often '?' here — pin SpringBoard for later XPC/IOKit logs.
+            try:
+                th = r('TPIDR_EL1')
+                if th:
+                    _pname_by_tpidr[th] = ['SpringBoard']
+                    pn = 'SpringBoard'
+            except Exception:
+                pass
             st=r('x0')&0xffffffff
             masked=st&0x0fffffff&0xfc000001
             P('SBSTATIC_STATUS proc=%s status=%#x masked=%#x want=0x4000001 pass=%d'%(
                 pn,st,masked,1 if masked==0x04000001 else 0))
         elif n=='SBStatic_cold':
+            try:
+                th = r('TPIDR_EL1')
+                if th:
+                    _pname_by_tpidr[th] = ['SpringBoard']
+                    pn = 'SpringBoard'
+            except Exception:
+                pass
             P('SBSTATIC_COLD proc=%s (platformBinary assert path)'%pn)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
@@ -697,12 +730,19 @@ def _mk_ioreg(tag):
             _ioreg_cnt['n'] += 1
             if _ioreg_cnt['n'] > 120:
                 return False
-            try:
-                name = bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0', 1)[0].decode()
-            except Exception:
-                name = '?'
-            P('IOREGPROP_%s proc=%s key=%r entry=%#x' % (tag, pn, name, r('x0')))
-            RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', name))
+            # bin_buf ABI: x0=entry, x1=plane, x2=property_name (boot143 logged
+            # empty key from x1=plane). Try x2 first, then x1.
+            def _cstr_reg(reg):
+                try:
+                    a = r(reg)
+                    if not a:
+                        return ''
+                    return bytes(gdb.selected_inferior().read_memory(a, 64)).split(b'\0', 1)[0].decode()
+                except Exception:
+                    return ''
+            plane = _cstr_reg('x1'); key = _cstr_reg('x2') or _cstr_reg('x1')
+            P('IOREGPROP_%s proc=%s key=%r plane=%r entry=%#x' % (tag, pn, key, plane, r('x0')))
+            RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', key))
         except Exception as e:
             P('ERR ioreg_%s %s' % (tag, e))
         return False

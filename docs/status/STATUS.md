@@ -947,4 +947,8 @@ Image.pth74.
 
 ## Chunk 92 (boot143: full IOConnect MIG + property variants)
 
-| boot143 | Image.pth75 | all IOCONN_* + IOREGPROP buf/all | qemu11 43G lva=off | **ГИПОТЕЗА**: capture real post-open selectors/keys BB uses (or confirm none → XPC/CA path). | out/logs/boot143 |
+| boot143 | Image.pth75 | all IOCONN_* + IOREGPROP buf/all | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open holds; **0 IOCONN** post-open (BB does not call connect methods). IOREGPROP_buf fires but key logged empty (was reading plane in x1; property is x2). DisplayPortCount path reaches open. SB pname mostly `?` (SBSTATIC pass) — missed SB XPC. Next: fix pname cache + property key ABI; CA/SB XPC path. | out/logs/boot143 |
+
+## Chunk 93 (boot144: SB pname + property key + CA seeds)
+
+| boot144 | Image.pth75 | SB TPIDR cache + IOREG key=x2 | qemu11 43G lva=off | **ГИПОТЕЗА**: see SB XPC to backboard/CA; property keys show DisplayPortCount/IOFB fields. | out/logs/boot144 |

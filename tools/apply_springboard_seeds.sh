@@ -64,6 +64,10 @@ python3 "$ROOT/tools/lapisfs_add.py" "$IMG" \
   "private/var/Managed Preferences/com.apple.iohid.plist=$iohid" \
   "System/Library/Preferences/Logging/Subsystems/com.apple.iohid.plist=$iohid" \
   "Library/Preferences/Logging/Subsystems/com.apple.iohid.plist=$iohid" \
-  "System/Library/Preferences/Logging/Subsystems/com.apple.runningboard.plist=$iohid"
+  "System/Library/Preferences/Logging/Subsystems/com.apple.runningboard.plist=$iohid" \
+  "System/Library/Preferences/Logging/Subsystems/com.apple.coreanimation.plist=$iohid" \
+  "Library/Preferences/Logging/Subsystems/com.apple.coreanimation.plist=$iohid" \
+  "System/Library/Preferences/Logging/Subsystems/com.apple.SpringBoard.plist=$iohid" \
+  "Library/Preferences/Logging/Subsystems/com.apple.SpringBoard.plist=$iohid"
 rm -f "$tmp" "$iohid"
 echo "springboard seeds applied to $IMG"
