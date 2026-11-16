@@ -468,13 +468,27 @@ BP('_is_io_service_open_extended', on_iosopen)
 _em_cnt = {'n': 0}
 def on_external_method():
     _em_cnt['n'] += 1
-    if _em_cnt['n'] > 60:
+    if _em_cnt['n'] > 80:
         return False
     try:
         sel = r('x1') & 0xffffffff
-        P('IOEXTMETHOD proc=%s sel=%d self=%#x' % (cur_pname(), sel, r('x0')))
+        args = r('x2')
+        extra = ''
+        pn = cur_pname()
+        # Dump IOExternalMethodArguments output fields for RB/surface sels.
+        if args and (sel in (0, 2, 4, 13) or (pn and 'runningboard' in str(pn))):
+            try:
+                sin_c = m32(args + 40); sout_c = m32(args + 80)
+                st_in = m32(args + 56); st_out = m32(args + 96)
+                sout_p = m64(args + 72); stout_p = m64(args + 88)
+                extra = ' sin=%d sout=%d stin=%d stout=%d soutp=%s stoutp=%s' % (
+                    sin_c or 0, sout_c or 0, st_in or 0, st_out or 0,
+                    h(sout_p), h(stout_p))
+            except Exception as e:
+                extra = ' args_err=%s' % e
+        P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
         RetBP(r('x30'), 'IOEXTMETHOD_RET proc=%s sel=%d' % (
-            cur_pname()[0] if cur_pname() else '?', sel))
+            pn[0] if pn else '?', sel))
     except Exception as e:
         P('ERR extmethod %s' % e)
     return False

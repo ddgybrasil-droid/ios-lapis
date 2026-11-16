@@ -325,6 +325,47 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 	return 0;
 }
 
+/*
+ * boot95: bare `mov w0,#0;ret` for externalMethod left scalar/structure
+ * output counts untouched — userspace read garbage and stalled after
+ * IOSurface sel=13. Zero requested outputs (IOExternalMethodArguments
+ * layout from xnu IOUserClient.h, arm64).
+ */
+int lapis_external_method(void *self, unsigned int selector, void *args,
+			  void *dispatch, void *target, void *reference)
+{
+	uint64_t *scalar_out;
+	uint32_t n, i, sz;
+	unsigned char *p;
+
+	(void)self;
+	(void)selector;
+	(void)dispatch;
+	(void)target;
+	(void)reference;
+	if (!args)
+		return 0;
+	scalar_out = *(uint64_t **)((char *)args + 72);
+	n = *(uint32_t *)((char *)args + 80);
+	if (n > 16)
+		n = 16;
+	if (scalar_out) {
+		for (i = 0; i < n; i++)
+			scalar_out[i] = 0;
+	}
+	*(uint32_t *)((char *)args + 80) = n;
+	p = *(unsigned char **)((char *)args + 88);
+	sz = *(uint32_t *)((char *)args + 96);
+	if (p && sz) {
+		if (sz > 0x1000)
+			sz = 0x1000;
+		for (i = 0; i < sz; i++)
+			p[i] = 0;
+		*(uint32_t *)((char *)args + 96) = sz;
+	}
+	return 0;
+}
+
 static int register_mc(struct lapis_mc *out, const char *name)
 {
 	uint64_t *vt;

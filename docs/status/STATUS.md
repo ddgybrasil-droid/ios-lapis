@@ -588,4 +588,11 @@ Image.pth39 sha256 9d794a40f61a4497d57d6c2c95d3543fbbfbd7909d47810748cd074b23a5c
 - B-patch onto  → 64KiB .
 Image.pth40 sha256 d640fc21f71a3b4d8e2abc5ef3e572f6466321165470c312a950ba0d726be10e.
 
-| boot95 | Image.pth40 | clientMemoryForType buffer stub | qemu11 43G lva=off | running… | out/logs/boot95 |
+| boot95 | Image.pth40 | clientMemoryForType buffer stub | qemu11 43G lva=off | **ПРОВЕРЕНО**: no IOCMEM after IOSurface sel=13; XPC still x0=0 — bare externalMethod success left output buffers untouched. | out/logs/boot95 |
+
+## Chunk 45 (boot96: externalMethod zeros outputs)
+
+- Replace movz-success with  that zeros scalar/structure outputs.
+Image.pth41 sha256 598df825fda1cc948902d8bc6430029fdd5bdc242b5efdee30a055c567f01b29.
+
+| boot96 | Image.pth41 | externalMethod zero-fill outputs | qemu11 43G lva=off | running… | out/logs/boot96 |

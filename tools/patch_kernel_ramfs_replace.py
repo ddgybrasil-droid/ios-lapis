@@ -244,22 +244,22 @@ for site, want, hook, orig, label in (
     assert decode_b(rd32(img, site), site) == hook
     assert rd32(img, orig) == want
 
-# --- IOUserClient::externalMethod → always success ---
-# Stock IOUserClient has no methods; GPU/IOMFB clients IOConnectCall after open
-# and bail if externalMethod returns Unsupported. On this bring-up there are no
-# real IOUserClients, so a global success stub unblocks check-in paths.
+# --- IOUserClient::externalMethod → lapis_external_method ---
+# Zero scalar/structure outputs then return success (boot95 bare movz left
+# output counts untouched and stalled runningboardd after IOSurface sel=13).
 EM = 0xfffffe0007b1bb40
 EM_PROLOGUE = 0xd10183ff  # sub sp, sp, #0x60
-MOV_W0_0 = 0x52800000     # movz w0, #0
-RET = 0xd65f03c0
+MOV_W0_0 = 0x52800000     # prior boot95 patch
+em = sym('lapis_external_method')
+if not (BLOB_VA <= em < BLOB_VA + len(blob)):
+    raise SystemExit('elf/bin mismatch: lapis_external_method=%#x' % em)
 cur = rd32(img, EM)
-if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
+if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) != em:
     raise SystemExit(
-        'IOUserClient::externalMethod @%#x insn %#x not stock %#x / movz0'
-        % (EM, cur, EM_PROLOGUE))
-wr32(img, EM, MOV_W0_0)
-wr32(img, EM + 4, RET)
-assert rd32(img, EM) == MOV_W0_0
+        'IOUserClient::externalMethod @%#x insn %#x not stock/movz0/b'
+        % (EM, cur))
+wr32(img, EM, b(EM, em))
+assert decode_b(rd32(img, EM), EM) == em
 
 # --- IOUserClient::clientMemoryForType → lapis_client_memory_for_type ---
 # boot94: IOSurface path after open needs a mappable IOMemoryDescriptor.
@@ -286,5 +286,5 @@ print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
     NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
 print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
-print('  externalMethod %#x -> mov w0,#0; ret' % EM)
+print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
