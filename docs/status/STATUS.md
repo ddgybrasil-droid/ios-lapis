@@ -799,4 +799,12 @@ Image.pth65.
 - Image.pth66 ramfs replace; DSC cave unchanged from boot121.
 Image.pth66.
 
-| boot122 | Image.pth66 | stub iter peek + plural cave | qemu11 43G lva=off | **ГИПОТЕЗА**: non-empty stub iter → Next port → Open → FDR IOSOPEN. | out/logs/boot122 |
+| boot122 | Image.pth66 | stub iter peek + plural cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: `stub iter ok` then IOITER_NEXT kr=0 but **no FDR IOSOPEN** — peek consumed the sole OSSet entry; `reset()` did not re-arm for userspace Next. | out/logs/boot122 |
+
+## Chunk 72 (boot123: fresh stub iterator after peek)
+
+- After peek validates non-empty, rebuild a fresh `OSCollectionIterator` for the caller.
+- Image.pth67 + DSC cave from boot121.
+Image.pth67.
+
+| boot123 | Image.pth67 | fresh stub iter after peek | qemu11 43G lva=off | **ГИПОТЕЗА**: fresh iter → Next port → Open → FDR IOSOPEN. | out/logs/boot123 |

@@ -312,8 +312,20 @@ static void *lapis_stub_iterator(const char *name)
 		OSObject_release(set);
 		return 0;
 	}
-	IOLog("LAPIS iomfb: stub iter ok\n");
+	/*
+	 * boot122: peek consumes the sole entry; OSCollectionIterator_reset
+	 * did not re-arm for userspace IOIteratorNext (kr=0, null object).
+	 * Hand out a fresh iterator over the same set instead.
+	 */
+	OSObject_release(it);
+	it = OSCollectionIterator_withCollection(set);
+	if (!it) {
+		IOLog("LAPIS iomfb: stub iter rebuild fail\n");
+		OSObject_release(set);
+		return 0;
+	}
 	OSCollectionIterator_reset(it);
+	IOLog("LAPIS iomfb: stub iter ok\n");
 	OSObject_release(set);
 	return it;
 }
