@@ -44,6 +44,9 @@ TYPE_INIT = 0x22880686C  # fills malloc-type slot at TYPE_SLOT
 TYPED_MALLOC = 0x22C6CE8B0  # malloc_type_malloc(zone=0, type, size, 0)
 TYPE_SLOT_ADRP, TYPE_SLOT_OFF = 0x2801A3000, 0x520
 OBJ_SIZE = 0xF30
+# Const blob copied by real ALLOC into obj+0x880 (16 bytes).
+OBJ_CONST_ADRP, OBJ_CONST_OFF = 0x228832000, 0xF40
+OBJ_SUBINIT = 0x22C6CEBA0  # ALLOC calls this on (obj+0x840)
 # Master port GOT slot used by GetMatchingService callers (d50, not d48).
 MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD50
 TASK_ADRP, TASK_OFF = 0x277C1E000, 0xCF8
@@ -169,6 +172,15 @@ def build_cave() -> list[int]:
     emit(0xB90012B6)  # str w22, [x21, #0x10]  (service)
     emit(0x52800028)  # movz w8, #1
     emit(0xB90C0AA8)  # str w8, [x21, #0xc08]
+    emit(0xB9083AA8)  # str w8, [x21, #0x838]
+    emit(0x12800008)  # movn w8, #0
+    emit(0xB90DCAA8)  # str w8, [x21, #0xdc8]
+    emit(enc_adrp(8, pc, OBJ_CONST_ADRP))
+    emit(0x3DC3D101)  # ldr q1, [x8, #0xf40]
+    emit(0x3D8222A1)  # str q1, [x21, #0x880]
+    emit(0x912102A0)  # add x0, x21, #0x840
+    emit(0xD2800001)  # movz x1, #0
+    emit(enc_bl(pc, OBJ_SUBINIT))
     b_have = len(code)
     emit(0)  # b have_obj
 

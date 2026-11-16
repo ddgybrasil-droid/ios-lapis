@@ -831,4 +831,12 @@ Image.pth69.
 - Image.pth70 (=pth69) + DSC cave.
 Image.pth70.
 
-| boot126 | Image.pth70 | light typed-malloc + Open cave | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR IOSOPEN+nuc with heap IOMFB object in *out → past FAR=0x111f. | out/logs/boot126 |
+| boot126 | Image.pth70 | light typed-malloc + Open cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next → **FDR IOSOPEN + nuc ok (x0=0)**; **no FAR=0x111f** (heap object works). FDR then `SYS_EXIT rval=1` with no externalMethod — object fields still incomplete vs full ALLOC. | out/logs/boot126 |
+
+## Chunk 76 (boot127: richer light-object field init)
+
+- After typed-malloc+zero: set +0xc08/+0x838=1, +0xdc8=-1, copy 16B const from 0x228832f40 → +0x880, optional init at +0x840 via stub 0x22c6ceba0; then wire+Open.
+- Image.pth71 (=pth70) + DSC cave.
+Image.pth71.
+
+| boot127 | Image.pth71 | richer IOMFB object init + Open | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR past open without exit=1; reach IOConnect/HID path. | out/logs/boot127 |
