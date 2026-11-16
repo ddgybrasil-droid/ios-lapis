@@ -94,6 +94,20 @@ extern void OSObject_retain(void *) __asm__("_ZNK8OSObject6retainEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
+extern void *IOBufferMemoryDescriptor_withOptions(unsigned int, unsigned long, unsigned long)
+	__asm__("_ZN24IOBufferMemoryDescriptor11withOptionsEjmm");
+/* HID EventServicePlugin maps an IODataQueue via clientMemoryForType(0).
+ * Plain withCapacity buffers hit vm_map_remap_extract("kernel_object"). */
+extern void *IOSharedDataQueue_withCapacity(unsigned int)
+	__asm__("_ZN17IOSharedDataQueue12withCapacityEj");
+extern void *IOSharedDataQueue_getMemoryDescriptor(void *)
+	__asm__("_ZN17IOSharedDataQueue19getMemoryDescriptorEv");
+extern void IODataQueue_setNotificationPort(void *, void *)
+	__asm__("_ZN11IODataQueue19setNotificationPortEP8ipc_port");
+/* kIODirectionOutIn|kIOMemoryKernelUserShared — shareable to userspace. */
+#define LAPIS_IOMEM_KUS 0x00000803u
+#define LAPIS_HID_QUEUE_SIZE 0x4000u
+static void *g_hid_shared_queue;
 /* boot105/106: deferred wake after AMN returns so FDR's mach port is listening.
  * NOTE: getNextObject @0x7b11668 is a poison stub (brk #0xbffc); the real
  * drain entry is copyNextObject @0x7b11678 (boot105 panic IOUserClient.cpp:1094). */
@@ -703,6 +717,8 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	IORegistryEntry_setProperty_cstr(client, "IOClass",
 					 "IOMobileFramebufferUserClient");
 	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
+	/* HID UC path also lands here; QueueSize mirrors the service prop. */
+	set_u32(client, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
 	return 0;
@@ -715,43 +731,77 @@ int lapis_new_user_client_simple(void *self, void *task, void *sec,
 	return lapis_new_user_client(self, task, sec, type, 0, out);
 }
 
+static void *lapis_hid_queue(void)
+{
+	if (!g_hid_shared_queue) {
+		g_hid_shared_queue =
+			IOSharedDataQueue_withCapacity(LAPIS_HID_QUEUE_SIZE);
+		if (!g_hid_shared_queue)
+			IOLog("LAPIS iomfb: hid queue alloc fail\n");
+		else
+			IOLog("LAPIS iomfb: hid queue ok\n");
+	}
+	return g_hid_shared_queue;
+}
+
 /*
- * boot149: HID CFPlugin opens our UC, calls sel0/sel1, then
- * set_notification_port_64 → stock IOUserClient::registerNotificationPort
- * returns Unsupported (0xe00002c7) → IOSCLOSE. Accept and remember nothing;
- * event delivery can be filled in later.
+ * boot149/150: HID CFPlugin opens UC → sel0 → map type0 → sel1 →
+ * set_notification_port_64. Stock registerNotificationPort is Unsupported;
+ * boot150 stubbed it to 0 but map still failed → BRK. Wire the port onto
+ * the shared HID IODataQueue so enqueue can signal userspace.
  * Image B-patches both jj/jy overloads onto this.
  */
 int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
+	void *q;
+
 	(void)self;
-	(void)port;
 	(void)type;
 	(void)ref;
+	q = lapis_hid_queue();
+	if (q && port)
+		IODataQueue_setNotificationPort(q, port);
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;
 }
 
 /*
- * boot94: after IOCoreSurfaceRoot open, clients need clientMemoryForType
- * (shared surface root mapping). Stock IOUserClient returns Unsupported.
+ * boot94/151: clientMemoryForType. HID type0 must be an IOSharedDataQueue
+ * mapping (IODataQueueMemory); plain withCapacity hits
+ * vm_map_remap_extract rejecting kernel_object (boot150 IOMAPMEM 0xe00002c2).
  * Image B-patches IOUserClient::clientMemoryForType onto this.
  */
 int lapis_client_memory_for_type(void *self, unsigned int type,
 				 unsigned int *options, void **memory)
 {
-	void *md;
+	void *md = 0;
+	void *q;
 
 	(void)self;
-	(void)type;
 	if (!memory)
 		return kIOReturnBadArgument;
 	*memory = 0;
 	if (options)
 		*options = 0;
-	/* 64 KiB RW buffer — enough for IOSurfaceRoot header probes. */
-	md = IOBufferMemoryDescriptor_withCapacity(0x10000, 3, 0);
+
+	/* type 0: HID EventService queue (also fine for other type0 probes). */
+	if (type == 0) {
+		q = lapis_hid_queue();
+		if (q)
+			md = IOSharedDataQueue_getMemoryDescriptor(q);
+		if (md) {
+			OSObject_retain(md);
+			*memory = md;
+			IOLog("LAPIS iomfb: cmap hidq ok\n");
+			return 0;
+		}
+	}
+
+	/* Fallback: KernelUserShared buffer (IOSurface / generic). */
+	md = IOBufferMemoryDescriptor_withOptions(LAPIS_IOMEM_KUS, 0x10000, 1);
+	if (!md)
+		md = IOBufferMemoryDescriptor_withCapacity(0x10000, 3, 0);
 	if (!md) {
 		IOLog("LAPIS iomfb: cmap no mem\n");
 		return kIOReturnNoMemory;
@@ -937,7 +987,13 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "VendorID", 0x5ac);
 		set_u32(obj, "ProductID", 1);
 		set_u32(obj, "LocationID", 1);
+		/*
+		 * boot150: EventServicePlugin CFProperty-gets QueueSize before
+		 * IOConnectMapMemory type0; missing → 0xe00002f0 then map BRK.
+		 */
+		set_u32(obj, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 		set_hid_cfplugin_types(obj);
+		(void)lapis_hid_queue();
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {

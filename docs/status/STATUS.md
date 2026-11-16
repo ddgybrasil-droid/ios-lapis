@@ -975,4 +975,8 @@ Image.pth74.
 
 ## Chunk 99 (boot150: registerNotificationPort success)
 
-| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ГИПОТЕЗА**: NOTE64 x0=0; HID conn stays open; IOMFB IOCONN follows. | out/logs/boot150 |
+| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ПРОВЕРЕНО**: NOTE64 **x0=0** (`regnote ok`). Then still **IOSCLOSE**. Root: after sel0, `QueueSize` **0xe00002f0**; `IOMAPMEM type0` → cmap ok but `vm_map_remap_extract` **"rejecting attempt to extract from kernel_object"** → **0xe00002c2**; later EXC/BRK `elr=0x1fe08dd44` FAR=`0x2079f4010`, BB SIGKILL. | out/logs/boot150 |
+
+## Chunk 100 (boot151: HID QueueSize + IOSharedDataQueue map)
+
+| boot151 | Image.pth81 | QueueSize=0x4000; clientMemory→IOSharedDataQueue; regnote→setNotificationPort | qemu11 43G lva=off | **ГИПОТЕЗА**: QueueSize x0=0; IOMAPMEM x0=0; no BB BRK; HID conn stays past NOTE64; IOMFB IOCONN follows. | out/logs/boot151 |
