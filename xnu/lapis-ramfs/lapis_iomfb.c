@@ -362,6 +362,13 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 		return ret;
 	st = (unsigned int *)((char *)s + 0x48);
 	*st = (*st & ~1u) | 0x1e;
+	/*
+	 * boot102: handler only sendPings when armed. Init leaves armed=0, so
+	 * the first queue never wakes a runloop waiter (FDR hang after forced
+	 * handler with no IOSOPEN). Arm before invoke (IOServiceUserNotification
+	 * armed @+0x48 — not IOService::__state).
+	 */
+	*((unsigned char *)target + 0x48) = 1;
 	((lapis_match_handler_t)handler)(target, ref, s, ret);
 	OSObject_release(s);
 	IOLog("LAPIS iomfb: forced match handler\n");

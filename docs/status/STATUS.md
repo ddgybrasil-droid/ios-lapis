@@ -642,4 +642,11 @@ Image.pth46 (ramfs cdd66f32…).
 - CES stub iterator uses OSSet (stock) + peek/re-reset; Image B-patches AMN @0xfffffe0007ac0930.
 Image.pth47 (ramfs 19ea0455…).
 
-| boot102 | Image.pth47 | force match handler after AMN | qemu11 43G lva=off | **ГИПОТЕЗА**: forced handler queues stub → FDR IOSOPEN→nuc. | out/logs/boot102 |
+| boot102 | Image.pth47 | force match handler after AMN | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES peek ok + **forced match handler** ran; RB sel=32 ok. FDR still hung — handler queues without ping because `armed` defaults 0 (`ldrb [userNotify,#0x48]`). | out/logs/boot102 |
+
+## Chunk 52 (boot103: arm userNotify before forced handler)
+
+- Before calling match handler, set `IOServiceUserNotification::armed` @+0x48 so first queue sendPings and wakes FDR runloop.
+Image.pth48 (ramfs 10c39b40…).
+
+| boot103 | Image.pth48 | arm userNotify before force handler | qemu11 43G lva=off | **ГИПОТЕЗА**: ping → FDR drain → IOSOPEN→nuc. | out/logs/boot103 |
