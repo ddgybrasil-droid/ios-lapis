@@ -282,12 +282,16 @@ def _iok(tag,ma,cnt):
         s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
     except Exception as e: s=['<%s>'%e]
     k=(n[0] if n else '?',tag,tuple(s))
-    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount') for x in s)
-    if k not in _iok_seen:
+    pn0=(n[0] if n else '') or ''
+    ui = ('backboard' in pn0.lower() or 'SpringBoard' in pn0 or 'springboard' in pn0.lower()
+          or 'runningboard' in pn0.lower())
+    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount','HIDServiceSupport') for x in s)
+    if k not in _iok_seen or ui:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
-    if interesting or tag=='service':
-        try: RetBP(r('x30'), 'IOKMATCH_RET %s proc=%s keys=%s'%(tag, n[0] if n else '?', ','.join(s[:6])))
+    # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
+    if interesting or tag=='service' or ui:
+        try: RetBP(r('x30'), 'IOKMATCH_RET %s proc=%s keys=%s'%(tag, pn0 or '?', ','.join(s[:6])))
         except Exception as e: P('ERR iok_ret %s'%e)
     return False
 BP('_is_io_service_get_matching_services_bin',lambda: _iok('services',r('x1'),r('x2')))
