@@ -36,9 +36,14 @@ GMS_PLURAL = 0x22C6CE7E0  # IOServiceGetMatchingServices
 NEXT = 0x22C6CE6E0  # IOIteratorNext
 REL = 0x22C6CE740  # IOObjectRelease
 # boot124: direct IOServiceOpen reached FDR IOSOPEN+nuc (x0=0); raw connect in
-# *out then crashed FDR (FAR=0x111f). boot125: alloc IOMFB object then Open.
+# *out then crashed FDR (FAR=0x111f). boot125: full ALLOC helper @0x2288065e4
+# never reached IOSOPEN (CFPrefs side-work / typed-malloc path). boot126:
+# lightweight typed-malloc 0xf30 + minimal field init, skip ALLOC prefs.
 IOSOPEN = 0x22C6CE800
-ALLOC = 0x2288065E4  # IOMobileFramebuffer connection object allocator
+TYPE_INIT = 0x22880686C  # fills malloc-type slot at TYPE_SLOT
+TYPED_MALLOC = 0x22C6CE8B0  # malloc_type_malloc(zone=0, type, size, 0)
+TYPE_SLOT_ADRP, TYPE_SLOT_OFF = 0x2801A3000, 0x520
+OBJ_SIZE = 0xF30
 # Master port GOT slot used by GetMatchingService callers (d50, not d48).
 MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD50
 TASK_ADRP, TASK_OFF = 0x277C1E000, 0xCF8
@@ -78,13 +83,12 @@ def enc_ldr_w(rt: int, rn: int, imm: int) -> int:
 
 
 def build_cave() -> list[int]:
-    """Matching → GetMatchingServices(&it) → Next → Open.
+    """Matching → GetMatchingServices(&it) → Next → light object → Open.
 
-    IOServiceGetMatchingServices(master, matching, io_iterator_t *existing)
-    returns kern_return_t and writes the iterator through x2 — boot118/120
-    wrongly treated x0 as the iterator. Singular GetMatchingService matched
-    in-kernel but returned a null userspace port for our publishResource
-    stubs; plural+Next is the proven path (boot112+).
+    boot125 called the full IOMFB ALLOC helper (typed malloc + CFPrefs init).
+    That never reached IOServiceOpen. boot126: resolve malloc-type, typed-malloc
+    0xf30, zero+minimal fields, IOServiceOpen into +0x14, *out=object. If the
+    light alloc fails, raw IOServiceOpen into *out (boot124) so FDR still opens.
     """
     code: list[int] = []
     pc = CAVE
@@ -121,7 +125,7 @@ def build_cave() -> list[int]:
     emit(0x910023E2)  # add x2, sp, #0x8  (&iterator)
     emit(enc_bl(pc, GMS_PLURAL))
     cbnz_kr = len(code)
-    emit(0)  # cbnz w0 → fail (kern_return_t)
+    emit(0)  # cbnz w0 → fail
     emit(0xB9400BF4)  # ldr w20, [sp, #0x8]  (iterator)
     cbz2 = len(code)
     emit(0)  # cbz w20 → fail
@@ -134,25 +138,70 @@ def build_cave() -> list[int]:
     cbz3 = len(code)
     emit(0)  # cbz w22 → fail
 
-    # Mirror IOMobileFramebufferOpen: alloc object, store service @+0x10,
-    # IOServiceOpen into +0x14, return object in *out.
-    emit(enc_bl(pc, ALLOC))
+    # --- light typed-malloc object (skip ALLOC CFPrefs) ---
+    emit(enc_adrp(8, pc, TYPE_SLOT_ADRP))
+    emit(enc_ldr_x(1, 8, TYPE_SLOT_OFF))  # type id
+    cbnz_type = len(code)
+    emit(0)  # cbnz x1 → have_type
+    emit(enc_bl(pc, TYPE_INIT))
+    emit(enc_adrp(8, pc, TYPE_SLOT_ADRP))
+    emit(enc_ldr_x(1, 8, TYPE_SLOT_OFF))
+    have_type = pc
+    cbz_type = len(code)
+    emit(0)  # cbz x1 → raw_fallback
+    emit(0xD2800000)  # movz x0, #0
+    emit(0x5281E602)  # movz w2, #0xf30
+    emit(0xD2800003)  # movz x3, #0
+    emit(enc_bl(pc, TYPED_MALLOC))
     emit(0xAA0003F5)  # mov x21, x0  (obj)
     cbz_obj = len(code)
-    emit(0)  # cbz x21 → fail
+    emit(0)  # cbz x21 → raw_fallback
+
+    # zero object (16-byte stores) then set Open-critical fields
+    emit(0x6F00E400)  # movi v0.2d, #0
+    emit(0xAA1503E8)  # mov x8, x21
+    emit(0x52801E69)  # movz w9, #0xf3  (0xf30/16)
+    zloop = pc
+    emit(0x3C810500)  # str q0, [x8], #16
+    emit(0x71000529)  # subs w9, w9, #1
+    bne_z = len(code)
+    emit(0)  # b.ne zloop
     emit(0xB90012B6)  # str w22, [x21, #0x10]  (service)
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB90C0AA8)  # str w8, [x21, #0xc08]
+    b_have = len(code)
+    emit(0)  # b have_obj
+
+    # --- raw fallback (boot124) ---
+    raw_fallback = pc
     emit(enc_adrp(8, pc, TASK_ADRP))
     emit(enc_ldr_x(8, 8, TASK_OFF))
-    emit(enc_ldr_w(1, 8, 0))  # task
+    emit(enc_ldr_w(1, 8, 0))
     emit(0xAA1603E0)  # mov x0, x22
     emit(0x52800002)  # movz w2, #0
+    emit(0xAA1303E3)  # mov x3, x19
+    emit(enc_bl(pc, IOSOPEN))
+    emit(0xAA0003F4)  # mov x20, x0
+    emit(0xAA1603E0)
+    emit(enc_bl(pc, REL))
+    emit(0xAA1403E0)
+    b_epi0 = len(code)
+    emit(0)  # b epi
+
+    # --- have_obj: IOServiceOpen into +0x14 ---
+    have_obj = pc
+    emit(enc_adrp(8, pc, TASK_ADRP))
+    emit(enc_ldr_x(8, 8, TASK_OFF))
+    emit(enc_ldr_w(1, 8, 0))
+    emit(0xAA1603E0)
+    emit(0x52800002)
     emit(0x910052A3)  # add x3, x21, #0x14
     emit(enc_bl(pc, IOSOPEN))
-    emit(0xAA0003F4)  # mov x20, x0  (kr)
-    emit(0xF9000275)  # str x21, [x19]  (*out = obj)
-    emit(0xAA1603E0)  # mov x0, x22
-    emit(enc_bl(pc, REL))  # release service from Next
-    emit(0xAA1403E0)  # mov x0, x20
+    emit(0xAA0003F4)
+    emit(0xF9000275)  # str x21, [x19]
+    emit(0xAA1603E0)
+    emit(enc_bl(pc, REL))
+    emit(0xAA1403E0)
     epi = pc
     emit(0xA9447BFD)
     emit(0xA9434FF4)
@@ -160,8 +209,8 @@ def build_cave() -> list[int]:
     emit(0x910143FF)
     emit(0xD65F03C0)
     fail = pc
-    emit(0x52805800)  # movz w0, #0x2c0
-    emit(0x72BC0000)  # movk w0, #0xe000, lsl #16
+    emit(0x52805800)
+    emit(0x72BC0000)
     emit(enc_b(pc, epi))
 
     def patch_cbz_x(idx: int, rt: int, tgt: int) -> None:
@@ -179,12 +228,31 @@ def build_cave() -> list[int]:
         imm19 = ((tgt - p) >> 2) & 0x7FFFF
         code[idx] = 0x35000000 | (imm19 << 5) | rt
 
+    def patch_cbnz_x(idx: int, rt: int, tgt: int) -> None:
+        p = CAVE + idx * 4
+        imm19 = ((tgt - p) >> 2) & 0x7FFFF
+        code[idx] = 0xB5000000 | (imm19 << 5) | rt
+
+    def patch_b(idx: int, tgt: int) -> None:
+        p = CAVE + idx * 4
+        code[idx] = enc_b(p, tgt)
+
+    def patch_bne(idx: int, tgt: int) -> None:
+        p = CAVE + idx * 4
+        imm19 = ((tgt - p) >> 2) & 0x7FFFF
+        code[idx] = 0x54000000 | (imm19 << 5) | 0x1  # b.ne
+
     patch_cbz_x(cbz0, 19, fail)
     patch_cbz_x(cbz1, 21, fail)
     patch_cbnz_w(cbnz_kr, 0, fail)
     patch_cbz_w(cbz2, 20, fail)
     patch_cbz_w(cbz3, 22, fail)
-    patch_cbz_x(cbz_obj, 21, fail)
+    patch_cbnz_x(cbnz_type, 1, have_type)
+    patch_cbz_x(cbz_type, 1, raw_fallback)
+    patch_cbz_x(cbz_obj, 21, raw_fallback)
+    patch_bne(bne_z, zloop)
+    patch_b(b_have, have_obj)
+    patch_b(b_epi0, epi)
     return code
 
 

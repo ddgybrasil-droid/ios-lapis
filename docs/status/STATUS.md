@@ -823,4 +823,12 @@ Image.pth68.
 - Image.pth69 + DSC cave.
 Image.pth69.
 
-| boot125 | Image.pth69 | IOMFB alloc+Open wrap cave | qemu11 43G lva=off | **ГИПОТЕЗА**: proper IOMFB object in *out → FDR past open without FAR=0x111f. | out/logs/boot125 |
+| boot125 | Image.pth69 | IOMFB alloc+Open wrap cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next obj=0x99a6d6c0 but **no FDR IOSOPEN** — full ALLOC helper @0x2288065e4 (typed-malloc + CFPrefs init) never returns a usable object to the cave. | out/logs/boot125 |
+
+## Chunk 75 (boot126: light typed-malloc object + Open)
+
+- Skip full ALLOC CFPrefs path. After Next: ensure malloc-type slot → typed-malloc(0xf30) → zero + service@+0x10 + flag@+0xc08 → IOServiceOpen into +0x14 → *out=obj. Null → raw IOSOPEN fallback (boot124).
+- Image.pth70 (=pth69) + DSC cave.
+Image.pth70.
+
+| boot126 | Image.pth70 | light typed-malloc + Open cave | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR IOSOPEN+nuc with heap IOMFB object in *out → past FAR=0x111f. | out/logs/boot126 |
