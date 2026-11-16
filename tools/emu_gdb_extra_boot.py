@@ -262,7 +262,7 @@ def _iok(tag,ma,cnt):
         s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
     except Exception as e: s=['<%s>'%e]
     k=(n[0] if n else '?',tag,tuple(s))
-    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService') for x in s)
+    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService') for x in s)
     if k not in _iok_seen:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.

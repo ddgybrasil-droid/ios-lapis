@@ -212,27 +212,37 @@ for site, want_prolog, tgt, label in (
     wr32(img, site, b(site, tgt))
     assert decode_b(rd32(img, site), site) == tgt
 
-# --- IOService::copyMatchingService → lapis_copyMatchingService ---
+# --- IOService::{copyMatchingService,getMatchingServices} → lapis_* ---
 # Prefer publishResource stubs via copyProperty (not IOResources publisher).
-# Trampoline: saved prologue stp + b orig+4.
+# getMatchingServices (plural) does not call copyMatchingService — trampoline
+# both. Prologue for both is stp x20,x19,[sp,#-0x20]!
 CMS = 0xfffffe0007ac0444
+GMS = 0xfffffe0007ac03fc
 CMS_PROLOGUE = 0xa9be4ff4  # stp x20, x19, [sp, #-0x20]!
 cms_hook = sym('lapis_copyMatchingService')
 cms_orig = sym('lapis_copyMatchingService_orig')
+gms_hook = sym('lapis_getMatchingServices')
+gms_orig = sym('lapis_getMatchingServices_orig')
 for name, va in (('lapis_copyMatchingService', cms_hook),
-                 ('lapis_copyMatchingService_orig', cms_orig)):
+                 ('lapis_copyMatchingService_orig', cms_orig),
+                 ('lapis_getMatchingServices', gms_hook),
+                 ('lapis_getMatchingServices_orig', gms_orig)):
     if not (BLOB_VA <= va < BLOB_VA + len(blob)):
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
-cur = rd32(img, CMS)
-if cur != CMS_PROLOGUE and decode_b(cur, CMS) != cms_hook:
-    raise SystemExit(
-        'copyMatchingService @%#x insn %#x neither stock %#x nor b %#x'
-        % (CMS, cur, CMS_PROLOGUE, cms_hook))
-wr32(img, cms_orig, CMS_PROLOGUE)
-wr32(img, cms_orig + 4, b(cms_orig + 4, CMS + 4))
-wr32(img, CMS, b(CMS, cms_hook))
-assert decode_b(rd32(img, CMS), CMS) == cms_hook
-assert rd32(img, cms_orig) == CMS_PROLOGUE
+for site, want, hook, orig, label in (
+    (CMS, CMS_PROLOGUE, cms_hook, cms_orig, 'copyMatchingService'),
+    (GMS, CMS_PROLOGUE, gms_hook, gms_orig, 'getMatchingServices'),
+):
+    cur = rd32(img, site)
+    if cur != want and decode_b(cur, site) != hook:
+        raise SystemExit(
+            '%s @%#x insn %#x neither stock %#x nor b %#x'
+            % (label, site, cur, want, hook))
+    wr32(img, orig, want)
+    wr32(img, orig + 4, b(orig + 4, site + 4))
+    wr32(img, site, b(site, hook))
+    assert decode_b(rd32(img, site), site) == hook
+    assert rd32(img, orig) == want
 
 # --- IOUserClient::externalMethod → always success ---
 # Stock IOUserClient has no methods; GPU/IOMFB clients IOConnectCall after open
@@ -261,4 +271,5 @@ print('  SITE %#x -> amfi_boot; amfi_boot+8 -> LSTC %#x; amfi_boot+0x14 -> AIR %
 print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
     NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
+print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
 print('  externalMethod %#x -> mov w0,#0; ret' % EM)

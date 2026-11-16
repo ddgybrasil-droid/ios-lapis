@@ -573,4 +573,11 @@ Image.pth37 sha256 a671daafe9d06d944533e44dcfc3e2eda286af385bb332a0a65bea1ce8716
 - B-patch `externalMethod` → `mov w0,#0; ret`; GDB logs selectors; fix `cur_pname` truncation-on-error (`proc=C`).
 Image.pth38 sha256 65f761b218384a3e86e8d79d52cb22ce5d1fa0e4dcb82f4622515d9dd11bba6d.
 
-| boot93 | Image.pth38 | externalMethod success + pname fix | qemu11 43G lva=off | running… | out/logs/boot93 |
+| boot93 | Image.pth38 | externalMethod success + pname fix | qemu11 43G lva=off | **ПРОВЕРЕНО**: runningboardd IOGPU match→nuc→IOEXTMETHOD sel 2/0/4 x0=0; then **getMatchingServices IONameMatch IOCoreSurfaceRoot** (plural path, no copyMatchingService). | out/logs/boot93 |
+
+## Chunk 43 (boot94: getMatchingServices + IOCoreSurfaceRoot)
+
+- Publish `IOCoreSurfaceRoot`; hook `getMatchingServices` to return a one-element `OSCollectionIterator` over the published stub.
+Image.pth39 sha256 9d794a40f61a4497d57d6c2c95d3543fbbfbd7909d47810748cd074b23a5cc8a.
+
+| boot94 | Image.pth39 | GMS iterator + IOCoreSurfaceRoot | qemu11 43G lva=off | running… | out/logs/boot94 |

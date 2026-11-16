@@ -66,20 +66,32 @@ extern const char *OSString_getCStringNoCopy(void *)
 	__asm__("_ZNK8OSString16getCStringNoCopyEv");
 extern void *IORegistryEntry_copyProperty(void *, const char *)
 	__asm__("_ZNK15IORegistryEntry12copyPropertyEPKc");
+extern void *OSArray_withCapacity(unsigned int)
+	__asm__("_ZN7OSArray12withCapacityEj");
+extern int OSArray_setObject(void *, const void *)
+	__asm__("_ZN7OSArray9setObjectEPK15OSMetaClassBase");
+extern void *OSCollectionIterator_withCollection(const void *)
+	__asm__("_ZN20OSCollectionIterator14withCollectionEPK12OSCollection");
+extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 
 /*
- * Trampoline to original IOService::copyMatchingService.
- * patch_kernel_ramfs_replace.py overwrites the first 8 bytes with:
- *   <saved CMS prologue stp>; b copyMatchingService+4
- * Keep exactly two patchable instructions at the entry (no compiler prologue).
+ * Trampolines overwritten by patch_kernel_ramfs_replace.py:
+ *   <saved prologue stp>; b orig+4
  */
 void *lapis_copyMatchingService_orig(void *dict);
+void *lapis_getMatchingServices_orig(void *dict);
 __asm__(
 	".text\n"
 	".align 2\n"
 	".global lapis_copyMatchingService_orig\n"
 	".type lapis_copyMatchingService_orig, %function\n"
 	"lapis_copyMatchingService_orig:\n"
+	"\tnop\n"
+	"\tnop\n"
+	"\tret\n"
+	".global lapis_getMatchingServices_orig\n"
+	".type lapis_getMatchingServices_orig, %function\n"
+	"lapis_getMatchingServices_orig:\n"
 	"\tnop\n"
 	"\tnop\n"
 	"\tret\n"
@@ -131,6 +143,7 @@ static int is_lapis_match_name(const char *name)
 {
 	return streq(name, "IOGPU") || streq(name, "IOGPUDevice") ||
 	       streq(name, "IOMobileFramebuffer") || streq(name, "IOSurfaceRoot") ||
+	       streq(name, "IOCoreSurfaceRoot") ||
 	       streq(name, "IOHIDEventService") || streq(name, "AppleKeyStore") ||
 	       streq(name, "AppleCLCD") || streq(name, "AGXAccelerator") ||
 	       streq(name, "IOAccelerator");
@@ -153,34 +166,79 @@ static void *lapis_published_stub(const char *name)
 	if (!root)
 		return 0;
 	s = IORegistryEntry_copyProperty(root, name);
+	/* boot93: runningboardd name-matches IOCoreSurfaceRoot after IOGPU. */
+	if (!s && streq(name, "IOCoreSurfaceRoot"))
+		s = IORegistryEntry_copyProperty(root, "IOSurfaceRoot");
 	if (s)
 		IOLog("LAPIS iomfb: match via resource\n");
 	return s;
 }
 
-void *lapis_copyMatchingService(void *dict)
+static const char *lapis_match_dict_name(void *dict)
 {
-	void *s, *val;
-	const char *name;
+	void *val;
 
 	if (!dict)
-		return lapis_copyMatchingService_orig(dict);
-
-	/* Prefer our published stubs for known class/name/resource keys. */
+		return 0;
 	val = OSDictionary_getObject_cstr(dict, "IOProviderClass");
 	if (!val)
 		val = OSDictionary_getObject_cstr(dict, "IONameMatch");
 	if (!val)
 		val = OSDictionary_getObject_cstr(dict, "IOResourceMatch");
-	if (val) {
-		name = OSString_getCStringNoCopy(val);
+	if (!val)
+		return 0;
+	return OSString_getCStringNoCopy(val);
+}
+
+void *lapis_copyMatchingService(void *dict)
+{
+	void *s;
+	const char *name;
+
+	if (!dict)
+		return lapis_copyMatchingService_orig(dict);
+
+	name = lapis_match_dict_name(dict);
+	if (name) {
 		s = lapis_published_stub(name);
 		if (s)
 			return s;
 	}
+	return lapis_copyMatchingService_orig(dict);
+}
 
-	s = lapis_copyMatchingService_orig(dict);
-	return s;
+/*
+ * boot93: getMatchingServices (plural) does not call copyMatchingService — it
+ * walks the registry (metaCast/name miss). Return a one-shot iterator over our
+ * published stub so IONameMatch("IOCoreSurfaceRoot") etc. succeed.
+ */
+void *lapis_getMatchingServices(void *dict)
+{
+	void *s, *arr, *it;
+	const char *name;
+
+	if (!dict)
+		return lapis_getMatchingServices_orig(dict);
+
+	name = lapis_match_dict_name(dict);
+	if (name) {
+		s = lapis_published_stub(name);
+		if (s) {
+			arr = OSArray_withCapacity(1);
+			if (arr && OSArray_setObject(arr, s)) {
+				it = OSCollectionIterator_withCollection(arr);
+				OSObject_release(s);
+				OSObject_release(arr);
+				if (it)
+					return it;
+			} else {
+				OSObject_release(s);
+				if (arr)
+					OSObject_release(arr);
+			}
+		}
+	}
+	return lapis_getMatchingServices_orig(dict);
 }
 
 /*
@@ -342,12 +400,15 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 
 void lapis_iomfb_register(void)
 {
-	struct lapis_mc iomfb, surface, hid, aks, gpu, gpudev, clcd, agx, accel;
+	struct lapis_mc iomfb, surface, coresurf, hid, aks, gpu, gpudev, clcd, agx, accel;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
 	if (register_mc(&surface, "IOSurfaceRoot") == 0)
 		IOLog("LAPIS iomfb: metaclass IOSurfaceRoot ok\n");
+	/* runningboardd IONameMatch IOCoreSurfaceRoot after IOGPU (boot93). */
+	if (register_mc(&coresurf, "IOCoreSurfaceRoot") == 0)
+		IOLog("LAPIS iomfb: metaclass IOCoreSurfaceRoot ok\n");
 	if (register_mc(&hid, "IOHIDEventService") == 0)
 		IOLog("LAPIS iomfb: metaclass IOHIDEventService ok\n");
 	/* containermanagerd matches AppleKeyStore before creating system containers */
@@ -370,6 +431,7 @@ void lapis_iomfb_register(void)
 
 	publish_one(&iomfb, 0);
 	publish_one(&surface, 0);
+	publish_one(&coresurf, 0);
 	publish_one(&hid, 1);
 	publish_one(&aks, 0);
 	publish_one(&gpu, 0);
