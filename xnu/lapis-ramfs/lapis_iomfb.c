@@ -38,6 +38,10 @@ extern int IOService_start(void *, void *) __asm__("_ZN9IOService5startEPS_");
 extern void IOService_registerService(void *, unsigned int)
 	__asm__("_ZN9IOService15registerServiceEj");
 extern void *IOService_getServiceRoot(void) __asm__("_ZN9IOService14getServiceRootEv");
+extern void *IOService_getResourceService(void)
+	__asm__("_ZN9IOService18getResourceServiceEv");
+extern void IOService_publishResource(const char *, void *)
+	__asm__("_ZN9IOService15publishResourceEPKcP8OSObject");
 extern void IORegistryEntry_setName(void *, const char *, const void *)
 	__asm__("_ZN15IORegistryEntry7setNameEPKcPK15IORegistryPlane");
 extern void IORegistryEntry_setProperty_bool(void *, const char *, unsigned char)
@@ -211,12 +215,29 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", m->name);
 	}
 
-	root = IOService_getServiceRoot();
-	if (root)
-		IOService_attach(obj, root);
-	/* Do not call IOService::start here: stub objects have no start logic,
-	 * and matching already works after attach+registerService (boot85). */
+	/*
+	 * boot88: getMatchingService(IOGPU) returned kIOReturnOffline (0xe00002f0).
+	 * Stubs were attached to the service root without start() — IOKit leaves
+	 * them offline for matching. Attach to IOResources, start(), then
+	 * registerService + publishResource so IOServiceMatching can find them.
+	 */
+	root = IOService_getResourceService();
+	if (!root)
+		root = IOService_getServiceRoot();
+	if (!root) {
+		IOLog("LAPIS iomfb: no provider root\n");
+		return;
+	}
+	if (!IOService_attach(obj, root)) {
+		IOLog("LAPIS iomfb: attach fail\n");
+		return;
+	}
+	if (!IOService_start(obj, root)) {
+		IOLog("LAPIS iomfb: start fail\n");
+		/* still try to publish — some classes start()=false but remain usable */
+	}
 	IOService_registerService(obj, 0);
+	IOService_publishResource(m->name, obj);
 	IOLog("LAPIS iomfb: published instance\n");
 }
 

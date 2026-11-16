@@ -533,4 +533,12 @@ Image.pth32 sha256 9e4f11e70ae4a73effabf7818abd4ee0d825404b0da96354942697e3f73d8
 - GDB: `IOKMATCH_RET` logs getMatchingService x0 (prove whether IOGPU match returns non-null).
 Image.pth33 sha256 98e73734c385452ba5ab1ce062eb07d35ee4d0d27150300743b282d0434bb376.
 
-| boot88 | Image.pth33 | IOGPUDevice + IOKMATCH_RET | qemu11 43G lva=off | running… | out/logs/boot88 |
+| boot88 | Image.pth33 | IOGPUDevice + IOKMATCH_RET | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOKMATCH_RET IOGPU x0=0xe00002f0 (kIOReturnOffline) — stubs never successfully matched; same for AppleKeyStore. | out/logs/boot88 |
+
+## Chunk 38 (boot89: attach IOResources + start + publishResource)
+
+- **Root cause (boot88)**: `getMatchingService(IOGPU)` returns `kIOReturnOffline` (0xe00002f0). Prior IOKMATCH logs were call-only false positives.
+- Fix: attach to `getResourceService()`, call `start()`, `registerService` + `publishResource(name)`.
+Image.pth34 sha256 ba865e29eae43313004de830e057bb8bef83af48aa7528290466944e6e2ba9c9.
+
+| boot89 | Image.pth34 | IOResources attach+start+publishResource | qemu11 43G lva=off | running… | out/logs/boot89 |
