@@ -469,4 +469,14 @@ Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKU
 Fix: `tools/patch_kernel_platform_binary.py` also ORs `CS_VALID` (cave 0x...6100..6113).
 Image.pth25 = Image.pth24 + that patch (sha256 8cafa8061fc7192d91a6061e9e3562088c29ddafd6116cc79a47d0e5c53f63c6).
 
-| boot79 | Image.pth25 | OR CS_VALID in proc_getcsflags return | qemu11 43G lva=off | running… | out/logs/boot79 |
+| boot79 | Image.pth25 | OR CS_VALID in proc_getcsflags return | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SBSTATIC_STATUS status=0x24000001 pass=1`; **0** SpringBoard SIGABRT / platformBinary assert; SB+backboardd+runningboardd reach `service state: running`. Next: XPC `com.apple.runningboard` still x0=0 (runningboardd IOKMATCH **IOGPU** absent); UserEventAgent SIGKILL on `/usr/lib/dyld` invalid pages (status 0x25003201 deny); no SB/backboard IOKMATCH for IOMFB yet. | out/logs/boot79 |
+
+## Chunk 31 (boot80: IOGPU + always-allow cs_invalid + SB seeds)
+
+Fix:
+- `lapis_iomfb.c`: publish **IOGPU** + **AppleCLCD** stubs (runningboardd gated on IOGPU).
+- `patch_kernel_cs_invalid_always_allow.py`: soft path always allow (UserEventAgent dyld SIGKILL).
+- `apply_springboard_seeds.sh`: mobile Library/SpringBoard + caches + container dirs.
+Image.pth26 sha256 d5441392b10ee7ed96b4b5779fca128319d8943b8ce22702ab5dd8f229df21b7.
+
+| boot80 | Image.pth26 | IOGPU/CLCD stubs + cs_invalid always-allow + SB seeds | qemu11 43G lva=off | running… | out/logs/boot80 |

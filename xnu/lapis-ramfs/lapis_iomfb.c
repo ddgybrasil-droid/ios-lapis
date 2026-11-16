@@ -135,7 +135,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 
 void lapis_iomfb_register(void)
 {
-	struct lapis_mc iomfb, surface, hid, aks;
+	struct lapis_mc iomfb, surface, hid, aks, gpu, clcd;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
@@ -146,9 +146,17 @@ void lapis_iomfb_register(void)
 	/* containermanagerd matches AppleKeyStore before creating system containers */
 	if (register_mc(&aks, "AppleKeyStore") == 0)
 		IOLog("LAPIS iomfb: metaclass AppleKeyStore ok\n");
+	/* runningboardd matches IOGPU before advertising com.apple.runningboard */
+	if (register_mc(&gpu, "IOGPU") == 0)
+		IOLog("LAPIS iomfb: metaclass IOGPU ok\n");
+	/* display pipeline probes AppleCLCD / IODisplayWrangler-class names */
+	if (register_mc(&clcd, "AppleCLCD") == 0)
+		IOLog("LAPIS iomfb: metaclass AppleCLCD ok\n");
 
 	publish_one(&iomfb, 0);
 	publish_one(&surface, 0);
 	publish_one(&hid, 1);
 	publish_one(&aks, 0);
+	publish_one(&gpu, 0);
+	publish_one(&clcd, 0);
 }
