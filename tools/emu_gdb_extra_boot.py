@@ -274,6 +274,7 @@ def _uframes(tag, extra=''):
     P('%s proc=%s pc=%#x lr=%#x %s FRAMES %s'%(tag,cur_pname(),pc,lr,extra,' '.join('%#x'%x for x in ch)))
 def on_pkill():
     try:
+        if '_dsc_arm' in globals(): _dsc_arm()
         sig=m64(r('x1')+8)&0xffffffff
         if sig==6: _uframes('SIGABRT_PTHREAD_KILL')
     except Exception as e: P('PKILL err %r'%e)
@@ -322,6 +323,7 @@ DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0
           'container_system_path_for_identifier':0x1e276a4e8,
           'container_legacy_lookup':0x1e275de24,
           'err':0x18f098f44,
+          'abort':0x18f099c04,
           'abort_with_reason':0x23226a5f0}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
@@ -336,14 +338,19 @@ def _dsc_ret():
 # current address space, so inserting them in a context where the VA is unmapped (boot54) left the
 # cached translations of the shared-cache code without the breakpoint and they never fired.
 def _dsc_arm():
-    if _dsc['slide'] is None or _dsc.get('armed'): return
+    if _dsc['slide'] is None: return
     p=cur_pname()
     if not p or p[0] in ('launchd','?'): return
-    try: uread(DSC_SYMS['xpc_look_up_endpoint']+_dsc['slide'],4)
+    # Re-arm in SpringBoard so TCG BPs bind in the crashing process AS.
+    key='armed_'+p[0]
+    if _dsc.get(key): return
+    try: uread(DSC_SYMS['err']+_dsc['slide'],4)
     except Exception: return
+    for n,a in DSC_SYMS.items():
+        BP('u_%s_%s'%(p[0],n),_ufn(n),a+_dsc['slide'])
+    _dsc[key]=1
     _dsc['armed']=1
-    for n,a in DSC_SYMS.items(): BP('u_'+n,_ufn(n),a+_dsc['slide'])
-    P('DSC_BPS armed in proc=%s'%p)
+    P('DSC_BPS armed in proc=%s slide=%#x err=%#x'%(p,_dsc['slide'],DSC_SYMS['err']+_dsc['slide']))
 def on_vsrsa():
     if _dsc['slide'] is None: _dsc['pend'][r('sp')]=r('x1'); RetBP2(r('x30'),_dsc_ret)
     return False
@@ -374,8 +381,11 @@ def _ufn(n):
         elif n=='err':
             try: fmt=ustr(r('x1'),256) if r('x1') else None
             except Exception: fmt=None
-            P('ERR eval=%d fmt=%r x2=%#x proc=%s'%(r('x0')&0xffffffff,fmt,r('x2'),pn))
+            P('ERR eval=%d fmt=%r x2=%#x lr=%#x proc=%s'%(r('x0')&0xffffffff,fmt,r('x2'),r('x30'),pn))
             _uframes('ERR_FRAMES')
+        elif n=='abort':
+            P('ABORT lr=%#x proc=%s'%(r('x30'),pn))
+            if pn=='SpringBoard': _uframes('ABORT_FRAMES')
         elif n=='abort_with_reason':
             try: reason=ustr(r('x3'),256) if r('x3') else None
             except Exception: reason=None
