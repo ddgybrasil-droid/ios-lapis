@@ -28,12 +28,10 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as e:
                     extra+=' obj_err=%r'%e
             if t.startswith('XPC_LOOKUP_RET'):
-                # boot137: boot55 reached HIDServiceSupport when ACCHW/RB lookups
-                # returned 0x9f (sandbox). Modern boots get ports then stall on half-up
-                # RB. Force the boot55 miss for backboardd only (SB still uses RB).
-                # boot138: same BRK (pthread_mutex_firstfit_wake / malloc freelist) with
-                # or without HID CES — forced x0=0x9f but out-port still set
-                # (x7*=0x1903). Clear out-port so BB cannot use a half-open RB conn.
+                # boot137/139: force BB ACCHW/RB → 0x9f and CLEAR out-ports.
+                # boot141 regression: CLEARED missing — global _xl_out raced with
+                # other XPC_LOOKUPs; ports stayed live → pthread/malloc BRK again.
+                # Out-port ptrs are now embedded in the RetBP tag (out4=/out6=/out7=).
                 force_bb = ("proc=backboardd" in t and (
                         "name='com.apple.runningboard'" in t or
                         "name='com.apple.ACCHWComponentAuthService'" in t))
@@ -45,24 +43,39 @@ class _RetSite(gdb.Breakpoint):
                     except Exception as e:
                         extra += ' force_err=%r' % e
                 try:
-                    sp0,x4,x6,x7=_dsc.get('_xl_out',(0,0,0,0))
-                    for label,ptr in (('x4',x4),('x6',x6),('x7',x7)):
-                        if not ptr: continue
-                        if 0x100000000 <= ptr < 0x300000000 or (ptr>>40)==0xfffffe:
+                    def _tag_ptr(key):
+                        if key not in t:
+                            return 0
+                        try:
+                            return int(t.split(key)[1].split()[0], 16)
+                        except Exception:
+                            return 0
+                    x4, x6, x7 = _tag_ptr('out4='), _tag_ptr('out6='), _tag_ptr('out7=')
+                    if not (x4 or x6 or x7):
+                        # Fallback for older tags.
+                        sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
+                    for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
+                        if not ptr:
+                            continue
+                        if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
                             try:
                                 if force_bb:
-                                    # Zero mach_port_t out-param (32-bit name).
-                                    gdb.selected_inferior().write_memory(ptr, b'\x00\x00\x00\x00')
-                                    extra+=' %s*=CLEARED'%label
+                                    gdb.selected_inferior().write_memory(
+                                        ptr, b'\x00\x00\x00\x00')
+                                    extra += ' %s*=CLEARED' % label
                                 else:
-                                    v=m64(ptr); extra+=' %s*=%#x'%(label,v)
-                                    if v and v < 0x10000: extra+='(port?)'
+                                    v = m64(ptr)
+                                    extra += ' %s*=%#x' % (label, v)
+                                    if v and v < 0x10000:
+                                        extra += '(port?)'
                             except Exception:
-                                try: extra+=' %s*=w:%#x'%(label,m32(ptr))
-                                except Exception: pass
+                                try:
+                                    extra += ' %s*=w:%#x' % (label, m32(ptr))
+                                except Exception:
+                                    pass
                 except Exception as e:
-                    extra+=' xl_err=%r'%e
-            P('RET %s x0=%#x%s'%(t,x0,extra))
+                    extra += ' xl_err=%r' % e
+            P('RET %s x0=%#x%s' % (t, x0, extra))
         return False
 def RetBP(addr,tag):
     if addr not in _ret_bps:
@@ -473,10 +486,13 @@ def _ufn(n):
                 # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
                 # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
                 # Save likely out-port pointers (ABI variants use x4/x6/x7).
+                # Embed out-port ptrs in the ret tag — global _xl_out races (boot141).
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
-                RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
+                RetBP(r('x30'),
+                      "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
+                          pn, name, r('x4'), r('x6'), r('x7')))
         elif n=='container_xpc_create_connection':
             P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))
         elif n=='container_legacy_lookup':

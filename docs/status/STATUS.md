@@ -939,4 +939,8 @@ Image.pth74.
 
 ## Chunk 90 (boot141: post-IOMFB-open IOKit trace)
 
-| boot141 | Image.pth75 | IOCONN+IOREGPROP+IOMAPMEM hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open MIG methods/properties reveal next display stub gap. | out/logs/boot141 |
+| boot141 | Image.pth75 | IOCONN+IOREGPROP+IOMAPMEM hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: regression — **no CLEARED** on forced XPC (global `_xl_out` race); same unslid mutex BRK `0x1e261dd44` after HID CES; never reached IOMFB/CM_SYSPATH. IOCONN hooks unused. Next: embed out4/out6/out7 in RetBP tag. | out/logs/boot141 |
+
+## Chunk 91 (boot142: race-free XPC out-port clear)
+
+| boot142 | Image.pth75 | tag-embedded out-port CLEARED | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable CLEARED restores boot140 path (CM_SYSPATH → IOMFB open). | out/logs/boot142 |
