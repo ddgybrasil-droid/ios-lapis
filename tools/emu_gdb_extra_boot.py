@@ -27,6 +27,20 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
+            if t.startswith('XPC_LOOKUP_RET'):
+                try:
+                    sp0,x4,x6,x7=_dsc.get('_xl_out',(0,0,0,0))
+                    for label,ptr in (('x4',x4),('x6',x6),('x7',x7)):
+                        if not ptr: continue
+                        if 0x100000000 <= ptr < 0x300000000 or (ptr>>40)==0xfffffe:
+                            try:
+                                v=m64(ptr); extra+=' %s*=%#x'%(label,v)
+                                if v and v < 0x10000: extra+='(port?)'
+                            except Exception:
+                                try: extra+=' %s*=w:%#x'%(label,m32(ptr))
+                                except Exception: pass
+                except Exception as e:
+                    extra+=' xl_err=%r'%e
             P('RET %s x0=%#x%s'%(t,x0,extra))
         return False
 def RetBP(addr,tag):
@@ -416,10 +430,14 @@ def _ufn(n):
         if n=='xpc_look_up_endpoint':
             name=ustr(r('x0'),128)
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
-            if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager','runningboardd')) and _xl_cnt[k]<=3:
+            if (('containermanager' in name or 'cfprefs' in name or
+                 pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd'))
+                and _xl_cnt[k]<=5):
                 # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
                 # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
                 # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
+                # Save likely out-port pointers (ABI variants use x4/x6/x7).
+                _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
                 RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))

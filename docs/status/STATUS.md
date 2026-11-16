@@ -839,4 +839,12 @@ Image.pth70.
 - Image.pth71 (=pth70) + DSC cave.
 Image.pth71.
 
-| boot127 | Image.pth71 | richer IOMFB object init + Open | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR past open without exit=1; reach IOConnect/HID path. | out/logs/boot127 |
+| boot127 | Image.pth71 | richer IOMFB object init + Open | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR IOSOPEN+nuc, no FAR=0x111f (same as boot126). FDR `exit=1` is post-open (GetServiceObject ok path; missing AMFDR/panel cal). SpringBoard reaches `XPC_LOOKUP cfprefsd` (x0=0) — next wall. | out/logs/boot127 |
+
+## Chunk 77 (boot128: cfprefsd daemon shm + XPC port dump)
+
+- IOMFB open path holds. Next wall: cfprefsd never creates `apple.cfprefs.*.daemonv1` (clients get ENOENT on O_RDWR); FeatureFlags dir seeded for init_featureflags; XPC_LOOKUP_RET now dumps out-port words.
+- Image.pth72 (=pth71) + FeatureFlags/ManagedPreferences dirs.
+Image.pth72.
+
+| boot128 | Image.pth72 | cfprefsd shm + XPC port diagnostics | qemu11 43G lva=off | **ГИПОТЕЗА**: see whether cfprefsd check-in port is live and why daemonv1 shm is never created. | out/logs/boot128 |
