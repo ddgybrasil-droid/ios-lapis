@@ -670,4 +670,12 @@ Image.pth50 (ramfs a11cef40…).
 - Same deferred path but call `copyNextObject` (retained) instead of poisoned `getNextObject`.
 Image.pth51.
 
-| boot106 | Image.pth51 | deferred ping via copyNextObject | qemu11 43G lva=off | **ГИПОТЕЗА**: deferred ping completes → FDR IOSOPEN→nuc. | out/logs/boot106 |
+| boot106 | Image.pth51 | deferred ping via copyNextObject | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+forced+scheduled+**deferred ping** (no panic); still **no FDR IOSOPEN**. 200ms still before FDR mach_msg wait under QEMU — ping lost; queue holds stub, nobody wakes. cfprefsd still burns CPU; SpringBoard respawns. | out/logs/boot106 |
+
+## Chunk 56 (boot107: long deferred ping + retries)
+
+- Keep copyNextObject drain; initial IOSleep **3000ms**, then **8×** drain→arm→AMN-handler requeue→ping with 1s gaps (heap ctx with handler/ref/notifier — same path as force).
+- Tag IOMFB stub `IOMFBMainDisplay` + `IOMFBDisplayExternal=0` for GetMainDisplay/embedded match.
+Image.pth52 (ramfs 14e4fa7b…).
+
+| boot107 | Image.pth52 | long deferred IOMFB notify retries | qemu11 43G lva=off | **ГИПОТЕЗА**: retry pings after FDR listens → IOSOPEN→nuc. | out/logs/boot107 |
