@@ -1,0 +1,12 @@
+Image.pth77 = Image.pth76 + lapis_iomfb.c:
+  - NUC sets IOClass=IOMobileFramebufferUserClient + LapisUC
+  - conformsTo force-true for IOMobileFramebufferUserClient / IOUserClient on LapisUC
+
+Also (fullroot, not Image): apply_springboard_seeds.sh adds
+  usr/appleinternal/lib/HIDPlugins/{,SessionFilters,ServicePlugins,ConnectionPlugins}
+  (boot146 BB NAMEI'd /usr/appleinternal/lib/HIDPlugins)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth76 /tmp/Image.pth77
+  bash tools/apply_springboard_seeds.sh /tmp/fullroot-mnt2.img

@@ -205,39 +205,68 @@ for site, want_prolog, tgt, label in (
     (NUC_IORES, NUC_UNSUPPORTED, nuc, 'iores'),
 ):
     cur = rd32(img, site)
-    if cur != want_prolog and decode_b(cur, site) != tgt:
+    # Accept stock prologue, already-correct B, or stale B from a prior blob
+    # (symbol addresses shift when ramfs grows — rewrite to the new target).
+    if cur != want_prolog and decode_b(cur, site) is None:
         raise SystemExit(
-            'newUserClient %s @%#x insn %#x neither stock %#x nor b %#x'
-            % (label, site, cur, want_prolog, tgt))
+            'newUserClient %s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want_prolog))
     wr32(img, site, b(site, tgt))
     assert decode_b(rd32(img, site), site) == tgt
 
-# --- IOService::{copyMatchingService,getMatchingServices} → lapis_* ---
+# --- IOService::{copyMatchingService,getMatchingServices,copyExistingServices} → lapis_* ---
 # Prefer publishResource stubs via copyProperty (not IOResources publisher).
 # getMatchingServices (plural) does not call copyMatchingService — trampoline
-# both. Prologue for both is stp x20,x19,[sp,#-0x20]!
+# both. Prologue for CMS/GMS is stp x20,x19,[sp,#-0x20]!.
+# boot99: AddMatchingNotification → installNotification → copyExistingServices
+# (NOT GMS). CES prologue is sub sp,#0x70. IOMFB_FDR only uses the notify path.
 CMS = 0xfffffe0007ac0444
 GMS = 0xfffffe0007ac03fc
+CES = 0xfffffe0007ab5758
+# boot102: force match handler after stock drain (FDR still hung post-reset).
+AMN = 0xfffffe0007ac0930  # IOService::addMatchingNotification(6-arg)
 CMS_PROLOGUE = 0xa9be4ff4  # stp x20, x19, [sp, #-0x20]!
+CES_PROLOGUE = 0xd101c3ff  # sub sp, sp, #0x70
+AMN_PROLOGUE = 0xd10103ff  # sub sp, sp, #0x40
 cms_hook = sym('lapis_copyMatchingService')
 cms_orig = sym('lapis_copyMatchingService_orig')
 gms_hook = sym('lapis_getMatchingServices')
 gms_orig = sym('lapis_getMatchingServices_orig')
+ces_hook = sym('lapis_copyExistingServices')
+ces_orig = sym('lapis_copyExistingServices_orig')
+amn_hook = sym('lapis_addMatchingNotification')
+amn_orig = sym('lapis_addMatchingNotification_orig')
+# boot114: IOObjectConformsTo fails on hand-rolled metaclasses (FDR drains
+# IOMFB notify without opening). Patch is_io_object_conforms_to.
+CONFORMS = 0xfffffe0007b13c00
+CONFORMS_PROLOGUE = 0xb40001c0  # cbz x0, <err>
+conforms_hook = sym('lapis_is_io_object_conforms_to')
+conforms_orig = sym('lapis_is_io_object_conforms_to_orig')
 for name, va in (('lapis_copyMatchingService', cms_hook),
                  ('lapis_copyMatchingService_orig', cms_orig),
                  ('lapis_getMatchingServices', gms_hook),
-                 ('lapis_getMatchingServices_orig', gms_orig)):
+                 ('lapis_getMatchingServices_orig', gms_orig),
+                 ('lapis_copyExistingServices', ces_hook),
+                 ('lapis_copyExistingServices_orig', ces_orig),
+                 ('lapis_addMatchingNotification', amn_hook),
+                 ('lapis_addMatchingNotification_orig', amn_orig),
+                 ('lapis_is_io_object_conforms_to', conforms_hook),
+                 ('lapis_is_io_object_conforms_to_orig', conforms_orig)):
     if not (BLOB_VA <= va < BLOB_VA + len(blob)):
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
 for site, want, hook, orig, label in (
     (CMS, CMS_PROLOGUE, cms_hook, cms_orig, 'copyMatchingService'),
     (GMS, CMS_PROLOGUE, gms_hook, gms_orig, 'getMatchingServices'),
+    (CES, CES_PROLOGUE, ces_hook, ces_orig, 'copyExistingServices'),
+    (AMN, AMN_PROLOGUE, amn_hook, amn_orig, 'addMatchingNotification'),
+    (CONFORMS, CONFORMS_PROLOGUE, conforms_hook, conforms_orig,
+     'is_io_object_conforms_to'),
 ):
     cur = rd32(img, site)
-    if cur != want and decode_b(cur, site) != hook:
+    if cur != want and decode_b(cur, site) is None:
         raise SystemExit(
-            '%s @%#x insn %#x neither stock %#x nor b %#x'
-            % (label, site, cur, want, hook))
+            '%s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want))
     wr32(img, orig, want)
     wr32(img, orig + 4, b(orig + 4, site + 4))
     wr32(img, site, b(site, hook))
@@ -254,7 +283,7 @@ em = sym('lapis_external_method')
 if not (BLOB_VA <= em < BLOB_VA + len(blob)):
     raise SystemExit('elf/bin mismatch: lapis_external_method=%#x' % em)
 cur = rd32(img, EM)
-if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) != em:
+if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
     raise SystemExit(
         'IOUserClient::externalMethod @%#x insn %#x not stock/movz0/b'
         % (EM, cur))
@@ -269,12 +298,58 @@ cmem = sym('lapis_client_memory_for_type')
 if not (BLOB_VA <= cmem < BLOB_VA + len(blob)):
     raise SystemExit('elf/bin mismatch: lapis_client_memory_for_type=%#x' % cmem)
 cur = rd32(img, CMEM)
-if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) != cmem:
+if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) is None:
     raise SystemExit(
-        'clientMemoryForType @%#x insn %#x neither stock %#x nor b %#x'
-        % (CMEM, cur, CMEM_PROLOGUE, cmem))
+        'clientMemoryForType @%#x insn %#x neither stock %#x nor b'
+        % (CMEM, cur, CMEM_PROLOGUE))
 wr32(img, CMEM, b(CMEM, cmem))
 assert decode_b(rd32(img, CMEM), CMEM) == cmem
+
+# --- IOUserClient::registerNotificationPort → lapis_register_notification_port ---
+# boot149: HID open→sel0/1→NOTE64 Unsupported→IOSCLOSE. jj overload is a
+# one-insn Unsupported return; jy (NOTE64) is a real function (ldr x8,[x0]).
+REGNOTE_JJ = 0xfffffe0007b131d0
+REGNOTE_JY = 0xfffffe0007b131dc
+REGNOTE_JJ_PROLOGUE = 0x528058e0  # movz w0, #0x2c7
+REGNOTE_JY_PROLOGUE = 0xf9400008  # ldr x8, [x0]
+regnote = sym('lapis_register_notification_port')
+if not (BLOB_VA <= regnote < BLOB_VA + len(blob)):
+    raise SystemExit('elf/bin mismatch: lapis_register_notification_port=%#x' % regnote)
+for site, want, label in (
+    (REGNOTE_JJ, REGNOTE_JJ_PROLOGUE, 'registerNotificationPort jj'),
+    (REGNOTE_JY, REGNOTE_JY_PROLOGUE, 'registerNotificationPort jy'),
+):
+    cur = rd32(img, site)
+    if cur != want and decode_b(cur, site) is None:
+        raise SystemExit(
+            '%s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want))
+    wr32(img, site, b(site, regnote))
+    assert decode_b(rd32(img, site), site) == regnote
+
+# --- IOServiceUserNotification::getNextObject poison → copyNextObject ---
+# boot105–107: ksym getNextObject @0x7b11668 is `b; adrp; brk #0xbffc`.
+# is_io_iterator_next (userland IOIteratorNext) dispatches OSIterator
+# vtable+0x148 (= ZTV getNextObject slot) — so FDR would brk-panic the
+# moment a notify ping wakes it to drain. Real drain is copyNextObject
+# @0x7b11678 (same class). IOUserIterator has the same poison/real pair.
+USN_GNO = 0xfffffe0007b11668
+USN_CNO = 0xfffffe0007b11678
+IUI_GNO = 0xfffffe0007b106cc
+IUI_CNO = 0xfffffe0007b106dc
+for gno, cno, label in (
+    (USN_GNO, USN_CNO, 'IOServiceUserNotification'),
+    (IUI_GNO, IUI_CNO, 'IOUserIterator'),
+):
+    cur = rd32(img, gno)
+    dst = decode_b(cur, gno)
+    # Stock: b to adrp/brk thunk, or already redirected to copyNextObject.
+    if dst not in (gno + 4, cno):
+        raise SystemExit(
+            '%s getNextObject @%#x insn %#x dst %r not poison-thunk/cno'
+            % (label, gno, cur, dst))
+    wr32(img, gno, b(gno, cno))
+    assert decode_b(rd32(img, gno), gno) == cno
 
 open(sys.argv[2], 'wb').write(img)
 blob_sha = hashlib.sha256(blob).hexdigest()
@@ -286,5 +361,13 @@ print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
     NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
 print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
+print('  copyExistingServices %#x -> %#x (tramp %#x)' % (CES, ces_hook, ces_orig))
+print('  addMatchingNotification %#x -> %#x (tramp %#x)' % (AMN, amn_hook, amn_orig))
 print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
+print('  registerNotificationPort jj %#x / jy %#x -> %#x' % (
+    REGNOTE_JJ, REGNOTE_JY, regnote))
+print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOServiceUserNotification', USN_GNO, USN_CNO))
+print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOUserIterator', IUI_GNO, IUI_CNO))
+print('  is_io_object_conforms_to %#x -> %#x (tramp %#x)' % (
+    CONFORMS, conforms_hook, conforms_orig))

@@ -602,4 +602,377 @@ Image.pth41 sha256 598df825fda1cc948902d8bc6430029fdd5bdc242b5efdee30a055c567f01
 - Seed version/present/flags in structure outputs (esp. IOGPU sel=2 536-byte caps).
 Image.pth42 sha256 692dc69df8a4ccef242eb01167fb9d0d748728394168d6284008a8790c499abb.
 
-| boot97 | Image.pth42 | seed GPU caps in externalMethod | qemu11 43G lva=off | running… | out/logs/boot97 |
+| boot97 | Image.pth42 | seed GPU caps in externalMethod | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOGPU sel=2/0/4 + IOSurface sel=13 all x0=0; still no post-sel13 RB activity. RE: IOSurface connect requires `*(uint16*)(limits+0x22)==1` else closes; prior seed left 0. XPC_LOOKUP x0=0 is likely KERN_SUCCESS (out-port), not failure. | out/logs/boot97 |
+
+## Chunk 47 (boot98: IOSurface limits gate + real IOGPU layouts)
+
+- `lapis_external_method`: sel=13 sets halfword @0x22=1; sel=2 event_machine count@0x14=0; sel=0 seeds `IOGPUDeviceConfigData`; sel=4 non-zero filter.
+- GDB: richer `xpc_look_up_endpoint` arg dump (kr vs port*).
+Image.pth43 sha256 d4f568f9ad4d0462d4922f32744dc0c000fdcdf8fd43dfd4ca0949299cbeb56c.
+
+| boot98 | Image.pth43 | IOSurface +0x22=1 + IOGPU struct layouts | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOGPU sel=2/0/4 → IOSurface sel=13 → **sel=32** (connect held). IOMFB_FDR: IOKMATCH notify then **SYS_EXIT 1**, no IOSOPEN. RE root cause: notify → `installNotification` → `copyExistingServices` (not GMS); CES uses matchPassive/metaCast and misses hand-rolled metaclasses. cfprefsd[103] **burning CPU** (~57% / 180s, mostly sys) while SpringBoard keeps looking up cfprefsd. | out/logs/boot98 |
+
+## Chunk 48 (boot99: copyExistingServices hook for IOMFB notify)
+
+- `lapis_copyExistingServices`: same publishResource stub iterator as GMS; Image B-patches `IOService::copyExistingServices`.
+- Patcher accepts stale B from prior blob (symbol shift on ramfs growth).
+Image.pth44 sha256 f34b4b10dd516d5f236c0ff0d6d31acb40e88c7efd4f7a181bcb9af378e9a095 (ramfs 554af144…).
+
+| boot99 | Image.pth44 | CES hook for AddMatchingNotification | qemu11 43G lva=off | **ПРОВЕРЕНО**: **CES via resource** on IOMFB notify (hook works). RB IOGPU→IOSurface sel=13→32 still OK. FDR **hung** (no IOSOPEN, no exit) — MIG `addMatchingNotification` invokes in-kernel handlers on CES existing; skips `+0x48` bit0 inactive. cfprefsd still burns CPU. | out/logs/boot99 |
+
+## Chunk 49 (boot100: clear IOMFB inactive state for notify invoke)
+
+- After `registerService`, force `__state` at +0x48 to registered|matched|firstPublish|firstMatch (0x1e), clear inactive.
+- CES path re-asserts the same before returning the stub iterator.
+Image.pth45 sha256 243c21885ed0bd55517150482219531b5eed983c54db6bf61ec6614ab0af2f14.
+
+| boot100 | Image.pth45 | IOMFB state bits for notify invoke | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES via resource + RET x0=0; RB sel=32 OK; state@+0x48 confirmed by stock CES `ldr w8,[x21,#0x48]`. FDR still **hung** (no IOSOPEN) — root cause NOT inactive: `OSCollectionIterator::withCollection` leaves `valid=false`; in-kernel `getNextObject` (addMatchingNotification existing drain @0xfffffe0007ac0974) returns NULL until `reset()`. GMS looked fine because userland `IOUserIterator` resets. cfprefsd still burns CPU; shm_open names OK, oflag was read from wrong uap offset (@0x10=mode, not @8). | out/logs/boot100 |
+
+## Chunk 50 (boot101: OSCollectionIterator reset for CES invoke)
+
+- `lapis_stub_iterator`: call `OSCollectionIterator::reset` after `withCollection` so CES→addMatchingNotification→invokeNotifier sees the stub.
+- gdb `shm_open` oflag @uap+8, mode @uap+0x10.
+Image.pth46 (ramfs cdd66f32…).
+
+| boot101 | Image.pth46 | iterator reset before CES return | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+RET ok; RB sel=32 ok; shm oflag@+8 now 0 (plausible). FDR still **hung** (no IOSOPEN) — reset insufficient alone. | out/logs/boot101 |
+
+## Chunk 51 (boot102: force match handler + OSSet CES)
+
+- `lapis_addMatchingNotification`: after stock drain, call handler(target,ref,stub,notifier) for lapis match names.
+- CES stub iterator uses OSSet (stock) + peek/re-reset; Image B-patches AMN @0xfffffe0007ac0930.
+Image.pth47 (ramfs 19ea0455…).
+
+| boot102 | Image.pth47 | force match handler after AMN | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES peek ok + **forced match handler** ran; RB sel=32 ok. FDR still hung — handler queues without ping because `armed` defaults 0 (`ldrb [userNotify,#0x48]`). | out/logs/boot102 |
+
+## Chunk 52 (boot103: arm userNotify before forced handler)
+
+- Before calling match handler, set `IOServiceUserNotification::armed` @+0x48 so first queue sendPings and wakes FDR runloop.
+Image.pth48 (ramfs 10c39b40…).
+
+| boot103 | Image.pth48 | arm userNotify before force handler | qemu11 43G lva=off | **ПРОВЕРЕНО**: forced handler ran; still no IOSOPEN. Post-orig arm is too late — stock CES drain already queued with armed=0 (count>0 → force won't ping). | out/logs/boot103 |
+
+## Chunk 53 (boot104: arm userNotify BEFORE stock AMN drain)
+
+- Set armed@+0x48 on IOMobileFramebuffer notify target before calling orig addMatchingNotification so first invoke sendPings.
+Image.pth49 (ramfs a9e828e9…).
+
+| boot104 | Image.pth49 | pre-arm userNotify before AMN orig | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES + forced handler + RET x0=0; still no FDR IOSOPEN. Pre-arm pings *inside* MIG before FDR waits on the port — message lost. `handler` only sendPings when `armed && count==0`; `getNextObject` sets armed only after userland empties the queue. | out/logs/boot104 |
+
+## Chunk 54 (boot105: deferred ping after AMN returns)
+
+- After force-queue, `thread_call_allocate` + `thread_call_enter` → sleep 200ms → drain (arms) → `handler` re-add → sendPing once FDR listens.
+Image.pth50 (ramfs a11cef40…).
+
+| boot105 | Image.pth50 | deferred IOMFB notify ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: scheduled deferred ping ran; **PANIC** `brk #0xbffc` at `getNextObject` symbol `0x7b11668` (poison stub → `IOUserClient.cpp:1094`). Real drain is `copyNextObject` @`0x7b11678`. lr in lapis deferred callback. | out/logs/boot105 |
+
+## Chunk 55 (boot106: deferred ping via copyNextObject)
+
+- Same deferred path but call `copyNextObject` (retained) instead of poisoned `getNextObject`.
+Image.pth51.
+
+| boot106 | Image.pth51 | deferred ping via copyNextObject | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+forced+scheduled+**deferred ping** (no panic); still **no FDR IOSOPEN**. 200ms still before FDR mach_msg wait under QEMU — ping lost; queue holds stub, nobody wakes. cfprefsd still burns CPU; SpringBoard respawns. | out/logs/boot106 |
+
+## Chunk 56 (boot107: long deferred ping + retries)
+
+- Keep copyNextObject drain; initial IOSleep **3000ms**, then **8×** drain→arm→AMN-handler requeue→ping with 1s gaps (heap ctx with handler/ref/notifier — same path as force).
+- Tag IOMFB stub `IOMFBMainDisplay` + `IOMFBDisplayExternal=0` for GetMainDisplay/embedded match.
+Image.pth52 (ramfs 14e4fa7b…).
+
+| boot107 | Image.pth52 | long deferred IOMFB notify retries | qemu11 43G lva=off | **ПРОВЕРЕНО (partial)**: superseded mid-boot. RE: `is_io_iterator_next` uses OSIterator vtable+0x148 = `IOServiceUserNotification::getNextObject` which is **poison brk** @`0x7b11668` (boot105). Even a perfect ping would panic on FDR's IOIteratorNext. | out/logs/boot107 |
+
+## Chunk 57 (boot108: getNextObject → copyNextObject)
+
+- Patch poison `getNextObject` stubs (`IOServiceUserNotification` + `IOUserIterator`) to `b copyNextObject`.
+- Keep boot107 long deferred ping retries + IOMFBMainDisplay props.
+Image.pth53.
+
+| boot108 | Image.pth53 | getNextObject→copyNextObject + long ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: getNextObject fix holds (**8× deferred ping**, **no brk panic**); CES+forced+pings all ran; **still no FDR IOSOPEN**. RB IOGPU→sel=13→32 OK. cfprefsd still burns CPU (never creates `apple.cfprefs.*.daemonv1`; clients O_CREAT it). | out/logs/boot108 |
+
+## Chunk 58 (boot109: deferred-only IOMFB delivery + IOITER probe)
+
+- CES **skips** IOMobileFramebuffer (stock empty during AMN); no force-queue — deferred alone delivers after FDR can arm on empty Next.
+- gdb: `_is_io_iterator_next` logs for IOMFB_FDR/backboardd.
+Image.pth54.
+
+| boot109 | Image.pth54 | deferred-only IOMFB + IOITER probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES skip + empty Next (arm) + deferred ping → **IOITER_NEXT x0=0** (stub delivered); **still no FDR IOSOPEN**. RE: `IOMobileFramebufferGetMainDisplay` does NOT open the notify object — it needs `AppleParavirtGPU.DisplayPortCount` (getParavirtDisplayCount) + FB enumerate wait, then open. Without ParavirtGPU Ref_FB stays wrong → drain-without-open. RB IOGPU→sel OK. cfprefsd still burns CPU. | out/logs/boot109 |
+
+## Chunk 59 (boot110: AppleParavirtGPU DisplayPortCount=1)
+
+- Publish `AppleParavirtGPU` stub with `DisplayPortCount=1` so GetMainDisplay's getParavirtDisplayCount expects exactly one FB (our IOMFB).
+- Keep boot109 deferred-only IOMFB delivery + getNextObject→copyNextObject.
+Image.pth55 (ramfs 4a86bb4e…).
+
+| boot110 | Image.pth55 | AppleParavirtGPU + DisplayPortCount=1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Paravirt IOService published; FDR still Next-ok / no IOSOPEN. **No** `IOKMATCH` for AppleParavirtGPU — GetMainDisplay only calls GMS(Paravirt) when an `/arm-io` child has `compatible=AppleParavirtGPU`. Existing `disp0` was `lapis,display` so the Paravirt block was skipped. cfprefsd still burns CPU. | out/logs/boot110 |
+
+## Chunk 60 (boot111: ADT disp0 compatible=AppleParavirtGPU)
+
+- ADT `/arm-io/disp0/compatible` → `AppleParavirtGPU` so getDisplayListNumber enters Paravirt GMS + reads our stub's `DisplayPortCount=1`.
+- Keep deferred IOMFB ping + named match logs (ParavirtGPU/IOMFB).
+Image.pth56.
+
+| boot111 | Image.pth56 | ADT disp0 compatible=AppleParavirtGPU | qemu11 43G lva=off | **ПРОВЕРЕНО**: still no Paravirt GMS / no FDR IOSOPEN. RE of GetMainDisplay XOR-compare: DT `compatible` must be **`paravirtualizedgraphics,gpu`** (not `AppleParavirtGPU`); that string is only the IOServiceMatching class name after the DT hit. | out/logs/boot111 |
+
+## Chunk 61 (boot112: ADT compatible=paravirtualizedgraphics,gpu)
+
+- `/arm-io/disp0/compatible` → `paravirtualizedgraphics,gpu` (matches GetMainDisplay inline compare).
+- Keep AppleParavirtGPU IOService + DisplayPortCount=1 + deferred IOMFB ping.
+Image.pth57.
+
+| boot112 | Image.pth57 | ADT disp0 compatible=paravirtualizedgraphics,gpu | qemu11 43G lva=off | **ПРОВЕРЕНО**: **IOKMATCH services AppleParavirtGPU** + match via resource ParavirtGPU + Next ok; IOMFB notify + deferred + Next ok; **still no FDR IOSOPEN**. Likely Ref_FB=2 (`device_type=display-subsystem` increment + `DisplayPortCount=1`) while only one IOMFB stub is delivered. | out/logs/boot112 |
+
+## Chunk 62 (boot113: drop disp0 device_type — Ref_FB=1)
+
+- Keep `compatible=paravirtualizedgraphics,gpu`; **remove** `device_type` so getDisplayListNumber only counts Paravirt `DisplayPortCount=1`.
+Image.pth58.
+
+| boot113 | Image.pth58 | disp0 no device_type; Paravirt count=1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Paravirt GMS + IOMFB Next still ok; **still no FDR IOSOPEN**. Ref_FB double-count was not the blocker — after Next, framework likely drops the stub via failed `IOObjectConformsTo` (hand-rolled metaCast). | out/logs/boot113 |
+
+## Chunk 63 (boot114: force IOObjectConformsTo for lapis stubs)
+
+- B-patch `is_io_object_conforms_to` → if stock metaCast fails and classname is a lapis match name and `obj` is our published stub, set `*out=1`.
+- Keep Paravirt DT compatible + no device_type + deferred IOMFB.
+Image.pth59.
+
+| boot114 | Image.pth59 | conformsTo force (pointer-eq only) | qemu11 43G lva=off | **ПРОВЕРЕНО**: no `conformsTo force` log — either hook not hit or pointer-eq failed. Still Paravirt+Next, no FDR IOSOPEN. | out/logs/boot114 |
+
+## Chunk 64 (boot115: conformsTo force-any + gdb probe)
+
+- Force `*out=1` for any lapis match classname when a published stub exists (ignore pointer eq).
+- gdb: log `_is_io_object_conforms_to` for FDR/backboardd.
+Image.pth60.
+
+| boot115 | Image.pth60 | conformsTo force-any + CONFORMS probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: zero `CONFORMS` / no `conformsTo force*` — FDR never calls IOObjectConformsTo. Paravirt GMS + IOMFB deferred Next still ok; **still no FDR IOSOPEN**. RE: after Next, `iomfb_match_callback` increments Act_FB but only fulfills `pthread_dependency` when Act==Ref; if DisplayPortCount CFNumber fails Ref stays 0 → GetMainDisplay waits forever → never Open. | out/logs/boot115 |
+
+## Chunk 65 (boot116: DSC fulfill NOP + external bool + faster ping)
+
+- `tools/patch_dsc_iomfb_fulfill.py`: NOP `b.ne` @ unslid `0x2288058c8` in DSC `.44` so Act_FB increment always fulfills (single-display).
+- IOMFB stub: `external=false` bool (match_callback SearchCFProperty key); deferred ping first sleep 500ms ×12.
+- Image.pth61; DSC CD rehash after .44 patch.
+Image.pth61.
+
+| boot116 | Image.pth61 | DSC fulfill NOP + external bool | qemu11 43G lva=off | **ПРОВЕРЕНО**: 500ms ping raced inside AMN (all deferred before `IOKMATCH_RET`); post-AMN Next got prequeued stub; **still no FDR IOSOPEN**. Fulfill-only NOP insufficient — either Act++ gated by w22 or main-flag (+0x98) never set so GetMainDisplay returns NoDevice without Open. | out/logs/boot116 |
+
+## Chunk 66 (boot117: Act++ + main-check force + 2s ping)
+
+- DSC `.44`: also NOP match_callback `cbz w22` before Act_FB++; replace GetMainDisplay `b.eq` main-flag test with unconditional `b` (first Disp slot always opens).
+- Deferred ping first sleep 2s (avoid AMN race); gdb always logs FDR/backboard/SB IOSOPEN.
+- Image.pth62 + CD rehash.
+Image.pth62.
+
+| boot117 | Image.pth62 | Act++/main force + 2s ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: 2s ping after AMN + Next ok; **still no FDR IOSOPEN**. Act/main force insufficient — GetMainDisplay still not reaching Open after populate. | out/logs/boot117 |
+
+## Chunk 67 (boot118: GetMainDisplay → Matching/Open cave)
+
+- Replace `IOMobileFramebufferGetMainDisplay` with cave: Matching → GetMatchingServices → Next → `IOMobileFramebufferOpen` (bypasses populate wait/main-flag).
+- Image.pth62 + DSC `.44` cave + CD rehash.
+Image.pth62.
+
+| boot118 | Image.pth62 | GetMainDisplay open cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: cave Matching→GetMatchingServices hit (`IOKMATCH services` IOMFB + resource match x0=0); then **EXC FAR=0x574** (null+0x574) before FDR IOSOPEN. Master GOT used d48; AppleDisplayManagerOpen uses **d50** + singular `GetMatchingService` @0x22c6ce7d0. | out/logs/boot118 |
+
+## Chunk 68 (boot119: singular GetMatchingService + master d50)
+
+- Cave: Matching → GetMatchingService (0x22c6ce7d0) → Open; master GOT **0xd50** (not d48); no Next/Release.
+- Image.pth63 (=pth62 kernel) + DSC `.44` cave + CD rehash.
+Image.pth63.
+
+| boot119 | Image.pth63 | singular GMS cave d50 | qemu11 43G lva=off | **ПРОВЕРЕНО**: singular `IOKMATCH service` IOMFB + resource x0=0; **no FAR=0x574**; **still no FDR IOSOPEN** — userspace service port likely 0 so cave returned NoDevice before Open. | out/logs/boot119 |
+
+## Chunk 69 (boot120: singular then plural+Next, master d50)
+
+- Cave: try GetMatchingService; on null, Matching again → GetMatchingServices → Next → Release → Open. Master GOT d50.
+- Image.pth64 (=pth63 kernel) + DSC `.44` + CD rehash.
+Image.pth64.
+
+| boot120 | Image.pth64 | singular→plural Next cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: only singular IOKMATCH (no services); no FDR IOSOPEN. Root cause: `IOServiceGetMatchingServices` ABI is `(master, matching, &iterator)` → kern_return_t; cave treated x0 as iterator. Singular returns null userspace port for publishResource stubs. | out/logs/boot120 |
+
+## Chunk 70 (boot121: correct GetMatchingServices &iterator ABI)
+
+- Cave: Matching → GetMatchingServices(master, matching, &it) → Next → Release → Open; master d50.
+- Image.pth65 + DSC `.44` + CD rehash.
+Image.pth65.
+
+| boot121 | Image.pth65 | plural &iterator ABI cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: `IOKMATCH services` + `IOITER_NEXT` (kr=0) but **no FDR IOSOPEN** — userspace Next object null (stub OSSet iterator likely empty/use-after-release). | out/logs/boot121 |
+
+## Chunk 71 (boot122: stub iterator peek+retain)
+
+- `lapis_stub_iterator`: peek getNextObject before hand-off; log EMPTY/ok; safer set retain.
+- Image.pth66 ramfs replace; DSC cave unchanged from boot121.
+Image.pth66.
+
+| boot122 | Image.pth66 | stub iter peek + plural cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: `stub iter ok` then IOITER_NEXT kr=0 but **no FDR IOSOPEN** — peek consumed the sole OSSet entry; `reset()` did not re-arm for userspace Next. | out/logs/boot122 |
+
+## Chunk 72 (boot123: fresh stub iterator after peek)
+
+- After peek validates non-empty, rebuild a fresh `OSCollectionIterator` for the caller.
+- Image.pth67 + DSC cave from boot121.
+Image.pth67.
+
+| boot123 | Image.pth67 | fresh stub iter after peek | qemu11 43G lva=off | **ПРОВЕРЕНО**: fresh `stub iter ok` + IOITER_NEXT kr=0; **still no FDR IOSOPEN** — Next object and/or IOMFB Open wrapper still failing before kernel open. | out/logs/boot123 |
+
+## Chunk 73 (boot124: cave calls IOServiceOpen directly)
+
+- After Next, call `IOServiceOpen` @0x22c6ce800 (skip IOMFB Open alloc wrapper); gdb logs IOITER *out obj.
+- Image.pth68 (=pth67) + DSC cave.
+Image.pth68.
+
+| boot124 | Image.pth68 | direct IOServiceOpen cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next obj=0x3ba480 → **FDR IOSOPEN + nuc ok (x0=0)** — first FDR open of IOMFB stub. Raw connect in *out → FDR FAR=0x111f (needs IOMFB object wrap). | out/logs/boot124 |
+
+## Chunk 74 (boot125: alloc IOMFB object + IOServiceOpen)
+
+- Cave: Next → alloc helper @0x2288065e4 → str service@+0x10 → IOServiceOpen into +0x14 → *out=obj.
+- Image.pth69 + DSC cave.
+Image.pth69.
+
+| boot125 | Image.pth69 | IOMFB alloc+Open wrap cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next obj=0x99a6d6c0 but **no FDR IOSOPEN** — full ALLOC helper @0x2288065e4 (typed-malloc + CFPrefs init) never returns a usable object to the cave. | out/logs/boot125 |
+
+## Chunk 75 (boot126: light typed-malloc object + Open)
+
+- Skip full ALLOC CFPrefs path. After Next: ensure malloc-type slot → typed-malloc(0xf30) → zero + service@+0x10 + flag@+0xc08 → IOServiceOpen into +0x14 → *out=obj. Null → raw IOSOPEN fallback (boot124).
+- Image.pth70 (=pth69) + DSC cave.
+Image.pth70.
+
+| boot126 | Image.pth70 | light typed-malloc + Open cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: Next → **FDR IOSOPEN + nuc ok (x0=0)**; **no FAR=0x111f** (heap object works). FDR then `SYS_EXIT rval=1` with no externalMethod — object fields still incomplete vs full ALLOC. | out/logs/boot126 |
+
+## Chunk 76 (boot127: richer light-object field init)
+
+- After typed-malloc+zero: set +0xc08/+0x838=1, +0xdc8=-1, copy 16B const from 0x228832f40 → +0x880, optional init at +0x840 via stub 0x22c6ceba0; then wire+Open.
+- Image.pth71 (=pth70) + DSC cave.
+Image.pth71.
+
+| boot127 | Image.pth71 | richer IOMFB object init + Open | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR IOSOPEN+nuc, no FAR=0x111f (same as boot126). FDR `exit=1` is post-open (GetServiceObject ok path; missing AMFDR/panel cal). SpringBoard reaches `XPC_LOOKUP cfprefsd` (x0=0) — next wall. | out/logs/boot127 |
+
+## Chunk 77 (boot128: cfprefsd daemon shm + XPC port dump)
+
+- IOMFB open path holds. Next wall: cfprefsd never creates `apple.cfprefs.*.daemonv1` (clients get ENOENT on O_RDWR); FeatureFlags dir seeded for init_featureflags; XPC_LOOKUP_RET now dumps out-port words.
+- Image.pth72 (=pth71) + FeatureFlags/ManagedPreferences dirs.
+Image.pth72.
+
+| boot128 | Image.pth72 | cfprefsd shm + XPC port diagnostics | qemu11 43G lva=off | **ПРОВЕРЕНО**: cfprefsd spawns; SB XPC ports ok (`x0=0`); **no daemonv1 create** (keybagd ENOENT). Cause: shmem extension path. | out/logs/boot128 |
+
+## Chunk 78 (boot129: CFPrefsDaemon shmem O_CREAT force)
+
+- boot128 **ПРОВЕРЕНО**: cfprefsd spawns (#147/#149); XPC ports live for SB (`x0=0`, port words); **cfprefsd never shm_open's `apple.cfprefs.*.daemonv1`**; keybagd `daemonv1` O_RDWR → ENOENT (`x0=2`). RE: `-[CFPrefsDaemon shmem]` @0x1835f32d4 `tbz` → sandbox_extension(`ipc-posix-shm-write-data`) when flag@0x1e9414068 bit0 clear; extension fails under Lapis → skip create.
+- Fix: NOP tbz in DSC `.01` so daemon always uses oflag `0x202` (O_CREAT|O_RDWR). Tool `tools/patch_dsc_cfprefs_shmem.py`; wired into `reapply_dsc_bringup_patches.sh`.
+- Also seed empty FeatureFlags Domain/Settings stubs (`tools/apply_featureflags_stubs.sh`) for init_featureflags ENOENTs.
+- Image.pth73 (=pth72 kernel) + DSC .01 NOP + CD rehash + FF stubs.
+Image.pth73.
+
+| boot129 | Image.pth73 | CFPrefs shmem O_CREAT NOP + FF stubs | qemu11 43G lva=off | **ПРОВЕРЕНО**: `apple.cfprefs.user.daemonv1` created (keybagd oflag `0x202` → x0=0; boot128 was oflag `0x2` → ENOENT). FDR IOSOPEN holds. SB XPC cfprefsd ports ok. FeatureFlags NAMEI_FAIL 109→31. Next: backboardd/SB still respawn (EXC BRK); `system.daemonv1` not yet opened; HID/display after prefs. | out/logs/boot129 |
+
+## Chunk 79 (boot130: backboardd/SB crash after prefs clear)
+
+- boot129 cleared cfprefs user daemonv1 create wall via DSC `.01` shmem O_CREAT NOP.
+- Next wall: backboardd respawns after `com.apple.runningboard` XPC x0=0; SpringBoard second SPAWN; EXC BRK (OS_REASON ns=2 code=5) near DSC `0x19a78515c` / elr `0x1afb6e654`.
+- Plan: symbolicate BRK, ensure `system.daemonv1` create path, deepen HID/IOMFB open from backboardd.
+Image.pth73 (reuse) + gdb EXC pname dump.
+
+| boot130 | Image.pth73 | symbolicate BB/SB BRK + system.daemonv1 | qemu11 43G lva=off | **ПРОВЕРЕНО**: EXC `proc=SpringBoard` BRK (ns=2 code=5); DSC slide `0x1445c000`; unslid BRK `0x1a401e654` in BaseBoardUI (`UIViewController+BaseBoardUI.m` / BSUI failure format). Preceded by NAMEI `/var/mobile/Library/Caches/MappedImageCache/Wallpaper`. daemonv1 O_CREAT holds; FDR open holds; early BRK was `logd` not BB. | out/logs/boot130 |
+
+## Chunk 80 (boot131: MappedImageCache/Wallpaper seed)
+
+- Seed `private/var/mobile/Library/Caches/MappedImageCache/Wallpaper` (missing in boot130; SB BaseBoardUI assert).
+- Image.pth73 + springboard seeds.
+Image.pth73.
+
+| boot131 | Image.pth73 | MappedImageCache/Wallpaper dir seed | qemu11 43G lva=off | **ПРОВЕРЕНО**: no SB Wallpaper NAMEI; SB advanced to chrono + `MappedImageCache/Session` ENOENT then same BaseBoardUI BRK (slide varies; unslid still `0x1a401e654`). FDR+daemonv1 hold. | out/logs/boot131 |
+
+## Chunk 81 (boot132: MappedImageCache Session/Temporary/Icons)
+
+- Seed Session (+ Temporary/Icons) under MappedImageCache to clear next BSUI assert.
+Image.pth73.
+
+| boot132 | Image.pth73 | MappedImageCache Session/Temporary/Icons | qemu11 43G lva=off | **ПРОВЕРЕНО**: no SB MappedImageCache NAMEI; **no SB BaseBoardUI EXC**; SB reaches chronoservices + runningboard XPC (ports ok). runningboardd IOGPU+IOCoreSurface open/extmethods ok. Next: SB stalls after RB lookups — deepen RB↔SB handshake / display-HID. | out/logs/boot132 |
+
+## Chunk 82 (boot133: SpringBoard past runningboard → display/HID)
+
+- boot132 cleared BSUI MappedImageCache asserts (Wallpaper/Session seeds).
+- SB/backboardd obtain `com.apple.runningboard` ports but SB does not yet IOKMATCH IOMFB/HID.
+- Plan: trace RB XPC replies / IOGPU sel2/0/4 output buffers; ensure backboard display services publish; watch SB for IOMobileFramebuffer/IOHIDEventService.
+Image.pth73 (+ optional IOGPU caps tweak).
+
+| boot133 | Image.pth73 | RB→SB handshake + display/HID probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: UI IOKMATCH always-log: **0** SB/BB IOKMATCH for IOMFB/HID (not a logging gap). SB: chrono+RB ports, **no** MappedImageCache NAMEI, **no** SB EXC. BB: RB lookups then cfprefs then more RB — **never** HIDPreferences/HIDServiceSupport (last seen boot55). runningboardd IOGPU→sel2/0/4→IOCoreSurface→sel13→32 then silent; **0** `service state: running`. FDR+daemonv1 hold. Next: mach_msg2 trace RB↔SB/BB + HID prefs seeds. | out/logs/boot133 |
+
+## Chunk 83 (boot134: mach_msg2 RB handshake + HID prefs seeds)
+
+- boot133: SB/BB stall on RunningBoard after ports; BB never reaches HID notify.
+- Plan: log `mach_msg2_trap` for SB/BB/RB; harden `cur_pname` TPIDR cache; seed `com.apple.iohid.plist` + HIDPlugins dirs.
+Image.pth73 (reuse).
+
+| boot134 | Image.pth73 | MACHMSG2 UI + ioHID seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB IOGPU→sel32 holds; BB→cfprefs; **0 HID**; **0 MACHMSG2** — cap counted *all* procs so early launchd burned 400 before UI (hook bug). ioHID seeds applied. Next: filter-first MACHMSG2 (boot135). | out/logs/boot134 |
+
+## Chunk 84 (boot135: MACHMSG2 filter-first)
+
+- boot134: MACHMSG2 hook useless (global 400-cap). Same RB→sel32 then BB stall; no HID.
+- Fix: only count/log UI procs; ret-hook sync send+rcv only.
+Image.pth73.
+
+| boot135 | Image.pth73 | MACHMSG2 UI-only filter | qemu11 43G lva=off | **ПРОВЕРЕНО**: MACHMSG2 fires for SB/BB/RB (600-cap hit *before* RB sel32). RETs: mostly x0=0; **18× MACH_RCV_TIMED_OUT (0x10004003)**. Register decode was wrong (classic mach_msg ABI). Same wall: RB IOGPU→sel32 → SB RB lookups → no HID. Next: packed mach_msg2 ABI + gate after RB spawn; Image.pth74 sel32 scalar=0. | out/logs/boot135 |
+
+## Chunk 85 (boot136: packed MACHMSG2 + IOSurface sel32 scalar0)
+
+- Fix mach_msg2 register unpack; gate logs until runningboardd; Image.pth74 (`scalar_out[0]=0` on sel32).
+Image.pth74.
+
+| boot136 | Image.pth74 | packed MACHMSG2 + sel32 scalar0 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MACHMSG2 still garbage — `mach_msg2_trap` takes **args struct\*** in x0 (not 8 fields in regs); 400-cap burned; **0 RET**. SB got RB port; no IOGPU/sel32 yet in window; **0 HID**. Next: deref args; force BB ACCHW+RB lookup → 0x9f (boot55 HID path). | out/logs/boot136 |
+
+## Chunk 86 (boot137: BB XPC 0x9f skip + args* MACHMSG2)
+
+- boot55: BB hit HIDServiceSupport after ACCHW x0=0x9f (no RB). Modern BB gets ports then stalls.
+- Force backboardd `ACCHWComponentAuthService` + `com.apple.runningboard` lookups to return 0x9f; fix mach_msg2 args*.
+Image.pth74.
+
+| boot137 | Image.pth74 | BB FORCED_XPCERR_0x9f + args* MACHMSG2 | qemu11 43G lva=off | **ПРОВЕРЕНО**: `FORCED_XPCERR_0x9f` on ACCHW+RB; **IOKMATCH HIDServiceSupport** from backboardd (boot55 path restored). MACHMSG2 args* sane (opt=0x3, ports, 36× RET=0). IOITER_NEXT **empty** (0xe00002c0) — CES misses `{IOProviderClass=IOService, IOPropertyMatch=HIDServiceSupport}` because resolve only saw "IOService". Then BRK/SIGKILL. Next: resolve HID property-match → IOHIDEventService stub (Image.pth75). | out/logs/boot137 |
+
+## Chunk 87 (boot138: HIDServiceSupport CES fulfill)
+
+- Image.pth75: `lapis_resolve_match_stub` maps IOPropertyMatch.HIDServiceSupport → IOHIDEventService; richer HID props; logging/HIDPlugin seeds.
+
+| boot138 | Image.pth75 | HID property-match CES + seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+stub iter OK; IOITER obj=`0x939aa340`. Same unslid BRK as boot137 (`__pthread_mutex_firstfit_wake+96`, FAR crash_info; malloc freelist FP) — **not** empty-vs-filled HID. Forced 0x9f left out-port (`x7*=0x1903`). Next: clear out-port on force; ServicePlugins seeds. | out/logs/boot138 |
+
+## Chunk 88 (boot139: clear forced XPC out-port)
+
+| boot139 | Image.pth75 | FORCED_XPCERR + CLEARED out-port | qemu11 43G lva=off | **ПРОВЕРЕНО**: mutex/malloc BRK **gone**; ACCHW ports CLEARED; HID CES+IOITER OK; BB reached mobilegestalt/frontboard/locationd. Then **SIGABRT** ns=2 code=6: `CM_SYSPATH id=None` → NULL → objc `fileURLWithPath:nil` (boot47 wall). Next: force bundle-id into syspath stub. | out/logs/boot139 |
+
+## Chunk 89 (boot140: CM_SYSPATH force id for BB)
+
+| boot140 | Image.pth75 | CM_SYSPATH_FORCE_ID + HID CES | qemu11 43G lva=off | **ПРОВЕРЕНО**: `CM_SYSPATH_FORCE_ID` → path `/private/var/containers/Data/System/com.apple.backboardd`. **No BB SIGABRT**. HID CES OK. AppleParavirtGPU match → **IOMobileFramebuffer match → IOSOPEN type=0 x0=0 (nuc ok)** from backboardd. BB stayed up (analyticsd after open). **0** IOEXT/IOCMEM from BB post-open. SB alive (chronoservices+RB). Next: IOCONN/IOREGPROP/IOMAPMEM trace. | out/logs/boot140 |
+
+## Chunk 90 (boot141: post-IOMFB-open IOKit trace)
+
+| boot141 | Image.pth75 | IOCONN+IOREGPROP+IOMAPMEM hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: regression — **no CLEARED** on forced XPC (global `_xl_out` race); same unslid mutex BRK `0x1e261dd44` after HID CES; never reached IOMFB/CM_SYSPATH. IOCONN hooks unused. Next: embed out4/out6/out7 in RetBP tag. | out/logs/boot141 |
+
+## Chunk 91 (boot142: race-free XPC out-port clear)
+
+| boot142 | Image.pth75 | tag-embedded out-port CLEARED | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB CLEARED ok; CM_SYSPATH path; **IOMFB IOSOPEN x0=0** restored; BB alive (no abort). Post-open: **0** IOCONN/IOREGPROP/IOEXT/IOCMEM from BB — silence after nuc. Next: hook all connect-method MIG variants + property bin_buf. | out/logs/boot142 |
+
+## Chunk 92 (boot143: full IOConnect MIG + property variants)
+
+| boot143 | Image.pth75 | all IOCONN_* + IOREGPROP buf/all | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open holds; **0 IOCONN** post-open (BB does not call connect methods). IOREGPROP_buf fires but key logged empty (was reading plane in x1; property is x2). DisplayPortCount path reaches open. SB pname mostly `?` (SBSTATIC pass) — missed SB XPC. Next: fix pname cache + property key ABI; CA/SB XPC path. | out/logs/boot143 |
+
+## Chunk 93 (boot144: SB pname + property key + CA seeds)
+
+| boot144 | Image.pth75 | SB TPIDR cache + IOREG key=x2 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SB pname fixed (SBSTATIC+cfprefs+chrono+RB port). IOREG keys: DisplayPortCount OK → IOMFB open. **0 IOCONN** post-open. BB later WILL_SPAWN (RB still forced 0x9f — likely exits without RB). Next: force ACCHW only; let BB keep real RB. | out/logs/boot144 |
+
+## Chunk 94 (boot145: ACCHW-only force, real RB for BB)
+
+| boot145 | Image.pth75 | ACCHW 0x9f only; RB real | qemu11 43G lva=off | **ПРОВЕРЕНО**: ACCHW FORCED+CLEARED; RB real x0=0. BB hung after RB check-in MACHMSG — **never** reached HIDServiceSupport/IOMFB. RB 0x9f force is required for HID path. Post-open silence is a separate wall. Delayed launchd CON lines were not a BB relaunch. | out/logs/boot145 |
+
+## Chunk 95 (boot146: restore RB force + IOCFPlugInTypes + NUC geometry)
+
+| boot146 | Image.pth76 | RB+ACCHW 0x9f; empty IOCFPlugInTypes; NUC panel props; 8/16-byte IOMFB outs; IOSCLOSE log | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB+ACCHW FORCED; HID→IOCFPlugInTypes **x0=0** (was 0xe00002f0); DisplayPortCount→IOMFB open+nuc. **0** IOCONN/IOSCLOSE/IOEXT from BB. BB alive post-open (mach msgid `w00t`). NAMEI `/usr/appleinternal/lib/HIDPlugins` miss. FDR open→exit1 (known cal). SB chrono+RB, no backboard XPC yet. | out/logs/boot146 |
+
+## Chunk 96 (boot147: HIDPlugins path + UC class + async/note MIG)
+
+| boot147 | Image.pth77 | usr/appleinternal HIDPlugins; UC IOClass+LapisUC; NOTE/ASYNC/GETSVC hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: `/usr/appleinternal/lib/HIDPlugins` NAMEI gone. IOMFB open+nuc, conn obj non-null. **0** IOCONN/NOTE/ASYNC/conformsTo. RE: `IOMobileFramebufferOpen` post-path uses canvas-width/height + sel8 GetDisplaySize — BB raw-opens only (no Open post-path). | out/logs/boot147 |
+
+## Chunk 97 (boot148: canvas-* props + sel8 + get_class/map_shared hooks)
+
+| boot148 | Image.pth78 | canvas-width/height + MaxSrc*; sel8 size; IOGETCLASS/MAPSH hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open+nuc holds; **0** canvas IOREGPROP / IOCONN / IOGETCLASS — BB still raw-opens and stops. Empty IOCFPlugInTypes likely blocks HID CFPlugin → display path never uses the connection. | out/logs/boot148 |
+
+## Chunk 98 (boot149: real HID IOCFPlugInTypes → IOHIDLib)
+
+| boot149 | Image.pth79 | HID UUID→IOHIDLib.plugin; seed IOHIDEventServicePlugin | qemu11 43G lva=off | **ПРОВЕРЕНО**: EventServicePlugin loads; HID IOSOPEN→IOCONN sel0/1→**NOTE64 0xe00002c7**→**IOSCLOSE**. Then IOMFB open (still 0 post-open methods). Next: stub registerNotificationPort. | out/logs/boot149 |
+
+## Chunk 99 (boot150: registerNotificationPort success)
+
+| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ГИПОТЕЗА**: NOTE64 x0=0; HID conn stays open; IOMFB IOCONN follows. | out/logs/boot150 |
