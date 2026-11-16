@@ -42,6 +42,14 @@ extern void *IOService_getResourceService(void)
 	__asm__("_ZN9IOService18getResourceServiceEv");
 extern void IOService_publishResource(const char *, void *)
 	__asm__("_ZN9IOService15publishResourceEPKcP8OSObject");
+extern void *IOService_serviceMatching(const char *, void *)
+	__asm__("_ZN9IOService15serviceMatchingEPKcP12OSDictionary");
+extern void *IOService_nameMatching(const char *, void *)
+	__asm__("_ZN9IOService12nameMatchingEPKcP12OSDictionary");
+extern void *IOService_resourceMatching(const char *, void *)
+	__asm__("_ZN9IOService16resourceMatchingEPKcP12OSDictionary");
+extern void *IOService_copyMatchingService(void *)
+	__asm__("_ZN9IOService18copyMatchingServiceEP12OSDictionary");
 extern void IORegistryEntry_setName(void *, const char *, const void *)
 	__asm__("_ZN15IORegistryEntry7setNameEPKcPK15IORegistryPlane");
 extern void IORegistryEntry_setProperty_bool(void *, const char *, unsigned char)
@@ -278,4 +286,21 @@ void lapis_iomfb_register(void)
 	publish_one(&clcd, 0);
 	publish_one(&agx, 0);
 	publish_one(&accel, 0);
+
+	/* Self-test: which matching path can see our IOGPU stub? */
+	{
+		void *d, *s;
+		d = IOService_serviceMatching("IOGPU", 0);
+		s = d ? IOService_copyMatchingService(d) : 0;
+		IOLog(s ? "LAPIS iomfb: self serviceMatching IOGPU ok\n"
+			: "LAPIS iomfb: self serviceMatching IOGPU FAIL\n");
+		d = IOService_nameMatching("IOGPU", 0);
+		s = d ? IOService_copyMatchingService(d) : 0;
+		IOLog(s ? "LAPIS iomfb: self nameMatching IOGPU ok\n"
+			: "LAPIS iomfb: self nameMatching IOGPU FAIL\n");
+		d = IOService_resourceMatching("IOGPU", 0);
+		s = d ? IOService_copyMatchingService(d) : 0;
+		IOLog(s ? "LAPIS iomfb: self resourceMatching IOGPU ok\n"
+			: "LAPIS iomfb: self resourceMatching IOGPU FAIL\n");
+	}
 }

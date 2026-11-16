@@ -541,4 +541,12 @@ Image.pth33 sha256 98e73734c385452ba5ab1ce062eb07d35ee4d0d27150300743b282d0434bb
 - Fix: attach to `getResourceService()`, call `start()`, `registerService` + `publishResource(name)`.
 Image.pth34 sha256 ba865e29eae43313004de830e057bb8bef83af48aa7528290466944e6e2ba9c9.
 
-| boot89 | Image.pth34 | IOResources attach+start+publishResource | qemu11 43G lva=off | running… | out/logs/boot89 |
+| boot89 | Image.pth34 | IOResources attach+start+publishResource | qemu11 43G lva=off | **ПРОВЕРЕНО**: still IOKMATCH_RET Offline 0xe00002f0 for IOGPU after start+publishResource. | out/logs/boot89 |
+
+## Chunk 39 (boot90: self-match probe)
+
+- Still Offline after IOResources attach/start/publishResource.
+- Add kernel self-test: `serviceMatching` / `nameMatching` / `resourceMatching` + `copyMatchingService("IOGPU")` at publish time.
+Image.pth35 sha256 ba865e29eae43313004de830e057bb8bef83af48aa7528290466944e6e2ba9c9.
+
+| boot90 | Image.pth35 | self-match IOGPU probe | qemu11 43G lva=off | running… | out/logs/boot90 |
