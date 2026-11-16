@@ -31,11 +31,11 @@ GMD = 0x2288047A8
 CAVE = 0x22880511C
 STR = 0x22883898F  # "IOMobileFramebuffer"
 MATCH = 0x22C6CE7F0
-GMS = 0x22C6CE7E0
-NEXT = 0x22C6CE6E0
-REL = 0x22C6CE740
+# Singular GetMatchingService (not Services/iterator) — see AppleDisplayManagerOpen.
+GMS = 0x22C6CE7D0
 OPEN = 0x2288059E0
-MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD48
+# Master port GOT slot used by GetMatchingService callers (d50, not d48).
+MASTER_ADRP, MASTER_OFF = 0x277B6A000, 0xD50
 TASK_ADRP, TASK_OFF = 0x277C1E000, 0xCF8
 
 # Small helper NOPs (optional if GetMainDisplay cave is applied).
@@ -73,6 +73,11 @@ def enc_ldr_w(rt: int, rn: int, imm: int) -> int:
 
 
 def build_cave() -> list[int]:
+    """Matching → GetMatchingService → IOMobileFramebufferOpen.
+
+    Mirrors AppleDisplayManagerOpen's master-port/matching dance, then the
+    Open wrapper used by GetMainDisplay (task GOT @ cf8, type 0, out*).
+    """
     code: list[int] = []
     pc = CAVE
 
@@ -82,47 +87,40 @@ def build_cave() -> list[int]:
         pc += 4
 
     emit(0xD503237F)  # pacibsp
-    emit(0xD10143FF)  # sub sp, sp, #0x50
-    emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
-    emit(0xA9034FF4)  # stp x20, x19, [sp, #0x30]
-    emit(0xA9047BFD)  # stp x29, x30, [sp, #0x40]
-    emit(0x910103FD)  # add x29, sp, #0x40
-    emit(0xAA0003F3)  # mov x19, x0
+    emit(0xD10103FF)  # sub sp, sp, #0x40
+    emit(0xA90157F6)  # stp x22, x21, [sp, #0x10]
+    emit(0xA9024FF4)  # stp x20, x19, [sp, #0x20]
+    emit(0xA9037BFD)  # stp x29, x30, [sp, #0x30]
+    emit(0x9100C3FD)  # add x29, sp, #0x30
+    emit(0xAA0003F3)  # mov x19, x0  (out*)
     cbz0 = len(code)
-    emit(0)
+    emit(0)  # cbz x19
     emit(enc_adrp(0, pc, STR))
     emit(enc_add_imm(0, 0, STR & 0xFFF))
     emit(enc_bl(pc, MATCH))
-    emit(0xAA0003F5)  # mov x21, x0
+    emit(0xAA0003F5)  # mov x21, x0  (matching)
     cbz1 = len(code)
-    emit(0)
+    emit(0)  # cbz x21
     emit(enc_adrp(8, pc, MASTER_ADRP))
     emit(enc_ldr_x(8, 8, MASTER_OFF))
-    emit(enc_ldr_w(0, 8, 0))
+    emit(enc_ldr_w(0, 8, 0))  # master port
     emit(0xAA1503E1)  # mov x1, x21
-    emit(enc_bl(pc, GMS))
-    emit(0xAA0003F4)  # mov x20, x0
-    cbz2 = len(code)
-    emit(0)
-    emit(0xAA1403E0)
-    emit(enc_bl(pc, NEXT))
+    emit(enc_bl(pc, GMS))  # GetMatchingService → io_service_t in w0
     emit(0xAA0003F6)  # mov x22, x0
-    emit(0xAA1403E0)
-    emit(enc_bl(pc, REL))
-    cbz3 = len(code)
-    emit(0)
+    cbz2 = len(code)
+    emit(0)  # cbz w22
     emit(enc_adrp(8, pc, TASK_ADRP))
     emit(enc_ldr_x(8, 8, TASK_OFF))
-    emit(enc_ldr_w(1, 8, 0))
-    emit(0xAA1603E0)  # mov x0, x22
+    emit(enc_ldr_w(1, 8, 0))  # owning task port
+    emit(0xAA1603E0)  # mov x0, x22  (service)
     emit(0x52800002)  # movz w2, #0
-    emit(0xAA1303E3)  # mov x3, x19
+    emit(0xAA1303E3)  # mov x3, x19  (out*)
     emit(enc_bl(pc, OPEN))
     epi = pc
-    emit(0xA9447BFD)
-    emit(0xA9434FF4)
-    emit(0xA94257F6)
-    emit(0x910143FF)  # add sp, sp, #0x50
+    emit(0xA9437BFD)  # ldp x29, x30, [sp, #0x30]
+    emit(0xA9424FF4)
+    emit(0xA94157F6)
+    emit(0x910103FF)  # add sp, sp, #0x40
     emit(0xD65F03C0)  # ret
     fail = pc
     emit(0x52805800)  # movz w0, #0x2c0
@@ -141,8 +139,7 @@ def build_cave() -> list[int]:
 
     patch_cbz_x(cbz0, 19, fail)
     patch_cbz_x(cbz1, 21, fail)
-    patch_cbz_x(cbz2, 20, fail)
-    patch_cbz_w(cbz3, 22, fail)
+    patch_cbz_w(cbz2, 22, fail)
     return code
 
 

@@ -767,4 +767,12 @@ Image.pth62.
 - Image.pth62 + DSC `.44` cave + CD rehash.
 Image.pth62.
 
-| boot118 | Image.pth62 | GetMainDisplay open cave | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR GetMainDisplay hits Open directly → IOSOPEN. | out/logs/boot118 |
+| boot118 | Image.pth62 | GetMainDisplay open cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: cave Matching→GetMatchingServices hit (`IOKMATCH services` IOMFB + resource match x0=0); then **EXC FAR=0x574** (null+0x574) before FDR IOSOPEN. Master GOT used d48; AppleDisplayManagerOpen uses **d50** + singular `GetMatchingService` @0x22c6ce7d0. | out/logs/boot118 |
+
+## Chunk 68 (boot119: singular GetMatchingService + master d50)
+
+- Cave: Matching → GetMatchingService (0x22c6ce7d0) → Open; master GOT **0xd50** (not d48); no Next/Release.
+- Image.pth63 (=pth62 kernel) + DSC `.44` cave + CD rehash.
+Image.pth63.
+
+| boot119 | Image.pth63 | singular GMS cave d50 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetMatchingService returns IOMFB port → Open → FDR IOSOPEN. | out/logs/boot119 |
