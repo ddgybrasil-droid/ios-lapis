@@ -213,6 +213,60 @@ static void set_hid_cfplugin_types(void *obj)
 	IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", dict);
 }
 
+static void dict_set_u32(void *dict, const char *key, unsigned int val)
+{
+	void *n = OSNumber_withNumber(val, 32);
+
+	if (n) {
+		OSDictionary_setObject_cstr(dict, key, n);
+		OSObject_release(n);
+	}
+}
+
+/*
+ * boot152: after HID map/NOTE64 held, BB CFProperty-gets many HID identity
+ * keys (all 0xe00002f0) then opens IOMFB with 0 post-open IOCONN. Seed a
+ * built-in display-integrated digitizer so the display path can bind.
+ */
+static void set_hid_identity_props(void *obj)
+{
+	void *pairs, *pair, *transport, *esp;
+
+	set_u32(obj, "PrimaryUsagePage", 0x0d); /* Digitizer */
+	set_u32(obj, "PrimaryUsage", 0x04);     /* Touch Screen */
+	set_u32(obj, "ReportInterval", 8000);   /* 125 Hz (µs) */
+	set_u32(obj, "BatchInterval", 8000);
+	IORegistryEntry_setProperty_bool(obj, "Built-In", 1);
+	IORegistryEntry_setProperty_bool(obj, "DisplayIntegrated", 1);
+	transport = OSString_withCString("Apple");
+	if (transport) {
+		IORegistryEntry_setProperty_obj(obj, "Transport", transport);
+		OSObject_release(transport);
+	}
+	pair = OSDictionary_withCapacity(2);
+	pairs = OSArray_withCapacity(1);
+	if (pair && pairs) {
+		dict_set_u32(pair, "DeviceUsagePage", 0x0d);
+		dict_set_u32(pair, "DeviceUsage", 0x04);
+		OSArray_setObject(pairs, pair);
+		IORegistryEntry_setProperty_obj(obj, "DeviceUsagePairs", pairs);
+	}
+	if (pair)
+		OSObject_release(pair);
+	if (pairs)
+		OSObject_release(pairs);
+	esp = OSDictionary_withCapacity(8);
+	if (esp) {
+		dict_set_u32(esp, "PrimaryUsagePage", 0x0d);
+		dict_set_u32(esp, "PrimaryUsage", 0x04);
+		dict_set_u32(esp, "ReportInterval", 8000);
+		dict_set_u32(esp, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+		IORegistryEntry_setProperty_obj(obj, "HIDEventServiceProperties",
+						esp);
+		OSObject_release(esp);
+	}
+}
+
 #define VT_ENTRIES 32
 #define VT_ALLOC   23
 
@@ -583,6 +637,7 @@ int lapis_is_io_object_conforms_to(void *obj, const char *name,
 	 * stock IOUserClient tagged LapisUC + IOClass=…UserClient.
 	 */
 	if (streq(name, "IOMobileFramebufferUserClient") ||
+	    streq(name, "IOHIDEventServiceUserClient") ||
 	    streq(name, "IOUserClient")) {
 		void *tag = IORegistryEntry_copyProperty(obj, "LapisUC");
 		if (tag) {
@@ -701,30 +756,42 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 		return kIOReturnUnsupported;
 	}
 	/*
-	 * boot144/146: BB opens IOMFB type=0 then no method MIG (only mach
-	 * 'w00t'). Seed panel geometry + IOClass so connection-side registry
-	 * probes and class checks see an IOMFB user client, not a blank UC.
+	 * boot144/146/153: tag UC by provider. HID opens used to inherit
+	 * IOMobileFramebufferUserClient IOClass; keep queue only on HID.
 	 */
-	set_u32(client, "IODisplayWidth", 2420);
-	set_u32(client, "IODisplayHeight", 1668);
-	set_u32(client, "IODisplayPixelsWide", 2420);
-	set_u32(client, "IODisplayPixelsHigh", 1668);
-	set_u32(client, "IODisplayFrequency", 120);
-	set_u32(client, "canvas-width", 2420);
-	set_u32(client, "canvas-height", 1668);
-	set_u32(client, "MaxSrcBufferWidth", 2420);
-	set_u32(client, "MaxSrcBufferHeight", 1668);
-	IORegistryEntry_setProperty_bool(client, "IOMFBMainDisplay", 1);
-	IORegistryEntry_setProperty_cstr(client, "IOClass",
-					 "IOMobileFramebufferUserClient");
-	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
-	/* HID UC path also lands here; QueueSize mirrors the service prop. */
-	set_u32(client, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 	{
-		void *q = lapis_hid_queue_for(client);
-		if (q)
-			OSObject_release(q);
+		void *hid = self ? IORegistryEntry_copyProperty(
+					 self, "HIDServiceSupport")
+				 : 0;
+		if (hid) {
+			IORegistryEntry_setProperty_cstr(
+				client, "IOClass",
+				"IOHIDEventServiceUserClient");
+			set_u32(client, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+			{
+				void *q = lapis_hid_queue_for(client);
+				if (q)
+					OSObject_release(q);
+			}
+			OSObject_release(hid);
+		} else {
+			set_u32(client, "IODisplayWidth", 2420);
+			set_u32(client, "IODisplayHeight", 1668);
+			set_u32(client, "IODisplayPixelsWide", 2420);
+			set_u32(client, "IODisplayPixelsHigh", 1668);
+			set_u32(client, "IODisplayFrequency", 120);
+			set_u32(client, "canvas-width", 2420);
+			set_u32(client, "canvas-height", 1668);
+			set_u32(client, "MaxSrcBufferWidth", 2420);
+			set_u32(client, "MaxSrcBufferHeight", 1668);
+			IORegistryEntry_setProperty_bool(client,
+							 "IOMFBMainDisplay", 1);
+			IORegistryEntry_setProperty_cstr(
+				client, "IOClass",
+				"IOMobileFramebufferUserClient");
+		}
 	}
+	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
 	return 0;
@@ -1012,6 +1079,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		set_u32(obj, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 		set_hid_cfplugin_types(obj);
+		set_hid_identity_props(obj);
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {

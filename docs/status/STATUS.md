@@ -983,4 +983,8 @@ Image.pth74.
 
 ## Chunk 101 (boot152: stash HID queue on UC property, no BSS)
 
-| boot152 | Image.pth82 | LapisHIDQ via copyProperty/setProperty; QueueSize; SharedDataQueue map | qemu11 43G lva=off | **ГИПОТЕЗА**: no early PWTKS; QueueSize x0=0; IOMAPMEM hidq x0=0; NOTE64 holds; no BB BRK. | out/logs/boot152 |
+| boot152 | Image.pth82 | LapisHIDQ via copyProperty/setProperty; QueueSize; SharedDataQueue map | qemu11 43G lva=off | **ПРОВЕРЕНО**: no PWTKS. QueueSize **x0=0**; **IOMAPMEM cmap hidq x0=0**; NOTE64 **x0=0**; **no IOSCLOSE / no BB BRK**. HID props (DeviceUsagePairs/Transport/…) still **0xe00002f0**. Then ParavirtGPU→DisplayPortCount→**IOMFB IOSOPEN+nuc** with **0** post-open IOCONN. BB→frontboard XPC. SB at cfprefs only so far. | out/logs/boot152 |
+
+## Chunk 102 (boot153: HID digitizer identity + UC class split)
+
+| boot153 | Image.pth83 | DeviceUsagePairs/DisplayIntegrated/…; HID vs IOMFB IOClass on NUC | qemu11 43G lva=off | **ГИПОТЕЗА**: HID identity props x0=0; IOMFB post-open IOCONN/canvas/sel8; SB→backboard/CA. | out/logs/boot153 |
