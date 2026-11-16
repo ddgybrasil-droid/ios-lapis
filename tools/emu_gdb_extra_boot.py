@@ -365,6 +365,8 @@ _xl_cnt={}
 def _ufn(n):
     def fn():
         p=cur_pname(); pn=p[0] if p else '?'
+        if n in ('err','abort','abort_with_reason'):
+            P('DSC_HIT %s gdbpc=%#x lr=%#x proc=%s'%(n,r('pc'),r('x30'),pn))
         if n=='xpc_look_up_endpoint':
             name=ustr(r('x0'),128)
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
@@ -381,10 +383,17 @@ def _ufn(n):
         elif n=='err':
             try: fmt=ustr(r('x1'),256) if r('x1') else None
             except Exception: fmt=None
-            P('ERR eval=%d fmt=%r x2=%#x lr=%#x proc=%s'%(r('x0')&0xffffffff,fmt,r('x2'),r('x30'),pn))
+            P('ERR eval=%d fmt=%r x2=%#x pc=%#x lr=%#x x0=%#x proc=%s'%(
+                r('x0')&0xffffffff,fmt,r('x2'),r('pc'),r('x30'),r('x0'),pn))
             _uframes('ERR_FRAMES')
         elif n=='abort':
-            P('ABORT lr=%#x proc=%s'%(r('x30'),pn))
+            P('ABORT gdbpc=%#x lr=%#x x0=%#x x1=%#x proc=%s'%(r('pc'),r('x30'),r('x0'),r('x1'),pn))
+            # If LR points into CoverSheet / known TEXT, also dump nearby C-strings from x0/x1
+            for reg in ('x0','x1','x2','x3'):
+                try:
+                    s=ustr(r(reg),128)
+                    if s and len(s)>=4: P('  ABORT_%s str=%r'%(reg,s))
+                except Exception: pass
             if pn=='SpringBoard': _uframes('ABORT_FRAMES')
         elif n=='abort_with_reason':
             try: reason=ustr(r('x3'),256) if r('x3') else None
