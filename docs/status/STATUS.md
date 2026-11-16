@@ -525,4 +525,12 @@ Image.pth30 sha256 c29096ad1b5df320a2163660a4697ae69e7dbfcc7119d49fd6cb094ce11f5
 Image.pth32 sha256 9e4f11e70ae4a73effabf7818abd4ee0d825404b0da96354942697e3f73d8334.
 
 | boot86 | Image.pth31 | start+AGX+gated nuc (RX statics) | qemu11 43G lva=off | **ПРОВЕРЕНО**: PANIC on `g_nours` store in RX blob | out/logs/boot86 |
-| boot87 | Image.pth32 | AGX+Metal props; no RX statics | qemu11 43G lva=off | running… | out/logs/boot87 |
+| boot87 | Image.pth32 | AGX+Metal props; no RX statics | qemu11 43G lva=off | **ПРОВЕРЕНО**: no panic; stubs published; IOGPU match; nuc ok; XPC runningboard still x0=0 after IOGPU. | out/logs/boot87 |
+
+## Chunk 37 (boot88: IOGPUDevice + IOKMATCH_RET)
+
+- Publish **IOGPUDevice** (Metal/IOGPU.framework open path).
+- GDB: `IOKMATCH_RET` logs getMatchingService x0 (prove whether IOGPU match returns non-null).
+Image.pth33 sha256 98e73734c385452ba5ab1ce062eb07d35ee4d0d27150300743b282d0434bb376.
+
+| boot88 | Image.pth33 | IOGPUDevice + IOKMATCH_RET | qemu11 43G lva=off | running… | out/logs/boot88 |

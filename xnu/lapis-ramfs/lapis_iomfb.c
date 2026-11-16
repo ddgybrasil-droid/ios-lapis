@@ -208,6 +208,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		IORegistryEntry_setProperty_bool(obj, "MetalDevice", 1);
 		IORegistryEntry_setProperty_cstr(obj, "MetalPluginName", "IOGPUMetal");
 		set_u32(obj, "IOGPUMetalCaps", 1);
+		IORegistryEntry_setProperty_cstr(obj, "IOClass", m->name);
 	}
 
 	root = IOService_getServiceRoot();
@@ -221,7 +222,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 
 void lapis_iomfb_register(void)
 {
-	struct lapis_mc iomfb, surface, hid, aks, gpu, clcd, agx, accel;
+	struct lapis_mc iomfb, surface, hid, aks, gpu, gpudev, clcd, agx, accel;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
@@ -235,6 +236,9 @@ void lapis_iomfb_register(void)
 	/* runningboardd matches IOGPU before advertising com.apple.runningboard */
 	if (register_mc(&gpu, "IOGPU") == 0)
 		IOLog("LAPIS iomfb: metaclass IOGPU ok\n");
+	/* Userspace Metal / IOGPU.framework often opens IOGPUDevice, not IOGPU. */
+	if (register_mc(&gpudev, "IOGPUDevice") == 0)
+		IOLog("LAPIS iomfb: metaclass IOGPUDevice ok\n");
 	/* display pipeline probes AppleCLCD / IODisplayWrangler-class names */
 	if (register_mc(&clcd, "AppleCLCD") == 0)
 		IOLog("LAPIS iomfb: metaclass AppleCLCD ok\n");
@@ -249,6 +253,7 @@ void lapis_iomfb_register(void)
 	publish_one(&hid, 1);
 	publish_one(&aks, 0);
 	publish_one(&gpu, 0);
+	publish_one(&gpudev, 0);
 	publish_one(&clcd, 0);
 	publish_one(&agx, 0);
 	publish_one(&accel, 0);

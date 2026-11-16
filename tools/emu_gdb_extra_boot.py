@@ -256,8 +256,14 @@ def _iok(tag,ma,cnt):
         s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
     except Exception as e: s=['<%s>'%e]
     k=(n[0] if n else '?',tag,tuple(s))
-    if k in _iok_seen: return False
-    _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12])); return False
+    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService') for x in s)
+    if k not in _iok_seen:
+        _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
+    # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
+    if interesting or tag=='service':
+        try: RetBP(r('x30'), 'IOKMATCH_RET %s proc=%s keys=%s'%(tag, n[0] if n else '?', ','.join(s[:6])))
+        except Exception as e: P('ERR iok_ret %s'%e)
+    return False
 BP('_is_io_service_get_matching_services_bin',lambda: _iok('services',r('x1'),r('x2')))
 BP('_is_io_service_get_matching_service_bin',lambda: _iok('service',r('x1'),r('x2')))
 BP('_is_io_service_add_notification_bin_64',lambda: _iok('notify',r('x2'),r('x3')))
