@@ -783,4 +783,12 @@ Image.pth63.
 - Image.pth64 (=pth63 kernel) + DSC `.44` + CD rehash.
 Image.pth64.
 
-| boot120 | Image.pth64 | singular→plural Next cave | qemu11 43G lva=off | **ГИПОТЕЗА**: Next yields IOMFB port → Open → FDR IOSOPEN. | out/logs/boot120 |
+| boot120 | Image.pth64 | singular→plural Next cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: only singular IOKMATCH (no services); no FDR IOSOPEN. Root cause: `IOServiceGetMatchingServices` ABI is `(master, matching, &iterator)` → kern_return_t; cave treated x0 as iterator. Singular returns null userspace port for publishResource stubs. | out/logs/boot120 |
+
+## Chunk 70 (boot121: correct GetMatchingServices &iterator ABI)
+
+- Cave: Matching → GetMatchingServices(master, matching, &it) → Next → Release → Open; master d50.
+- Image.pth65 + DSC `.44` + CD rehash.
+Image.pth65.
+
+| boot121 | Image.pth65 | plural &iterator ABI cave | qemu11 43G lva=off | **ГИПОТЕЗА**: correct iterator out-param → Next port → Open → FDR IOSOPEN. | out/logs/boot121 |

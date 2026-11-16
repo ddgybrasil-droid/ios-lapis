@@ -75,14 +75,13 @@ def enc_ldr_w(rt: int, rn: int, imm: int) -> int:
 
 
 def build_cave() -> list[int]:
-    """Matching → service → IOMobileFramebufferOpen.
+    """Matching → GetMatchingServices(&it) → Next → Open.
 
-    boot119: singular GetMatchingService matched (IOKMATCH service + resource)
-    but never reached IOSOPEN — userspace port came back 0. boot112+ proved
-    plural GetMatchingServices + Next yields a usable IOMFB object. boot118
-    plural crashed FAR=0x574 with master GOT d48; use d50 (real callers).
-
-    Try singular first; on null, rebuild matching and use plural+Next+Release.
+    IOServiceGetMatchingServices(master, matching, io_iterator_t *existing)
+    returns kern_return_t and writes the iterator through x2 — boot118/120
+    wrongly treated x0 as the iterator. Singular GetMatchingService matched
+    in-kernel but returned a null userspace port for our publishResource
+    stubs; plural+Next is the proven path (boot112+).
     """
     code: list[int] = []
     pc = CAVE
@@ -92,6 +91,8 @@ def build_cave() -> list[int]:
         code.append(w)
         pc += 4
 
+    # Frame: [sp,#0x8]=iterator out, [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19,
+    # [sp,#0x40]=x29/x30. Keep sp 16-byte aligned.
     emit(0xD503237F)  # pacibsp
     emit(0xD10143FF)  # sub sp, sp, #0x50
     emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
@@ -102,47 +103,34 @@ def build_cave() -> list[int]:
     cbz0 = len(code)
     emit(0)  # cbz x19 → fail
 
-    # --- singular path ---
     emit(enc_adrp(0, pc, STR))
     emit(enc_add_imm(0, 0, STR & 0xFFF))
     emit(enc_bl(pc, MATCH))
     emit(0xAA0003F5)  # mov x21, x0  (matching)
     cbz1 = len(code)
     emit(0)  # cbz x21 → fail
+
     emit(enc_adrp(8, pc, MASTER_ADRP))
     emit(enc_ldr_x(8, 8, MASTER_OFF))
     emit(enc_ldr_w(0, 8, 0))  # master
     emit(0xAA1503E1)  # mov x1, x21
-    emit(enc_bl(pc, GMS_SINGULAR))
-    emit(0xAA0003F6)  # mov x22, x0  (service)
-    cbnz_svc = len(code)
-    emit(0)  # cbnz w22 → open (patched below)
-
-    # --- plural fallback (Matching consumes dict; rebuild) ---
-    emit(enc_adrp(0, pc, STR))
-    emit(enc_add_imm(0, 0, STR & 0xFFF))
-    emit(enc_bl(pc, MATCH))
-    emit(0xAA0003F5)  # mov x21, x0
-    cbz2 = len(code)
-    emit(0)  # cbz x21 → fail
-    emit(enc_adrp(8, pc, MASTER_ADRP))
-    emit(enc_ldr_x(8, 8, MASTER_OFF))
-    emit(enc_ldr_w(0, 8, 0))
-    emit(0xAA1503E1)  # mov x1, x21
+    emit(0xB9000BFF)  # str wzr, [sp, #0x8]
+    emit(0x910023E2)  # add x2, sp, #0x8  (&iterator)
     emit(enc_bl(pc, GMS_PLURAL))
-    emit(0xAA0003F4)  # mov x20, x0  (iterator)
-    cbz3 = len(code)
-    emit(0)  # cbz x20 → fail
+    cbnz_kr = len(code)
+    emit(0)  # cbnz w0 → fail (kern_return_t)
+    emit(0xB9400BF4)  # ldr w20, [sp, #0x8]  (iterator)
+    cbz2 = len(code)
+    emit(0)  # cbz w20 → fail
+
     emit(0xAA1403E0)  # mov x0, x20
     emit(enc_bl(pc, NEXT))
     emit(0xAA0003F6)  # mov x22, x0  (service)
     emit(0xAA1403E0)  # mov x0, x20
     emit(enc_bl(pc, REL))  # release iterator
-    cbz4 = len(code)
+    cbz3 = len(code)
     emit(0)  # cbz w22 → fail
 
-    # --- open ---
-    open_lbl = pc
     emit(enc_adrp(8, pc, TASK_ADRP))
     emit(enc_ldr_x(8, 8, TASK_OFF))
     emit(enc_ldr_w(1, 8, 0))  # task
@@ -151,11 +139,11 @@ def build_cave() -> list[int]:
     emit(0xAA1303E3)  # mov x3, x19
     emit(enc_bl(pc, OPEN))
     epi = pc
-    emit(0xA9447BFD)  # ldp x29, x30, [sp, #0x40]
+    emit(0xA9447BFD)
     emit(0xA9434FF4)
     emit(0xA94257F6)
-    emit(0x910143FF)  # add sp, sp, #0x50
-    emit(0xD65F03C0)  # ret
+    emit(0x910143FF)
+    emit(0xD65F03C0)
     fail = pc
     emit(0x52805800)  # movz w0, #0x2c0
     emit(0x72BC0000)  # movk w0, #0xe000, lsl #16
@@ -178,10 +166,9 @@ def build_cave() -> list[int]:
 
     patch_cbz_x(cbz0, 19, fail)
     patch_cbz_x(cbz1, 21, fail)
-    patch_cbnz_w(cbnz_svc, 22, open_lbl)
-    patch_cbz_x(cbz2, 21, fail)
-    patch_cbz_x(cbz3, 20, fail)
-    patch_cbz_w(cbz4, 22, fail)
+    patch_cbnz_w(cbnz_kr, 0, fail)
+    patch_cbz_w(cbz2, 20, fail)
+    patch_cbz_w(cbz3, 22, fail)
     return code
 
 
