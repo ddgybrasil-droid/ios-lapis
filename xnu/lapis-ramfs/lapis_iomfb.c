@@ -82,6 +82,8 @@ extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, 
  */
 void *lapis_copyMatchingService_orig(void *dict);
 void *lapis_getMatchingServices_orig(void *dict);
+void *lapis_copyExistingServices_orig(void *dict, unsigned int options,
+				     unsigned int flags);
 __asm__(
 	".text\n"
 	".align 2\n"
@@ -94,6 +96,12 @@ __asm__(
 	".global lapis_getMatchingServices_orig\n"
 	".type lapis_getMatchingServices_orig, %function\n"
 	"lapis_getMatchingServices_orig:\n"
+	"\tnop\n"
+	"\tnop\n"
+	"\tret\n"
+	".global lapis_copyExistingServices_orig\n"
+	".type lapis_copyExistingServices_orig, %function\n"
+	"lapis_copyExistingServices_orig:\n"
 	"\tnop\n"
 	"\tnop\n"
 	"\tret\n"
@@ -210,13 +218,37 @@ void *lapis_copyMatchingService(void *dict)
 }
 
 /*
+ * Shared: one-shot iterator over a published stub. Used by getMatchingServices
+ * and copyExistingServices (notification path).
+ */
+static void *lapis_stub_iterator(const char *name)
+{
+	void *s, *arr, *it;
+
+	s = lapis_published_stub(name);
+	if (!s)
+		return 0;
+	arr = OSArray_withCapacity(1);
+	if (arr && OSArray_setObject(arr, s)) {
+		it = OSCollectionIterator_withCollection(arr);
+		OSObject_release(s);
+		OSObject_release(arr);
+		return it;
+	}
+	OSObject_release(s);
+	if (arr)
+		OSObject_release(arr);
+	return 0;
+}
+
+/*
  * boot93: getMatchingServices (plural) does not call copyMatchingService — it
  * walks the registry (metaCast/name miss). Return a one-shot iterator over our
  * published stub so IONameMatch("IOCoreSurfaceRoot") etc. succeed.
  */
 void *lapis_getMatchingServices(void *dict)
 {
-	void *s, *arr, *it;
+	void *it;
 	const char *name;
 
 	if (!dict)
@@ -224,23 +256,40 @@ void *lapis_getMatchingServices(void *dict)
 
 	name = lapis_match_dict_name(dict);
 	if (name) {
-		s = lapis_published_stub(name);
-		if (s) {
-			arr = OSArray_withCapacity(1);
-			if (arr && OSArray_setObject(arr, s)) {
-				it = OSCollectionIterator_withCollection(arr);
-				OSObject_release(s);
-				OSObject_release(arr);
-				if (it)
-					return it;
-			} else {
-				OSObject_release(s);
-				if (arr)
-					OSObject_release(arr);
-			}
-		}
+		it = lapis_stub_iterator(name);
+		if (it)
+			return it;
 	}
 	return lapis_getMatchingServices_orig(dict);
+}
+
+/*
+ * boot99: AddMatchingNotification / installNotification calls
+ * copyExistingServices (NOT getMatchingServices). Stock CES walks the
+ * registry with matchPassive/metaCast — our hand-rolled metaclasses miss.
+ * IOMFB_FDR_Loader only uses the notify path, so without this hook it always
+ * exits 1 after IOKMATCH notify with no IOSOPEN.
+ * ABI: static IOService::copyExistingServices(OSDictionary*, uint, uint) →
+ * OSIterator* (stock getMatchingServices returns CES's result directly).
+ */
+void *lapis_copyExistingServices(void *dict, unsigned int options,
+				 unsigned int flags)
+{
+	void *it;
+	const char *name;
+
+	if (!dict)
+		return lapis_copyExistingServices_orig(dict, options, flags);
+
+	name = lapis_match_dict_name(dict);
+	if (name) {
+		it = lapis_stub_iterator(name);
+		if (it) {
+			IOLog("LAPIS iomfb: CES via resource\n");
+			return it;
+		}
+	}
+	return lapis_copyExistingServices_orig(dict, options, flags);
 }
 
 /*

@@ -205,39 +205,50 @@ for site, want_prolog, tgt, label in (
     (NUC_IORES, NUC_UNSUPPORTED, nuc, 'iores'),
 ):
     cur = rd32(img, site)
-    if cur != want_prolog and decode_b(cur, site) != tgt:
+    # Accept stock prologue, already-correct B, or stale B from a prior blob
+    # (symbol addresses shift when ramfs grows — rewrite to the new target).
+    if cur != want_prolog and decode_b(cur, site) is None:
         raise SystemExit(
-            'newUserClient %s @%#x insn %#x neither stock %#x nor b %#x'
-            % (label, site, cur, want_prolog, tgt))
+            'newUserClient %s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want_prolog))
     wr32(img, site, b(site, tgt))
     assert decode_b(rd32(img, site), site) == tgt
 
-# --- IOService::{copyMatchingService,getMatchingServices} → lapis_* ---
+# --- IOService::{copyMatchingService,getMatchingServices,copyExistingServices} → lapis_* ---
 # Prefer publishResource stubs via copyProperty (not IOResources publisher).
 # getMatchingServices (plural) does not call copyMatchingService — trampoline
-# both. Prologue for both is stp x20,x19,[sp,#-0x20]!
+# both. Prologue for CMS/GMS is stp x20,x19,[sp,#-0x20]!.
+# boot99: AddMatchingNotification → installNotification → copyExistingServices
+# (NOT GMS). CES prologue is sub sp,#0x70. IOMFB_FDR only uses the notify path.
 CMS = 0xfffffe0007ac0444
 GMS = 0xfffffe0007ac03fc
+CES = 0xfffffe0007ab5758
 CMS_PROLOGUE = 0xa9be4ff4  # stp x20, x19, [sp, #-0x20]!
+CES_PROLOGUE = 0xd101c3ff  # sub sp, sp, #0x70
 cms_hook = sym('lapis_copyMatchingService')
 cms_orig = sym('lapis_copyMatchingService_orig')
 gms_hook = sym('lapis_getMatchingServices')
 gms_orig = sym('lapis_getMatchingServices_orig')
+ces_hook = sym('lapis_copyExistingServices')
+ces_orig = sym('lapis_copyExistingServices_orig')
 for name, va in (('lapis_copyMatchingService', cms_hook),
                  ('lapis_copyMatchingService_orig', cms_orig),
                  ('lapis_getMatchingServices', gms_hook),
-                 ('lapis_getMatchingServices_orig', gms_orig)):
+                 ('lapis_getMatchingServices_orig', gms_orig),
+                 ('lapis_copyExistingServices', ces_hook),
+                 ('lapis_copyExistingServices_orig', ces_orig)):
     if not (BLOB_VA <= va < BLOB_VA + len(blob)):
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
 for site, want, hook, orig, label in (
     (CMS, CMS_PROLOGUE, cms_hook, cms_orig, 'copyMatchingService'),
     (GMS, CMS_PROLOGUE, gms_hook, gms_orig, 'getMatchingServices'),
+    (CES, CES_PROLOGUE, ces_hook, ces_orig, 'copyExistingServices'),
 ):
     cur = rd32(img, site)
-    if cur != want and decode_b(cur, site) != hook:
+    if cur != want and decode_b(cur, site) is None:
         raise SystemExit(
-            '%s @%#x insn %#x neither stock %#x nor b %#x'
-            % (label, site, cur, want, hook))
+            '%s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want))
     wr32(img, orig, want)
     wr32(img, orig + 4, b(orig + 4, site + 4))
     wr32(img, site, b(site, hook))
@@ -254,7 +265,7 @@ em = sym('lapis_external_method')
 if not (BLOB_VA <= em < BLOB_VA + len(blob)):
     raise SystemExit('elf/bin mismatch: lapis_external_method=%#x' % em)
 cur = rd32(img, EM)
-if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) != em:
+if cur not in (EM_PROLOGUE, MOV_W0_0) and decode_b(cur, EM) is None:
     raise SystemExit(
         'IOUserClient::externalMethod @%#x insn %#x not stock/movz0/b'
         % (EM, cur))
@@ -269,10 +280,10 @@ cmem = sym('lapis_client_memory_for_type')
 if not (BLOB_VA <= cmem < BLOB_VA + len(blob)):
     raise SystemExit('elf/bin mismatch: lapis_client_memory_for_type=%#x' % cmem)
 cur = rd32(img, CMEM)
-if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) != cmem:
+if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) is None:
     raise SystemExit(
-        'clientMemoryForType @%#x insn %#x neither stock %#x nor b %#x'
-        % (CMEM, cur, CMEM_PROLOGUE, cmem))
+        'clientMemoryForType @%#x insn %#x neither stock %#x nor b'
+        % (CMEM, cur, CMEM_PROLOGUE))
 wr32(img, CMEM, b(CMEM, cmem))
 assert decode_b(rd32(img, CMEM), CMEM) == cmem
 
@@ -286,5 +297,6 @@ print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
     NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))
 print('  getMatchingServices %#x -> %#x (tramp %#x)' % (GMS, gms_hook, gms_orig))
+print('  copyExistingServices %#x -> %#x (tramp %#x)' % (CES, ces_hook, ces_orig))
 print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
