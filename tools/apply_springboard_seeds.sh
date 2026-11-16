@@ -9,6 +9,9 @@ DIRS=(
   private/var/mobile/Library/Caches/MappedImageCache
   private/var/mobile/Library/Caches/MappedImageCache/Persistent
   private/var/mobile/Library/Caches/MappedImageCache/Wallpaper
+  private/var/mobile/Library/Caches/MappedImageCache/Session
+  private/var/mobile/Library/Caches/MappedImageCache/Temporary
+  private/var/mobile/Library/Caches/MappedImageCache/Icons
   private/var/mobile/Library/Caches/com.apple.springboard
   private/var/mobile/Library/Caches/com.apple.springboard/WallpaperColorBoxesCache
   private/var/mobile/Library/Wallpaper

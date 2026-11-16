@@ -874,4 +874,11 @@ Image.pth73 (reuse) + gdb EXC pname dump.
 - Image.pth73 + springboard seeds.
 Image.pth73.
 
-| boot131 | Image.pth73 | MappedImageCache/Wallpaper dir seed | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past BaseBoardUI Wallpaper assert; next display/HID. | out/logs/boot131 |
+| boot131 | Image.pth73 | MappedImageCache/Wallpaper dir seed | qemu11 43G lva=off | **ПРОВЕРЕНО**: no SB Wallpaper NAMEI; SB advanced to chrono + `MappedImageCache/Session` ENOENT then same BaseBoardUI BRK (slide varies; unslid still `0x1a401e654`). FDR+daemonv1 hold. | out/logs/boot131 |
+
+## Chunk 81 (boot132: MappedImageCache Session/Temporary/Icons)
+
+- Seed Session (+ Temporary/Icons) under MappedImageCache to clear next BSUI assert.
+Image.pth73.
+
+| boot132 | Image.pth73 | MappedImageCache Session/Temporary/Icons | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past Session assert; next display/HID or further cache dirs. | out/logs/boot132 |
