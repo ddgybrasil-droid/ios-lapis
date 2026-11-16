@@ -898,4 +898,12 @@ Image.pth73 (+ optional IOGPU caps tweak).
 - Plan: log `mach_msg2_trap` for SB/BB/RB; harden `cur_pname` TPIDR cache; seed `com.apple.iohid.plist` + HIDPlugins dirs.
 Image.pth73 (reuse).
 
-| boot134 | Image.pth73 | MACHMSG2 UI + ioHID seeds | qemu11 43G lva=off | **ГИПОТЕЗА**: MACHMSG2 shows sync XPC hang on RB; or BB reaches HIDServiceSupport once prefs seeded. | out/logs/boot134 |
+| boot134 | Image.pth73 | MACHMSG2 UI + ioHID seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB IOGPU→sel32 holds; BB→cfprefs; **0 HID**; **0 MACHMSG2** — cap counted *all* procs so early launchd burned 400 before UI (hook bug). ioHID seeds applied. Next: filter-first MACHMSG2 (boot135). | out/logs/boot134 |
+
+## Chunk 84 (boot135: MACHMSG2 filter-first)
+
+- boot134: MACHMSG2 hook useless (global 400-cap). Same RB→sel32 then BB stall; no HID.
+- Fix: only count/log UI procs; ret-hook sync send+rcv only.
+Image.pth73.
+
+| boot135 | Image.pth73 | MACHMSG2 UI-only filter | qemu11 43G lva=off | **ГИПОТЕЗА**: MACHMSG2 captures SB/BB sync wait on RB; guides next stub/DSC fix. | out/logs/boot135 |

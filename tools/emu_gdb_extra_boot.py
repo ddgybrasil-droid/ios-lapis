@@ -630,20 +630,21 @@ def on_shm_open():
     return False
 BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
 
-# boot134: SB/BB stall after com.apple.runningboard ports — prove whether they
-# block inside mach_msg2_trap (sync XPC) vs going quiet in userspace.
+# boot134/135: SB/BB stall after com.apple.runningboard ports — prove whether
+# they block inside mach_msg2_trap (sync XPC). Filter UI *before* counting:
+# boot134 burned the 400-cap on early launchd traffic → 0 UI MACHMSG2 lines.
 _mm2 = {'n': 0}
 def _ui_proc(pn0):
     pl = (pn0 or '').lower()
     return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
             or pn0 in ('SpringBoard', 'backboardd', 'runningboardd'))
 def on_mach_msg2():
-    _mm2['n'] += 1
-    if _mm2['n'] > 400:
-        return False
     try:
         pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
         if not _ui_proc(pn0):
+            return False
+        _mm2['n'] += 1
+        if _mm2['n'] > 600:
             return False
         # mach_msg2_trap(msg, option, send_size, rcv_size, rcv_name, …) — log headers.
         msg = r('x0'); opt = r('x1') & 0xffffffff
@@ -659,7 +660,9 @@ def on_mach_msg2():
                 pass
         P('MACHMSG2 proc=%s opt=%#x send=%d rcv=%d rcv_name=%#x msgid=%#x bits=%#x' % (
             pn0, opt, send_sz, rcv_sz, rcv_name, msgid, bits))
-        RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%#x' % (pn0, msgid))
+        # Only arm ret for send+rcv (sync) — these are the hang suspects.
+        if (opt & 0x3) == 0x3 or (send_sz and rcv_sz):
+            RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%#x' % (pn0, msgid))
     except Exception as e:
         P('ERR mach_msg2 %s' % e)
     return False
