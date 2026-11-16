@@ -595,4 +595,11 @@ Image.pth40 sha256 d640fc21f71a3b4d8e2abc5ef3e572f6466321165470c312a950ba0d726be
 - Replace movz-success with  that zeros scalar/structure outputs.
 Image.pth41 sha256 598df825fda1cc948902d8bc6430029fdd5bdc242b5efdee30a055c567f01b29.
 
-| boot96 | Image.pth41 | externalMethod zero-fill outputs | qemu11 43G lva=off | running… | out/logs/boot96 |
+| boot96 | Image.pth41 | externalMethod zero-fill outputs | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOGPU sel=2 stout=536, sel=0/4=64/32, IOSurface sel=13 stout=40; all-zero still no XPC. | out/logs/boot96 |
+
+## Chunk 46 (boot97: seed non-zero GPU/surface method outputs)
+
+- Seed version/present/flags in structure outputs (esp. IOGPU sel=2 536-byte caps).
+Image.pth42 sha256 692dc69df8a4ccef242eb01167fb9d0d748728394168d6284008a8790c499abb.
+
+| boot97 | Image.pth42 | seed GPU caps in externalMethod | qemu11 43G lva=off | running… | out/logs/boot97 |

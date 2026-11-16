@@ -326,10 +326,10 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 }
 
 /*
- * boot95: bare `mov w0,#0;ret` for externalMethod left scalar/structure
- * output counts untouched — userspace read garbage and stalled after
- * IOSurface sel=13. Zero requested outputs (IOExternalMethodArguments
- * layout from xnu IOUserClient.h, arm64).
+ * boot95/96: zero + seed structure outputs.
+ * IOExternalMethodArguments (arm64): structureOutput @88, size @96.
+ * boot96: IOGPU sel=2 asks for 536 bytes (caps); sel=0/4/13 ask 64/32/40.
+ * All-zero caps look like "no GPU" — seed a minimal present/version header.
  */
 int lapis_external_method(void *self, unsigned int selector, void *args,
 			  void *dispatch, void *target, void *reference)
@@ -337,9 +337,9 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 	uint64_t *scalar_out;
 	uint32_t n, i, sz;
 	unsigned char *p;
+	uint32_t *u32;
 
 	(void)self;
-	(void)selector;
 	(void)dispatch;
 	(void)target;
 	(void)reference;
@@ -352,6 +352,9 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 	if (scalar_out) {
 		for (i = 0; i < n; i++)
 			scalar_out[i] = 0;
+		/* Prefer "yes" for single-scalar probes. */
+		if (n >= 1)
+			scalar_out[0] = 1;
 	}
 	*(uint32_t *)((char *)args + 80) = n;
 	p = *(unsigned char **)((char *)args + 88);
@@ -361,6 +364,23 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 			sz = 0x1000;
 		for (i = 0; i < sz; i++)
 			p[i] = 0;
+		u32 = (uint32_t *)p;
+		/* version / present / size — enough for presence checks. */
+		if (sz >= 4)
+			u32[0] = 1;
+		if (sz >= 8)
+			u32[1] = selector;
+		if (sz >= 12)
+			u32[2] = sz;
+		if (sz >= 16)
+			u32[3] = 1; /* caps/flags: present */
+		/* IOGPU sel=2 (536): mark a few capability words. */
+		if (selector == 2 && sz >= 64) {
+			u32[4] = 1;
+			u32[5] = 1;
+			u32[6] = 0x10000; /* fake mem */
+			u32[7] = 1;
+		}
 		*(uint32_t *)((char *)args + 96) = sz;
 	}
 	return 0;
