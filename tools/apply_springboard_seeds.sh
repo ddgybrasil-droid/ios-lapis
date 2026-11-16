@@ -16,6 +16,11 @@ DIRS=(
   private/var/mobile/Library/Caches/com.apple.springboard/WallpaperColorBoxesCache
   private/var/mobile/Library/Wallpaper
   private/var/logs/hidfw-crashlogs
+  System/Library/HIDPlugins
+  System/Library/HIDPlugins/SessionFilters
+  private/var/preferences
+  private/var/mobile/Library/Preferences
+  private/var/Managed Preferences/mobile
   private/var/containers/Data/System/com.apple.SpringBoard
   private/var/containers/Data/System/com.apple.SpringBoard/Library
   private/var/containers/Data/System/com.apple.SpringBoard/Library/Caches
@@ -35,7 +40,15 @@ done
 # Restore marker so SB does not loop on ENOENT forever.
 tmp=$(mktemp)
 printf 'lapis-bringup' >"$tmp"
+# boot55: BB reaches HID after ioHID.plist NAMEI misses — seed empty plists so
+# prefs path does not thrash once RB handshake lets BB past RunningBoard.
+iohid=$(mktemp)
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict/>\n</plist>\n' >"$iohid"
 python3 "$ROOT/tools/lapisfs_add.py" "$IMG" \
-  "private/var/mobile/Library/SpringBoard/SBLastRestoreIdentifier=$tmp"
-rm -f "$tmp"
+  "private/var/mobile/Library/SpringBoard/SBLastRestoreIdentifier=$tmp" \
+  "private/var/mobile/Library/Preferences/com.apple.iohid.plist=$iohid" \
+  "private/var/preferences/com.apple.iohid.plist=$iohid" \
+  "private/var/Managed Preferences/mobile/com.apple.iohid.plist=$iohid" \
+  "private/var/Managed Preferences/com.apple.iohid.plist=$iohid"
+rm -f "$tmp" "$iohid"
 echo "springboard seeds applied to $IMG"

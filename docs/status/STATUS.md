@@ -890,4 +890,12 @@ Image.pth73.
 - Plan: trace RB XPC replies / IOGPU sel2/0/4 output buffers; ensure backboard display services publish; watch SB for IOMobileFramebuffer/IOHIDEventService.
 Image.pth73 (+ optional IOGPU caps tweak).
 
-| boot133 | Image.pth73 | RB→SB handshake + display/HID probe | qemu11 43G lva=off | **ГИПОТЕЗА**: SB progresses to framebuffer/HID match after RB serve. | out/logs/boot133 |
+| boot133 | Image.pth73 | RB→SB handshake + display/HID probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: UI IOKMATCH always-log: **0** SB/BB IOKMATCH for IOMFB/HID (not a logging gap). SB: chrono+RB ports, **no** MappedImageCache NAMEI, **no** SB EXC. BB: RB lookups then cfprefs then more RB — **never** HIDPreferences/HIDServiceSupport (last seen boot55). runningboardd IOGPU→sel2/0/4→IOCoreSurface→sel13→32 then silent; **0** `service state: running`. FDR+daemonv1 hold. Next: mach_msg2 trace RB↔SB/BB + HID prefs seeds. | out/logs/boot133 |
+
+## Chunk 83 (boot134: mach_msg2 RB handshake + HID prefs seeds)
+
+- boot133: SB/BB stall on RunningBoard after ports; BB never reaches HID notify.
+- Plan: log `mach_msg2_trap` for SB/BB/RB; harden `cur_pname` TPIDR cache; seed `com.apple.iohid.plist` + HIDPlugins dirs.
+Image.pth73 (reuse).
+
+| boot134 | Image.pth73 | MACHMSG2 UI + ioHID seeds | qemu11 43G lva=off | **ГИПОТЕЗА**: MACHMSG2 shows sync XPC hang on RB; or BB reaches HIDServiceSupport once prefs seeded. | out/logs/boot134 |

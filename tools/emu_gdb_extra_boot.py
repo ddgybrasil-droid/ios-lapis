@@ -264,15 +264,26 @@ def on_persona():
         P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2]))  # no return hook: x30 of a syscall handler is unix_syscall's return path (persistent bp there = every syscall)
     return False
 BP('_persona',on_persona)
+# boot134: TPIDR→proc walk intermittently fails (esp. runningboardd) with
+# "Cannot access memory at address 0xfffffe…"; cache last good name per TPIDR.
+_pname_by_tpidr={}
 def cur_pname():
     """Return up to 2 name candidates from the proc struct (was [:1] → 'C' on errors)."""
+    th=0
     try:
         th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18)
         n=pname(p)
         if isinstance(n,str):
-            return [n[:48]] if n else ['?']
-        return n[:2] if n else ['?']
-    except Exception as e: return ['?']
+            if n.startswith('Cannot access') or n.startswith('<'):
+                return list(_pname_by_tpidr.get(th, ['?']))[:2]
+            _pname_by_tpidr[th]=[n[:48]]
+            return [n[:48]]
+        if n:
+            _pname_by_tpidr[th]=list(n[:2])
+            return n[:2]
+        return list(_pname_by_tpidr.get(th, ['?']))[:2]
+    except Exception:
+        return list(_pname_by_tpidr.get(th, ['?']))[:2] if th else ['?']
 
 _iok_seen=set()
 def _iok(tag,ma,cnt):
@@ -618,3 +629,38 @@ def on_shm_open():
         P('ERR shm_open %s' % e)
     return False
 BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
+
+# boot134: SB/BB stall after com.apple.runningboard ports — prove whether they
+# block inside mach_msg2_trap (sync XPC) vs going quiet in userspace.
+_mm2 = {'n': 0}
+def _ui_proc(pn0):
+    pl = (pn0 or '').lower()
+    return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
+            or pn0 in ('SpringBoard', 'backboardd', 'runningboardd'))
+def on_mach_msg2():
+    _mm2['n'] += 1
+    if _mm2['n'] > 400:
+        return False
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if not _ui_proc(pn0):
+            return False
+        # mach_msg2_trap(msg, option, send_size, rcv_size, rcv_name, …) — log headers.
+        msg = r('x0'); opt = r('x1') & 0xffffffff
+        send_sz = r('x2') & 0xffffffff; rcv_sz = r('x3') & 0xffffffff
+        rcv_name = r('x4') & 0xffffffff
+        msgid = 0; bits = 0
+        user_msg = msg and (0x100000000 <= msg < 0x300000000)
+        kmsg = msg and ((msg >> 40) == 0xfffffe)
+        if user_msg or kmsg:
+            try:
+                bits = m32(msg); msgid = m32(msg + 0x14)
+            except Exception:
+                pass
+        P('MACHMSG2 proc=%s opt=%#x send=%d rcv=%d rcv_name=%#x msgid=%#x bits=%#x' % (
+            pn0, opt, send_sz, rcv_sz, rcv_name, msgid, bits))
+        RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%#x' % (pn0, msgid))
+    except Exception as e:
+        P('ERR mach_msg2 %s' % e)
+    return False
+BP('_mach_msg2_trap', on_mach_msg2, addr=0xfffffe000737cc9c)
