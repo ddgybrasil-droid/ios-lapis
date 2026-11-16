@@ -943,4 +943,8 @@ Image.pth74.
 
 ## Chunk 91 (boot142: race-free XPC out-port clear)
 
-| boot142 | Image.pth75 | tag-embedded out-port CLEARED | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable CLEARED restores boot140 path (CM_SYSPATH → IOMFB open). | out/logs/boot142 |
+| boot142 | Image.pth75 | tag-embedded out-port CLEARED | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB CLEARED ok; CM_SYSPATH path; **IOMFB IOSOPEN x0=0** restored; BB alive (no abort). Post-open: **0** IOCONN/IOREGPROP/IOEXT/IOCMEM from BB — silence after nuc. Next: hook all connect-method MIG variants + property bin_buf. | out/logs/boot142 |
+
+## Chunk 92 (boot143: full IOConnect MIG + property variants)
+
+| boot143 | Image.pth75 | all IOCONN_* + IOREGPROP buf/all | qemu11 43G lva=off | **ГИПОТЕЗА**: capture real post-open selectors/keys BB uses (or confirm none → XPC/CA path). | out/logs/boot143 |

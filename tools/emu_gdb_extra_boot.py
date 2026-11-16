@@ -655,58 +655,67 @@ def on_client_memory():
     return False
 BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
 
-# boot140: BB opened IOMFB (IOSOPEN x0=0) but never hit IOUserClient::externalMethod.
-# Trace MIG is_io_connect_method + property gets to see the post-open display path.
+# boot140/142: BB opens IOMFB (x0=0) then silence — no IOEXT. Hook ALL MIG
+# connect-method variants (bluetoothd hit externalMethod without the plain
+# is_io_connect_method) + property bin_buf/properties.
+def _ui_iokit_proc(pn0):
+    pl = (pn0 or '').lower()
+    return ('backboard' in pl or 'SpringBoard' in (pn0 or '') or 'springboard' in pl
+            or 'IOMFB' in (pn0 or '') or 'FDR' in (pn0 or ''))
+
 _iocm_cnt = {'n': 0}
-def on_io_connect_method():
-    try:
-        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
-        pl = pn0.lower()
-        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
-                or 'IOMFB' in pn0 or 'FDR' in pn0):
-            return False
-        _iocm_cnt['n'] += 1
-        if _iocm_cnt['n'] > 120:
-            return False
-        # is_io_connect_method(connect, selector, ...)
-        sel = r('x1') & 0xffffffff
-        P('IOCONN proc=%s sel=%d conn=%#x' % (pn, sel, r('x0')))
-        RetBP(r('x30'), 'IOCONN_RET proc=%s sel=%d' % (pn0 or '?', sel))
-    except Exception as e:
-        P('ERR ioconn %s' % e)
-    return False
-BP('_is_io_connect_method', on_io_connect_method, addr=0xfffffe0007b18584)
+def _mk_ioconn(tag):
+    def on():
+        try:
+            pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+            if not _ui_iokit_proc(pn0):
+                return False
+            _iocm_cnt['n'] += 1
+            if _iocm_cnt['n'] > 200:
+                return False
+            sel = r('x1') & 0xffffffff
+            P('IOCONN_%s proc=%s sel=%d conn=%#x' % (tag, pn, sel, r('x0')))
+            RetBP(r('x30'), 'IOCONN_%s_RET proc=%s sel=%d' % (tag, pn0 or '?', sel))
+        except Exception as e:
+            P('ERR ioconn_%s %s' % (tag, e))
+        return False
+    return on
+BP('_is_io_connect_method', _mk_ioconn('M'), addr=0xfffffe0007b18584)
+BP('_is_io_connect_method_scalarI_scalarO', _mk_ioconn('SS'), addr=0xfffffe0007b18ac4)
+BP('_is_io_connect_method_scalarI_structureO', _mk_ioconn('SSo'), addr=0xfffffe0007b19d24)
+BP('_is_io_connect_method_scalarI_structureI', _mk_ioconn('SSi'), addr=0xfffffe0007b1a4a8)
+BP('_is_io_connect_method_structureI_structureO', _mk_ioconn('SoSo'), addr=0xfffffe0007b1ac04)
+BP('_is_io_connect_method_var_output', _mk_ioconn('VO'), addr=0xfffffe0007b18170)
 
 _ioreg_cnt = {'n': 0}
-def on_ioreg_prop_bin():
-    try:
-        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
-        pl = pn0.lower()
-        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
-                or 'IOMFB' in pn0 or 'FDR' in pn0):
-            return False
-        _ioreg_cnt['n'] += 1
-        if _ioreg_cnt['n'] > 80:
-            return False
-        # property name often in x1 as kernel C-string
+def _mk_ioreg(tag):
+    def on():
         try:
-            name = bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0', 1)[0].decode()
-        except Exception:
-            name = '?'
-        P('IOREGPROP proc=%s key=%r entry=%#x' % (pn, name, r('x0')))
-        RetBP(r('x30'), 'IOREGPROP_RET proc=%s key=%s' % (pn0 or '?', name))
-    except Exception as e:
-        P('ERR ioregprop %s' % e)
-    return False
-BP('_is_io_registry_entry_get_property_bin', on_ioreg_prop_bin, addr=0xfffffe0007b165a8)
+            pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+            if not _ui_iokit_proc(pn0):
+                return False
+            _ioreg_cnt['n'] += 1
+            if _ioreg_cnt['n'] > 120:
+                return False
+            try:
+                name = bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0', 1)[0].decode()
+            except Exception:
+                name = '?'
+            P('IOREGPROP_%s proc=%s key=%r entry=%#x' % (tag, pn, name, r('x0')))
+            RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', name))
+        except Exception as e:
+            P('ERR ioreg_%s %s' % (tag, e))
+        return False
+    return on
+BP('_is_io_registry_entry_get_property_bin', _mk_ioreg('bin'), addr=0xfffffe0007b165a8)
+BP('_is_io_registry_entry_get_property_bin_buf', _mk_ioreg('buf'), addr=0xfffffe0007b16098)
+BP('_is_io_registry_entry_get_properties_bin', _mk_ioreg('all'), addr=0xfffffe0007b16084)
 
 _iomap_cnt = {'n': 0}
 def on_io_map_mem():
     try:
         pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
-        pl = pn0.lower()
-        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
-                or 'IOMFB' in pn0 or 'FDR' in pn0):
+        if not _ui_iokit_proc(pn0):
             return False
         _iomap_cnt['n'] += 1
         if _iomap_cnt['n'] > 40:
@@ -718,6 +727,7 @@ def on_io_map_mem():
         P('ERR iomap %s' % e)
     return False
 BP('_is_io_connect_map_memory', on_io_map_mem, addr=0xfffffe0007b17dd0)
+BP('_is_io_connect_map_memory_into_task', on_io_map_mem, addr=0xfffffe0007b17bec)
 
 # boot99/100: cfprefsd burns CPU — shm_open path. Kernel ABI is
 # shm_open(proc_t, struct shm_open_args *uap, int32_t *retval). On arm64 each
