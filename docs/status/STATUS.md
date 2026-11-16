@@ -710,4 +710,12 @@ Image.pth55 (ramfs 4a86bb4e…).
 - Keep deferred IOMFB ping + named match logs (ParavirtGPU/IOMFB).
 Image.pth56.
 
-| boot111 | Image.pth56 | ADT disp0 compatible=AppleParavirtGPU | qemu11 43G lva=off | **ГИПОТЕЗА**: DT walk hits Paravirt → GMS stub → Ref_FB=1 → deferred FB → GetMainDisplay open → FDR IOSOPEN. | out/logs/boot111 |
+| boot111 | Image.pth56 | ADT disp0 compatible=AppleParavirtGPU | qemu11 43G lva=off | **ПРОВЕРЕНО**: still no Paravirt GMS / no FDR IOSOPEN. RE of GetMainDisplay XOR-compare: DT `compatible` must be **`paravirtualizedgraphics,gpu`** (not `AppleParavirtGPU`); that string is only the IOServiceMatching class name after the DT hit. | out/logs/boot111 |
+
+## Chunk 61 (boot112: ADT compatible=paravirtualizedgraphics,gpu)
+
+- `/arm-io/disp0/compatible` → `paravirtualizedgraphics,gpu` (matches GetMainDisplay inline compare).
+- Keep AppleParavirtGPU IOService + DisplayPortCount=1 + deferred IOMFB ping.
+Image.pth57.
+
+| boot112 | Image.pth57 | ADT disp0 compatible=paravirtualizedgraphics,gpu | qemu11 43G lva=off | **ГИПОТЕЗА**: DT match → GMS(AppleParavirtGPU) → Ref_FB=1 → deferred FB → FDR IOSOPEN. | out/logs/boot112 |
