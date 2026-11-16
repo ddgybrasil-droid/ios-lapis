@@ -639,6 +639,70 @@ def on_client_memory():
     return False
 BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
 
+# boot140: BB opened IOMFB (IOSOPEN x0=0) but never hit IOUserClient::externalMethod.
+# Trace MIG is_io_connect_method + property gets to see the post-open display path.
+_iocm_cnt = {'n': 0}
+def on_io_connect_method():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        pl = pn0.lower()
+        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
+                or 'IOMFB' in pn0 or 'FDR' in pn0):
+            return False
+        _iocm_cnt['n'] += 1
+        if _iocm_cnt['n'] > 120:
+            return False
+        # is_io_connect_method(connect, selector, ...)
+        sel = r('x1') & 0xffffffff
+        P('IOCONN proc=%s sel=%d conn=%#x' % (pn, sel, r('x0')))
+        RetBP(r('x30'), 'IOCONN_RET proc=%s sel=%d' % (pn0 or '?', sel))
+    except Exception as e:
+        P('ERR ioconn %s' % e)
+    return False
+BP('_is_io_connect_method', on_io_connect_method, addr=0xfffffe0007b18584)
+
+_ioreg_cnt = {'n': 0}
+def on_ioreg_prop_bin():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        pl = pn0.lower()
+        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
+                or 'IOMFB' in pn0 or 'FDR' in pn0):
+            return False
+        _ioreg_cnt['n'] += 1
+        if _ioreg_cnt['n'] > 80:
+            return False
+        # property name often in x1 as kernel C-string
+        try:
+            name = bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0', 1)[0].decode()
+        except Exception:
+            name = '?'
+        P('IOREGPROP proc=%s key=%r entry=%#x' % (pn, name, r('x0')))
+        RetBP(r('x30'), 'IOREGPROP_RET proc=%s key=%s' % (pn0 or '?', name))
+    except Exception as e:
+        P('ERR ioregprop %s' % e)
+    return False
+BP('_is_io_registry_entry_get_property_bin', on_ioreg_prop_bin, addr=0xfffffe0007b165a8)
+
+_iomap_cnt = {'n': 0}
+def on_io_map_mem():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        pl = pn0.lower()
+        if not ('backboard' in pl or 'SpringBoard' in pn0 or 'springboard' in pl
+                or 'IOMFB' in pn0 or 'FDR' in pn0):
+            return False
+        _iomap_cnt['n'] += 1
+        if _iomap_cnt['n'] > 40:
+            return False
+        typ = r('x1') & 0xffffffff
+        P('IOMAPMEM proc=%s type=%d conn=%#x' % (pn, typ, r('x0')))
+        RetBP(r('x30'), 'IOMAPMEM_RET proc=%s type=%d' % (pn0 or '?', typ))
+    except Exception as e:
+        P('ERR iomap %s' % e)
+    return False
+BP('_is_io_connect_map_memory', on_io_map_mem, addr=0xfffffe0007b17dd0)
+
 # boot99/100: cfprefsd burns CPU — shm_open path. Kernel ABI is
 # shm_open(proc_t, struct shm_open_args *uap, int32_t *retval). On arm64 each
 # arg is padded to 8: uap->name @0, uap->oflag @8, uap->mode @0x10.

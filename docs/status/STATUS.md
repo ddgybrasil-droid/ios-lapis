@@ -935,4 +935,8 @@ Image.pth74.
 
 ## Chunk 89 (boot140: CM_SYSPATH force id for BB)
 
-| boot140 | Image.pth75 | CM_SYSPATH_FORCE_ID + HID CES | qemu11 43G lva=off | **ГИПОТЕЗА**: syspath returns `/private/var/containers/Data/System/com.apple.backboardd` → BB past BaseBoard path setup toward display/IOMFB. | out/logs/boot140 |
+| boot140 | Image.pth75 | CM_SYSPATH_FORCE_ID + HID CES | qemu11 43G lva=off | **ПРОВЕРЕНО**: `CM_SYSPATH_FORCE_ID` → path `/private/var/containers/Data/System/com.apple.backboardd`. **No BB SIGABRT**. HID CES OK. AppleParavirtGPU match → **IOMobileFramebuffer match → IOSOPEN type=0 x0=0 (nuc ok)** from backboardd. BB stayed up (analyticsd after open). **0** IOEXT/IOCMEM from BB post-open. SB alive (chronoservices+RB). Next: IOCONN/IOREGPROP/IOMAPMEM trace. | out/logs/boot140 |
+
+## Chunk 90 (boot141: post-IOMFB-open IOKit trace)
+
+| boot141 | Image.pth75 | IOCONN+IOREGPROP+IOMAPMEM hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open MIG methods/properties reveal next display stub gap. | out/logs/boot141 |
