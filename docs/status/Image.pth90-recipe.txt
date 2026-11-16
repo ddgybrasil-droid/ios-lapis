@@ -1,0 +1,8 @@
+Image.pth90 = Image.pth89 + digitizer-shaped HID pulse + VendorID
+  boot159: stabilized (no BRK); IOMFB open; 0 post-open IOCONN.
+  Enqueue 64B IOHIDEvent (len=64, type=digitizer); VendorID/ProductID;
+  GDB reopens MACHMSG2 window on 2nd BB IOSOPEN (IOMFB).
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth90

@@ -1011,4 +1011,8 @@ Image.pth74.
 
 ## Chunk 108 (boot159: drop get_property* GDB hooks)
 
-| boot159 | Image.pth89 | same kernel as pth88; remove plain/bytes/rec IOREGPROP BPs | qemu11 43G lva=off | **ГИПОТЕЗА**: no BRK; IOMFB+frontboard like boot156; w00t filter kept. | out/logs/boot159 |
+| boot159 | Image.pth89 | same kernel as pth88; remove plain/bytes/rec IOREGPROP BPs | qemu11 43G lva=off | **ПРОВЕРЕНО**: BRK gone (get_property* BPs were the cause). `regnote ok enq`; frontboard **FORCED 0x9f**; IOMFB **IOSOPEN+nuc**; still **0** post-open IOCONN/canvas. SB→chrono+RB. | out/logs/boot159 |
+
+## Chunk 109 (boot160: digitizer-shaped HID pulse + MACHMSG2 post-IOMFB window)
+
+| boot160 | Image.pth90 | 64B digitizer IOHIDEvent pulse; VendorID/ProductID; MACHMSG2 reopen | qemu11 43G lva=off | **ГИПОТЕЗА**: digitizer event classified; post-open mach/IOKit visible; IOMFB/CA IOCONN. | out/logs/boot160 |

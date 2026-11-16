@@ -625,6 +625,13 @@ def on_iosopen():
         # kernel (MIG wrapper); log it on return when present.
         outp = r('x7')
         P('IOSOPEN proc=%s type=%d svc=%#x outp=%#x' % (pn, typ, r('x0'), outp))
+        # boot160: 2nd BB open is IOMFB (1st=HID) — reopen MACHMSG2 window.
+        if 'backboard' in pn0.lower():
+            _iosopen_cnt['bb'] = _iosopen_cnt.get('bb', 0) + 1
+            if _iosopen_cnt['bb'] >= 2 and not _mm2.get('post_iomfb'):
+                _mm2['post_iomfb'] = 1
+                _mm2['n'] = 300
+                P('MACHMSG2_WINDOW post-IOMFB reopen')
         RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
             pn0 or '?', typ, outp))
     except Exception as e:
@@ -858,7 +865,7 @@ BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
 # (boot136 treated regs as fields → garbage; 400-cap burned; 0 RETs).
 # Struct: data, options, bits|send<<32, remote|local<<32, voucher|id<<32,
 #         desc|rcv_name<<32, rcv_size|prio<<32, timeout.
-_mm2 = {'n': 0, 'rb': 0}
+_mm2 = {'n': 0, 'rb': 0, 'post_iomfb': 0}
 def _ui_proc(pn0):
     pl = (pn0 or '').lower()
     return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
@@ -904,7 +911,9 @@ def on_mach_msg2():
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
             return False
         _mm2['n'] += 1
-        if _mm2['n'] > 400:
+        if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
+            return False
+        if _mm2.get('post_iomfb') and _mm2['n'] > 550:
             return False
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,

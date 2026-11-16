@@ -242,6 +242,8 @@ static void set_hid_identity_props(void *obj)
 	 * dims let BKMainDisplayObserver bind HID↔panel (2420×1668). */
 	set_u32(obj, "DigitizerSurfaceWidth", 2420);
 	set_u32(obj, "DigitizerSurfaceHeight", 1668);
+	set_u32(obj, "VendorID", 0x05ac);   /* Apple */
+	set_u32(obj, "ProductID", 0x8102);  /* stub touch */
 	IORegistryEntry_setProperty_bool(obj, "Built-In", 1);
 	IORegistryEntry_setProperty_bool(obj, "DisplayIntegrated", 1);
 	transport = OSString_withCString("Apple");
@@ -846,21 +848,28 @@ int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
 	void *q;
-	/* boot157: removing the pulse regressed to BRK right after NOTE64
-	 * (elr=0x1f0a1dd44). Restore enqueue; keep w00t MACHMSG2 filter. */
-	unsigned char pulse[8];
+	/*
+	 * boot157: empty queue → BRK after NOTE64. boot159: 8B zeros hold.
+	 * boot160: enqueue a minimal IOHIDEvent-shaped digitizer payload
+	 * (length + type=11) so Peek/Dequeue can classify instead of BRK.
+	 */
+	unsigned char pulse[64];
 	int i, enq;
+	unsigned int *u32;
 
 	(void)type;
 	(void)ref;
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 64; i++)
 		pulse[i] = 0;
+	u32 = (unsigned int *)pulse;
+	u32[0] = 64; /* IOHIDEvent length */
+	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
 		/* Boolean true(1)=success */
-		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
+		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
 		OSObject_release(q);
 		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
 			  : "LAPIS iomfb: regnote ok enqfail\n");
