@@ -283,6 +283,16 @@ void *lapis_copyExistingServices(void *dict, unsigned int options,
 
 	name = lapis_match_dict_name(dict);
 	if (name) {
+		/* Re-assert non-inactive matched state before notify invoke. */
+		{
+			void *s = lapis_published_stub(name);
+			if (s) {
+				unsigned int *st =
+					(unsigned int *)((char *)s + 0x48);
+				*st = (*st & ~1u) | 0x1e;
+				OSObject_release(s);
+			}
+		}
 		it = lapis_stub_iterator(name);
 		if (it) {
 			IOLog("LAPIS iomfb: CES via resource\n");
@@ -572,6 +582,17 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		/* still try to publish — some classes start()=false but remain usable */
 	}
 	IOService_registerService(obj, 0);
+	/*
+	 * boot99: AddMatchingNotification's in-kernel handler skips services
+	 * whose +0x48 state bit0 (kIOServiceInactiveState) is set. Hand-rolled
+	 * stubs can land inactive; CES then returns them but invoke is skipped
+	 * → userspace waits forever (boot99 FDR hang after CES, no IOSOPEN).
+	 * Force registered|matched|firstPublish|firstMatch, clear inactive.
+	 */
+	{
+		unsigned int *st = (unsigned int *)((char *)obj + 0x48);
+		*st = (*st & ~1u) | 0x1e;
+	}
 	IOService_publishResource(m->name, obj);
 	IOLog("LAPIS iomfb: published instance\n");
 }

@@ -618,4 +618,12 @@ Image.pth43 sha256 d4f568f9ad4d0462d4922f32744dc0c000fdcdf8fd43dfd4ca0949299cbeb
 - Patcher accepts stale B from prior blob (symbol shift on ramfs growth).
 Image.pth44 sha256 f34b4b10dd516d5f236c0ff0d6d31acb40e88c7efd4f7a181bcb9af378e9a095 (ramfs 554af144…).
 
-| boot99 | Image.pth44 | CES hook for AddMatchingNotification | qemu11 43G lva=off | **ГИПОТЕЗА**: IOMFB_FDR gets CES→stub → IOSOPEN → nuc; then FDR calib externalMethods (stub OK / "No matching FDR data, using default"). Parallel: clear cfprefsd CPU burn so SpringBoard stops respawning. | out/logs/boot99 |
+| boot99 | Image.pth44 | CES hook for AddMatchingNotification | qemu11 43G lva=off | **ПРОВЕРЕНО**: **CES via resource** on IOMFB notify (hook works). RB IOGPU→IOSurface sel=13→32 still OK. FDR **hung** (no IOSOPEN, no exit) — MIG `addMatchingNotification` invokes in-kernel handlers on CES existing; skips `+0x48` bit0 inactive. cfprefsd still burns CPU. | out/logs/boot99 |
+
+## Chunk 49 (boot100: clear IOMFB inactive state for notify invoke)
+
+- After `registerService`, force `__state` at +0x48 to registered|matched|firstPublish|firstMatch (0x1e), clear inactive.
+- CES path re-asserts the same before returning the stub iterator.
+Image.pth45 sha256 243c21885ed0bd55517150482219531b5eed983c54db6bf61ec6614ab0af2f14.
+
+| boot100 | Image.pth45 | IOMFB state bits for notify invoke | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR CES→handler invoke→IOSOPEN→nuc; shm_open gdb logs for cfprefsd. | out/logs/boot100 |
