@@ -280,27 +280,6 @@ def on_pkill():
     return False
 BP('___pthread_kill',on_pkill)
 
-# Capture abort/assert reason strings (SpringBoard CoverSheet wall).
-def _astr(a,n=256):
-    try:
-        if not a: return None
-        return ustr(a,n)
-    except Exception:
-        try: return cstr(a,n)
-        except Exception: return None
-def on_assert_rtn():
-    P('ASSERT_RTN file=%r line=%d func=%r expr=%r proc=%s'%(
-        _astr(r('x0')), r('x1')&0xffffffff, _astr(r('x2')), _astr(r('x3')), cur_pname()))
-    return False
-def on_err():
-    # err(eval, fmt, ...) — x1 often fmt when eval in x0
-    P('ERR eval=%d fmt=%r proc=%s'%(r('x0')&0xffffffff, _astr(r('x1')), cur_pname()))
-    return False
-try: BP('___assert_rtn', on_assert_rtn)
-except Exception as e: P('no __assert_rtn %s'%e)
-try: BP('_err', on_err)
-except Exception as e: P('no _err %s'%e)
-
 # csops entitlement queries (CS_OPS_STATUS 0, CS_OPS_ENTITLEMENTS_BLOB 7, CS_OPS_DER_ENTITLEMENTS_BLOB 16) with result
 _cs_seen={}
 def on_csops():
@@ -341,7 +320,9 @@ BP('ramfs_setattr',on_rsetattr,RAMFS_SETATTR)
 DSC_BASE=0x180000000
 DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0x1e2761b08,
           'container_system_path_for_identifier':0x1e276a4e8,
-          'container_legacy_lookup':0x1e275de24}
+          'container_legacy_lookup':0x1e275de24,
+          'err':0x18f098f44,
+          'abort_with_reason':0x23226a5f0}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -390,9 +371,22 @@ def _ufn(n):
             # w0=class (12=systemData), x1=identifier
             P('CM_LOOKUP proc=%s class=%d id=%r flags=%#x'%(pn,r('x0')&0xffffffff,ustr(r('x1'),128) if r('x1') else None,r('x4')))
             RetBP(r('x30'),'CM_LOOKUP_RET proc=%s'%pn)
-        else:
+        elif n=='err':
+            try: fmt=ustr(r('x1'),256) if r('x1') else None
+            except Exception: fmt=None
+            P('ERR eval=%d fmt=%r x2=%#x proc=%s'%(r('x0')&0xffffffff,fmt,r('x2'),pn))
+            _uframes('ERR_FRAMES')
+        elif n=='abort_with_reason':
+            try: reason=ustr(r('x3'),256) if r('x3') else None
+            except Exception: reason=None
+            P('ABORT_REASON ns=%d code=%#x flags=%#x reason=%r proc=%s'%(
+                r('x0')&0xffffffff,r('x1'),r('x2'),reason,pn))
+            _uframes('ABORT_REASON_FRAMES')
+        elif n=='container_system_path_for_identifier':
             P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
             RetBP(r('x30'),'CM_SYSPATH_RET proc=%s'%pn)
+        else:
+            P('DSC_CALL %s proc=%s'%(n,pn))
         return False
     return fn
 BP('_vm_shared_region_start_address',on_vsrsa)
