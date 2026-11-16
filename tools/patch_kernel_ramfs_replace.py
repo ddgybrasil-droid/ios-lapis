@@ -183,13 +183,16 @@ for a, b_end, o in SITES:
     wr32(img, a, LDR(o))
     wr32(img, b_end, BLR8)
 
-# --- IOService::newUserClient → lapis_new_user_client (PAC-safe entry patch) ---
+# --- IOService/IOResources::newUserClient → lapis_new_user_client (PAC-safe) ---
 # arm64e vtables are signed; rewriting slots breaks braa. Patch the function bodies
-# that the signed pointers still target. Stock simple overload is mov w0,#unsupported;ret.
-NUC_DICT = 0xfffffe0007ac253c   # newUserClient(task*,void*,uint,OSDictionary*,IOUserClient**)
-NUC_SIMPLE = 0xfffffe0007ac27ec  # newUserClient(task*,void*,uint,IOUserClient**)
+# that the signed pointers still target. Stock simple / IOResources are
+# mov w0,#unsupported;ret. IOResources matters when resourceMatching returns the
+# publisher instead of our publishResource stub (boot91).
+NUC_DICT = 0xfffffe0007ac253c   # IOService::newUserClient(..., OSDictionary*, IOUserClient**)
+NUC_SIMPLE = 0xfffffe0007ac27ec  # IOService::newUserClient(..., IOUserClient**)
+NUC_IORES = 0xfffffe0007ac1a08   # IOResources::newUserClient(..., OSDictionary*, IOUserClient**)
 NUC_DICT_PROLOGUE = 0xa9ba6ffc     # stp x28,x27,[sp,#-0x60]!
-NUC_SIMPLE_PROLOGUE = 0x528058e0  # movz w0, #0x2c7
+NUC_UNSUPPORTED = 0x528058e0       # movz w0, #0x2c7
 nuc = sym('lapis_new_user_client')
 nuc_s = sym('lapis_new_user_client_simple')
 for name, va in (('lapis_new_user_client', nuc),
@@ -198,20 +201,20 @@ for name, va in (('lapis_new_user_client', nuc),
         raise SystemExit('elf/bin mismatch: %s=%#x outside blob' % (name, va))
 for site, want_prolog, tgt, label in (
     (NUC_DICT, NUC_DICT_PROLOGUE, nuc, 'dict'),
-    (NUC_SIMPLE, NUC_SIMPLE_PROLOGUE, nuc_s, 'simple'),
+    (NUC_SIMPLE, NUC_UNSUPPORTED, nuc_s, 'simple'),
+    (NUC_IORES, NUC_UNSUPPORTED, nuc, 'iores'),
 ):
     cur = rd32(img, site)
     if cur != want_prolog and decode_b(cur, site) != tgt:
         raise SystemExit(
-            'IOService::newUserClient %s @%#x insn %#x neither stock %#x nor b %#x'
+            'newUserClient %s @%#x insn %#x neither stock %#x nor b %#x'
             % (label, site, cur, want_prolog, tgt))
     wr32(img, site, b(site, tgt))
     assert decode_b(rd32(img, site), site) == tgt
 
 # --- IOService::copyMatchingService → lapis_copyMatchingService ---
-# boot90: serviceMatching fails (metaCast) but resourceMatching works. The hook
-# falls back to resourceMatching for our stub class names. Trampoline holds the
-# overwritten prologue insn + b orig+4 (first insn is stp, not PC-relative).
+# Prefer publishResource stubs via copyProperty (not IOResources publisher).
+# Trampoline: saved prologue stp + b orig+4.
 CMS = 0xfffffe0007ac0444
 CMS_PROLOGUE = 0xa9be4ff4  # stp x20, x19, [sp, #-0x20]!
 cms_hook = sym('lapis_copyMatchingService')
@@ -225,7 +228,6 @@ if cur != CMS_PROLOGUE and decode_b(cur, CMS) != cms_hook:
     raise SystemExit(
         'copyMatchingService @%#x insn %#x neither stock %#x nor b %#x'
         % (CMS, cur, CMS_PROLOGUE, cms_hook))
-# Trampoline at cms_orig: saved prologue; b CMS+4
 wr32(img, cms_orig, CMS_PROLOGUE)
 wr32(img, cms_orig + 4, b(cms_orig + 4, CMS + 4))
 wr32(img, CMS, b(CMS, cms_hook))
@@ -238,6 +240,6 @@ print('replaced ramfs %d bytes sha256=%s @%#x' % (len(blob), blob_sha, BLOB_VA))
 print('  wrap %#x sandbox %#x amfi_boot %#x' % (wrap, sandbox, boot))
 print('  SITE %#x -> amfi_boot; amfi_boot+8 -> LSTC %#x; amfi_boot+0x14 -> AIR %#x' % (
     SITE, LSTC, AIR))
-print('  newUserClient dict %#x -> %#x; simple %#x -> %#x' % (
-    NUC_DICT, nuc, NUC_SIMPLE, nuc_s))
+print('  newUserClient dict %#x -> %#x; simple %#x -> %#x; iores %#x -> %#x' % (
+    NUC_DICT, nuc, NUC_SIMPLE, nuc_s, NUC_IORES, nuc))
 print('  copyMatchingService %#x -> %#x (tramp %#x)' % (CMS, cms_hook, cms_orig))

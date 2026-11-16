@@ -64,6 +64,8 @@ extern void *OSDictionary_getObject_cstr(void *, const char *)
 	__asm__("_ZNK12OSDictionary9getObjectEPKc");
 extern const char *OSString_getCStringNoCopy(void *)
 	__asm__("_ZNK8OSString16getCStringNoCopyEv");
+extern void *IORegistryEntry_copyProperty(void *, const char *)
+	__asm__("_ZNK15IORegistryEntry12copyPropertyEPKc");
 
 /*
  * Trampoline to original IOService::copyMatchingService.
@@ -135,34 +137,49 @@ static int is_lapis_match_name(const char *name)
 }
 
 /*
- * boot90: serviceMatching/nameMatching fail (hand-rolled metaclass metaCast),
- * but resourceMatching works after publishResource. Fall back so userspace
- * IOServiceMatching("IOGPU") still resolves. Image B-patches
- * IOService::copyMatchingService onto this.
+ * boot90/91: serviceMatching/nameMatching fail (hand-rolled metaclass metaCast).
+ * resourceMatching finds IOResources (the publisher), NOT our stub — so
+ * IOServiceOpen would hit IOResources::newUserClient (always Unsupported).
+ * Return the publishResource object via copyProperty so open hits our NUC.
+ * Image B-patches IOService::copyMatchingService onto this.
  */
+static void *lapis_published_stub(const char *name)
+{
+	void *root, *s;
+
+	if (!is_lapis_match_name(name))
+		return 0;
+	root = IOService_getResourceService();
+	if (!root)
+		return 0;
+	s = IORegistryEntry_copyProperty(root, name);
+	if (s)
+		IOLog("LAPIS iomfb: match via resource\n");
+	return s;
+}
+
 void *lapis_copyMatchingService(void *dict)
 {
-	void *s, *val, *rd;
+	void *s, *val;
 	const char *name;
 
-	s = lapis_copyMatchingService_orig(dict);
-	if (s || !dict)
-		return s;
-	/* serviceMatching → IOProviderClass; nameMatching → IONameMatch */
+	if (!dict)
+		return lapis_copyMatchingService_orig(dict);
+
+	/* Prefer our published stubs for known class/name/resource keys. */
 	val = OSDictionary_getObject_cstr(dict, "IOProviderClass");
 	if (!val)
 		val = OSDictionary_getObject_cstr(dict, "IONameMatch");
 	if (!val)
-		return 0;
-	name = OSString_getCStringNoCopy(val);
-	if (!is_lapis_match_name(name))
-		return 0;
-	rd = IOService_resourceMatching(name, 0);
-	if (!rd)
-		return 0;
-	s = lapis_copyMatchingService_orig(rd);
-	if (s)
-		IOLog("LAPIS iomfb: match via resource\n");
+		val = OSDictionary_getObject_cstr(dict, "IOResourceMatch");
+	if (val) {
+		name = OSString_getCStringNoCopy(val);
+		s = lapis_published_stub(name);
+		if (s)
+			return s;
+	}
+
+	s = lapis_copyMatchingService_orig(dict);
 	return s;
 }
 

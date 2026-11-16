@@ -557,4 +557,12 @@ Image.pth35 sha256 99718069db4ed8099be5f5d09cef02d2d82823cbad0ef9e1785f9bcd38fd5
 - B-patch `IOService::copyMatchingService` onto `lapis_copyMatchingService` which falls back to resourceMatching for our stub names.
 Image.pth36 sha256 a023870197e968fed3c9ab44a2cd088dfc0f58cd0e0ee616b4078000d1a34ba6.
 
-| boot91 | Image.pth36 | copyMatchingService resource fallback | qemu11 43G lva=off | running… | out/logs/boot91 |
+| boot91 | Image.pth36 | copyMatchingService resource fallback | qemu11 43G lva=off | **ПРОВЕРЕНО**: self service/name/resourceMatching IOGPU ok; runningboardd IOGPU match+open x0=0 but **no nuc** (opened IOResources publisher); SB past SBSTATIC; SpringBoard respawns on cfprefsd. | out/logs/boot91 |
+
+## Chunk 41 (boot92: return publishResource stub, not IOResources)
+
+- resourceMatching/`copyMatchingService` returns **IOResources**, so open hits `IOResources::newUserClient` (Unsupported) — RB never gets a real IOGPU client.
+- Hook now `copyProperty(IOResources, name)` for known stubs; also B-patch `IOResources::newUserClient` → `lapis_new_user_client`.
+Image.pth37 sha256 a671daafe9d06d944533e44dcfc3e2eda286af385bb332a0a65bea1ce8716d2b.
+
+| boot92 | Image.pth37 | published-stub match + IOResources NUC | qemu11 43G lva=off | running… | out/logs/boot92 |
