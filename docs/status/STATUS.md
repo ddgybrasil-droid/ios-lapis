@@ -602,4 +602,12 @@ Image.pth41 sha256 598df825fda1cc948902d8bc6430029fdd5bdc242b5efdee30a055c567f01
 - Seed version/present/flags in structure outputs (esp. IOGPU sel=2 536-byte caps).
 Image.pth42 sha256 692dc69df8a4ccef242eb01167fb9d0d748728394168d6284008a8790c499abb.
 
-| boot97 | Image.pth42 | seed GPU caps in externalMethod | qemu11 43G lva=off | running… | out/logs/boot97 |
+| boot97 | Image.pth42 | seed GPU caps in externalMethod | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOGPU sel=2/0/4 + IOSurface sel=13 all x0=0; still no post-sel13 RB activity. RE: IOSurface connect requires `*(uint16*)(limits+0x22)==1` else closes; prior seed left 0. XPC_LOOKUP x0=0 is likely KERN_SUCCESS (out-port), not failure. | out/logs/boot97 |
+
+## Chunk 47 (boot98: IOSurface limits gate + real IOGPU layouts)
+
+- `lapis_external_method`: sel=13 sets halfword @0x22=1; sel=2 event_machine count@0x14=0; sel=0 seeds `IOGPUDeviceConfigData`; sel=4 non-zero filter.
+- GDB: richer `xpc_look_up_endpoint` arg dump (kr vs port*).
+Image.pth43 sha256 d4f568f9ad4d0462d4922f32744dc0c000fdcdf8fd43dfd4ca0949299cbeb56c.
+
+| boot98 | Image.pth43 | IOSurface +0x22=1 + IOGPU struct layouts | qemu11 43G lva=off | running… | out/logs/boot98 |

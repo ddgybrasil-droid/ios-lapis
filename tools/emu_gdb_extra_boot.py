@@ -385,9 +385,12 @@ def _ufn(n):
         if n=='xpc_look_up_endpoint':
             name=ustr(r('x0'),128)
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
-            if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager')) and _xl_cnt[k]<=3:
-                P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x'%(pn,name,r('x1')&0xffffffff,r('x2'),r('x3')))
-                # x0 on return is the xpc error / endpoint object; 0x9f == 159 "Sandbox restriction"
+            if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager','runningboardd')) and _xl_cnt[k]<=3:
+                # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
+                # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
+                # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
+                P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
+                    pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
                 RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
         elif n=='container_xpc_create_connection':
             P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))

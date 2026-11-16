@@ -326,10 +326,18 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 }
 
 /*
- * boot95/96: zero + seed structure outputs.
+ * boot95/98: seed structure outputs from real IOGPU/IOSurface userspace parsers.
  * IOExternalMethodArguments (arm64): structureOutput @88, size @96.
- * boot96: IOGPU sel=2 asks for 536 bytes (caps); sel=0/4/13 ask 64/32/40.
- * All-zero caps look like "no GPU" — seed a minimal present/version header.
+ *
+ * IOGPUDeviceCreateWithOptions (iPadOS 26 / 23F77):
+ *   sel=2 stout=0x218: event_machine — u64 base@0, u32 count@0x14, u32 offs@0x18.
+ *     count < 2 takes the no-malloc path (safe for stubs).
+ *   sel=0 stout=0x40: IOGPUDeviceConfigData = IIQQIIQQQII (64 bytes).
+ *   sel=4 stout=0x20: trace filter blob.
+ *
+ * IOSurface ____ioSurfaceConnectInternal (sel=13 stout=0x28 → _ioSurfaceLimits):
+ *   success requires *(uint16_t *)(limits + 0x22) == 1; otherwise the connect
+ *   falls through to IOServiceClose and IOSurface stays unusable.
  */
 int lapis_external_method(void *self, unsigned int selector, void *args,
 			  void *dispatch, void *target, void *reference)
@@ -338,6 +346,8 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 	uint32_t n, i, sz;
 	unsigned char *p;
 	uint32_t *u32;
+	uint16_t *u16;
+	uint64_t *u64;
 
 	(void)self;
 	(void)dispatch;
@@ -365,21 +375,49 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 		for (i = 0; i < sz; i++)
 			p[i] = 0;
 		u32 = (uint32_t *)p;
-		/* version / present / size — enough for presence checks. */
-		if (sz >= 4)
-			u32[0] = 1;
-		if (sz >= 8)
-			u32[1] = selector;
-		if (sz >= 12)
-			u32[2] = sz;
-		if (sz >= 16)
-			u32[3] = 1; /* caps/flags: present */
-		/* IOGPU sel=2 (536): mark a few capability words. */
-		if (selector == 2 && sz >= 64) {
-			u32[4] = 1;
-			u32[5] = 1;
-			u32[6] = 0x10000; /* fake mem */
+		u16 = (uint16_t *)p;
+		u64 = (uint64_t *)p;
+
+		/* IOGPU sel=2 event_machine (536): count<2 avoids offset table walk. */
+		if (selector == 2 && sz >= 0x18) {
+			u64[0] = 0; /* base */
+			u32[5] = 0; /* count @0x14 */
+		}
+		/* IOGPU sel=0 config (64): IOGPUDeviceConfigData IIQQIIQQQII. */
+		else if (selector == 0 && sz >= 64) {
+			u32[0] = 1;		/* version-ish */
+			u32[1] = 1;		/* flags / present */
+			u64[1] = 0x10000000ULL; /* mem-ish */
+			u64[2] = 0x10000000ULL;
+			u32[6] = 1;
 			u32[7] = 1;
+			u64[4] = 0x4000;
+			u64[5] = 0x4000;
+			u64[6] = 1;
+			u32[14] = 1;
+			u32[15] = 1;
+		}
+		/* IOGPU sel=4 trace filter (32): non-zero present marker. */
+		else if (selector == 4 && sz >= 32) {
+			u64[0] = 1;
+			u32[6] = 0; /* keep [+0x18] path gated */
+		}
+		/* IOSurface sel=13 limits (40): halfword @0x22 MUST be 1. */
+		else if (selector == 13 && sz >= 0x24) {
+			u32[0] = 0x10000; /* generous max surfaces */
+			u32[1] = 0x10000;
+			u32[2] = 0x40000000; /* byte budget */
+			u16[0x22 / 2] = 1; /* connect-success gate */
+		} else {
+			/* Generic presence header for other selectors. */
+			if (sz >= 4)
+				u32[0] = 1;
+			if (sz >= 8)
+				u32[1] = selector;
+			if (sz >= 12)
+				u32[2] = sz;
+			if (sz >= 16)
+				u32[3] = 1;
 		}
 		*(uint32_t *)((char *)args + 96) = sz;
 	}
