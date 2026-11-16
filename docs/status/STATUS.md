@@ -847,4 +847,14 @@ Image.pth71.
 - Image.pth72 (=pth71) + FeatureFlags/ManagedPreferences dirs.
 Image.pth72.
 
-| boot128 | Image.pth72 | cfprefsd shm + XPC port diagnostics | qemu11 43G lva=off | **ГИПОТЕЗА**: see whether cfprefsd check-in port is live and why daemonv1 shm is never created. | out/logs/boot128 |
+| boot128 | Image.pth72 | cfprefsd shm + XPC port diagnostics | qemu11 43G lva=off | **ПРОВЕРЕНО**: cfprefsd spawns; SB XPC ports ok (`x0=0`); **no daemonv1 create** (keybagd ENOENT). Cause: shmem extension path. | out/logs/boot128 |
+
+## Chunk 78 (boot129: CFPrefsDaemon shmem O_CREAT force)
+
+- boot128 **ПРОВЕРЕНО**: cfprefsd spawns (#147/#149); XPC ports live for SB (`x0=0`, port words); **cfprefsd never shm_open's `apple.cfprefs.*.daemonv1`**; keybagd `daemonv1` O_RDWR → ENOENT (`x0=2`). RE: `-[CFPrefsDaemon shmem]` @0x1835f32d4 `tbz` → sandbox_extension(`ipc-posix-shm-write-data`) when flag@0x1e9414068 bit0 clear; extension fails under Lapis → skip create.
+- Fix: NOP tbz in DSC `.01` so daemon always uses oflag `0x202` (O_CREAT|O_RDWR). Tool `tools/patch_dsc_cfprefs_shmem.py`; wired into `reapply_dsc_bringup_patches.sh`.
+- Also seed empty FeatureFlags Domain/Settings stubs (`tools/apply_featureflags_stubs.sh`) for init_featureflags ENOENTs.
+- Image.pth73 (=pth72 kernel) + DSC .01 NOP + CD rehash + FF stubs.
+Image.pth73.
+
+| boot129 | Image.pth73 | CFPrefs shmem O_CREAT NOP + FF stubs | qemu11 43G lva=off | **ГИПОТЕЗА**: cfprefsd creates `apple.cfprefs.{user,system}.daemonv1` with O_CREAT; clients stop ENOENT; SB prefs path clears. | out/logs/boot129 |
