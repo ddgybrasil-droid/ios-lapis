@@ -84,9 +84,20 @@ extern void OSCollectionIterator_reset(void *)
 	__asm__("_ZN20OSCollectionIterator5resetEv");
 extern void *OSCollectionIterator_getNextObject(void *)
 	__asm__("_ZN20OSCollectionIterator13getNextObjectEv");
+extern void OSObject_retain(void *) __asm__("_ZNK8OSObject6retainEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
+/* boot105: deferred wake after AMN returns so FDR's mach port is listening. */
+extern void *IOServiceUserNotification_getNextObject(void *)
+	__asm__("_ZN25IOServiceUserNotification13getNextObjectEv");
+extern int IOServiceUserNotification_handler(void *, void *, void *)
+	__asm__("_ZN25IOServiceUserNotification7handlerEPvP9IOService");
+typedef void (*lapis_thread_call_func_t)(void *, void *);
+typedef void *lapis_thread_call_t;
+extern lapis_thread_call_t thread_call_allocate(lapis_thread_call_func_t, void *);
+extern int thread_call_enter(lapis_thread_call_t);
+extern void IOSleep(unsigned int milliseconds);
 
 /*
  * Trampolines overwritten by patch_kernel_ramfs_replace.py:
@@ -331,14 +342,46 @@ void *lapis_copyExistingServices(void *dict, unsigned int options,
 }
 
 /*
- * boot101: CES+reset still left FDR hung (no IOSOPEN). Force the matching
- * notification handler with our published stub after stock
- * addMatchingNotification drains existing — covers empty-iterator and
- * armed/ping edge cases. MIG calls this overload (type, matching, handler,
- * target, ref, priority).
+ * boot101–104: CES+reset+force+pre-arm still left FDR hung (no IOSOPEN).
+ * Root cause (RE of IOServiceUserNotification::handler @0x7b1147c):
+ * sendPing only when armed && count==0 *before* enqueue. Stock existing-drain
+ * runs inside the MIG with armed=0 by design (getNextObject sets armed=1 only
+ * after userland empties the queue). Pre-arm pings during the syscall — before
+ * FDR waits on the port — so the mach message is lost. FDR's framework then
+ * blocks on the notification port forever instead of IOIteratorNext.
+ *
+ * boot105: after queuing, schedule a thread_call that sleeps briefly, drains
+ * via getNextObject (which arms), then re-invokes handler so sendPing fires
+ * once userland is listening.
  */
 typedef int (*lapis_match_handler_t)(void *target, void *ref, void *service,
 				     void *notifier);
+
+static void lapis_deferred_iomfb_ping(void *param0, void *param1)
+{
+	void *target = param0;
+	void *obj, *s;
+
+	(void)param1;
+	if (!target)
+		return;
+	/* Let IOKMATCH return to userland and the notify port start waiting. */
+	IOSleep(200);
+	while ((obj = IOServiceUserNotification_getNextObject(target)))
+		OSObject_release(obj);
+	/* Queue empty → getNextObject set armed@+0x48. Re-add → sendPing. */
+	s = lapis_published_stub("IOMobileFramebuffer");
+	if (s) {
+		unsigned int *st = (unsigned int *)((char *)s + 0x48);
+		*st = (*st & ~1u) | 0x1e;
+		IOServiceUserNotification_handler(target, 0, s);
+		OSObject_release(s);
+		IOLog("LAPIS iomfb: deferred ping\n");
+	} else {
+		IOLog("LAPIS iomfb: deferred ping no stub\n");
+	}
+	OSObject_release(target);
+}
 
 void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 				    void *target, void *ref, int priority)
@@ -348,19 +391,11 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 	void *s;
 	unsigned int *st;
 	int ours = 0;
+	lapis_thread_call_t tc;
 
 	name = matching ? lapis_match_dict_name(matching) : 0;
 	/* Only FDR's IOMobileFramebuffer notify needs the armed/ping fix. */
 	ours = name && streq(name, "IOMobileFramebuffer") && target && handler;
-
-	/*
-	 * boot103/104: handler sendPings only when armed && count==0. Init
-	 * leaves armed=0, so stock existing-drain queues without waking FDR.
-	 * Arm userNotify (armed @+0x48) BEFORE orig so the first invoke pings.
-	 * Post-orig arm fails when CES already queued (count>0 → no ping).
-	 */
-	if (ours)
-		*((unsigned char *)target + 0x48) = 1;
 
 	ret = lapis_addMatchingNotification_orig(type, matching, handler,
 						 target, ref, priority);
@@ -368,15 +403,25 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 		return ret;
 
 	s = lapis_published_stub(name);
-	if (!s)
-		return ret;
-	st = (unsigned int *)((char *)s + 0x48);
-	*st = (*st & ~1u) | 0x1e;
-	/* Fallback if stock drain missed (empty iter): re-arm + force. */
-	*((unsigned char *)target + 0x48) = 1;
-	((lapis_match_handler_t)handler)(target, ref, s, ret);
-	OSObject_release(s);
-	IOLog("LAPIS iomfb: forced match handler\n");
+	if (s) {
+		st = (unsigned int *)((char *)s + 0x48);
+		*st = (*st & ~1u) | 0x1e;
+		/* Queue now so getNextObject has something if FDR iterates. */
+		((lapis_match_handler_t)handler)(target, ref, s, ret);
+		OSObject_release(s);
+		IOLog("LAPIS iomfb: forced match handler\n");
+	}
+
+	/* Deferred ping: wake the port after MIG returns (see comment above). */
+	OSObject_retain(target);
+	tc = thread_call_allocate(lapis_deferred_iomfb_ping, target);
+	if (tc) {
+		thread_call_enter(tc);
+		IOLog("LAPIS iomfb: scheduled deferred ping\n");
+	} else {
+		OSObject_release(target);
+		IOLog("LAPIS iomfb: deferred ping alloc fail\n");
+	}
 	return ret;
 }
 

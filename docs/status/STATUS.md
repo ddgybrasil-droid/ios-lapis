@@ -656,4 +656,11 @@ Image.pth48 (ramfs 10c39b40…).
 - Set armed@+0x48 on IOMobileFramebuffer notify target before calling orig addMatchingNotification so first invoke sendPings.
 Image.pth49 (ramfs a9e828e9…).
 
-| boot104 | Image.pth49 | pre-arm userNotify before AMN orig | qemu11 43G lva=off | **ГИПОТЕЗА**: stock invoke pings → FDR IOSOPEN→nuc. | out/logs/boot104 |
+| boot104 | Image.pth49 | pre-arm userNotify before AMN orig | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES + forced handler + RET x0=0; still no FDR IOSOPEN. Pre-arm pings *inside* MIG before FDR waits on the port — message lost. `handler` only sendPings when `armed && count==0`; `getNextObject` sets armed only after userland empties the queue. | out/logs/boot104 |
+
+## Chunk 54 (boot105: deferred ping after AMN returns)
+
+- After force-queue, `thread_call_allocate` + `thread_call_enter` → sleep 200ms → `getNextObject` drain (arms) → `IOServiceUserNotification::handler` re-add → sendPing once FDR listens.
+Image.pth50 (ramfs a11cef40…).
+
+| boot105 | Image.pth50 | deferred IOMFB notify ping | qemu11 43G lva=off | **ГИПОТЕЗА**: deferred ping → FDR IOSOPEN→nuc. | out/logs/boot105 |
