@@ -305,6 +305,28 @@ if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) is None:
 wr32(img, CMEM, b(CMEM, cmem))
 assert decode_b(rd32(img, CMEM), CMEM) == cmem
 
+# --- IOUserClient::registerNotificationPort → lapis_register_notification_port ---
+# boot149: HID open→sel0/1→NOTE64 Unsupported→IOSCLOSE. jj overload is a
+# one-insn Unsupported return; jy (NOTE64) is a real function (ldr x8,[x0]).
+REGNOTE_JJ = 0xfffffe0007b131d0
+REGNOTE_JY = 0xfffffe0007b131dc
+REGNOTE_JJ_PROLOGUE = 0x528058e0  # movz w0, #0x2c7
+REGNOTE_JY_PROLOGUE = 0xf9400008  # ldr x8, [x0]
+regnote = sym('lapis_register_notification_port')
+if not (BLOB_VA <= regnote < BLOB_VA + len(blob)):
+    raise SystemExit('elf/bin mismatch: lapis_register_notification_port=%#x' % regnote)
+for site, want, label in (
+    (REGNOTE_JJ, REGNOTE_JJ_PROLOGUE, 'registerNotificationPort jj'),
+    (REGNOTE_JY, REGNOTE_JY_PROLOGUE, 'registerNotificationPort jy'),
+):
+    cur = rd32(img, site)
+    if cur != want and decode_b(cur, site) is None:
+        raise SystemExit(
+            '%s @%#x insn %#x neither stock %#x nor b'
+            % (label, site, cur, want))
+    wr32(img, site, b(site, regnote))
+    assert decode_b(rd32(img, site), site) == regnote
+
 # --- IOServiceUserNotification::getNextObject poison → copyNextObject ---
 # boot105–107: ksym getNextObject @0x7b11668 is `b; adrp; brk #0xbffc`.
 # is_io_iterator_next (userland IOIteratorNext) dispatches OSIterator
@@ -343,6 +365,8 @@ print('  copyExistingServices %#x -> %#x (tramp %#x)' % (CES, ces_hook, ces_orig
 print('  addMatchingNotification %#x -> %#x (tramp %#x)' % (AMN, amn_hook, amn_orig))
 print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
+print('  registerNotificationPort jj %#x / jy %#x -> %#x' % (
+    REGNOTE_JJ, REGNOTE_JY, regnote))
 print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOServiceUserNotification', USN_GNO, USN_CNO))
 print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOUserIterator', IUI_GNO, IUI_CNO))
 print('  is_io_object_conforms_to %#x -> %#x (tramp %#x)' % (

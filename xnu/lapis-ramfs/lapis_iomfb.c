@@ -716,6 +716,24 @@ int lapis_new_user_client_simple(void *self, void *task, void *sec,
 }
 
 /*
+ * boot149: HID CFPlugin opens our UC, calls sel0/sel1, then
+ * set_notification_port_64 → stock IOUserClient::registerNotificationPort
+ * returns Unsupported (0xe00002c7) → IOSCLOSE. Accept and remember nothing;
+ * event delivery can be filled in later.
+ * Image B-patches both jj/jy overloads onto this.
+ */
+int lapis_register_notification_port(void *self, void *port,
+				     unsigned int type, unsigned long long ref)
+{
+	(void)self;
+	(void)port;
+	(void)type;
+	(void)ref;
+	IOLog("LAPIS iomfb: regnote ok\n");
+	return 0;
+}
+
+/*
  * boot94: after IOCoreSurfaceRoot open, clients need clientMemoryForType
  * (shared surface root mapping). Stock IOUserClient returns Unsupported.
  * Image B-patches IOUserClient::clientMemoryForType onto this.

@@ -971,4 +971,8 @@ Image.pth74.
 
 ## Chunk 98 (boot149: real HID IOCFPlugInTypes → IOHIDLib)
 
-| boot149 | Image.pth79 | HID UUID→IOHIDLib.plugin; seed IOHIDEventServicePlugin | qemu11 43G lva=off | **ГИПОТЕЗА**: CFPlugin loads; post-HID IOCONN/IOEXT on IOMFB or HID UC; SB backboard XPC. | out/logs/boot149 |
+| boot149 | Image.pth79 | HID UUID→IOHIDLib.plugin; seed IOHIDEventServicePlugin | qemu11 43G lva=off | **ПРОВЕРЕНО**: EventServicePlugin loads; HID IOSOPEN→IOCONN sel0/1→**NOTE64 0xe00002c7**→**IOSCLOSE**. Then IOMFB open (still 0 post-open methods). Next: stub registerNotificationPort. | out/logs/boot149 |
+
+## Chunk 99 (boot150: registerNotificationPort success)
+
+| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ГИПОТЕЗА**: NOTE64 x0=0; HID conn stays open; IOMFB IOCONN follows. | out/logs/boot150 |
