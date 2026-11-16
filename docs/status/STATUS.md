@@ -881,4 +881,13 @@ Image.pth73.
 - Seed Session (+ Temporary/Icons) under MappedImageCache to clear next BSUI assert.
 Image.pth73.
 
-| boot132 | Image.pth73 | MappedImageCache Session/Temporary/Icons | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past Session assert; next display/HID or further cache dirs. | out/logs/boot132 |
+| boot132 | Image.pth73 | MappedImageCache Session/Temporary/Icons | qemu11 43G lva=off | **ПРОВЕРЕНО**: no SB MappedImageCache NAMEI; **no SB BaseBoardUI EXC**; SB reaches chronoservices + runningboard XPC (ports ok). runningboardd IOGPU+IOCoreSurface open/extmethods ok. Next: SB stalls after RB lookups — deepen RB↔SB handshake / display-HID. | out/logs/boot132 |
+
+## Chunk 82 (boot133: SpringBoard past runningboard → display/HID)
+
+- boot132 cleared BSUI MappedImageCache asserts (Wallpaper/Session seeds).
+- SB/backboardd obtain `com.apple.runningboard` ports but SB does not yet IOKMATCH IOMFB/HID.
+- Plan: trace RB XPC replies / IOGPU sel2/0/4 output buffers; ensure backboard display services publish; watch SB for IOMobileFramebuffer/IOHIDEventService.
+Image.pth73 (+ optional IOGPU caps tweak).
+
+| boot133 | Image.pth73 | RB→SB handshake + display/HID probe | qemu11 43G lva=off | **ГИПОТЕЗА**: SB progresses to framebuffer/HID match after RB serve. | out/logs/boot133 |
