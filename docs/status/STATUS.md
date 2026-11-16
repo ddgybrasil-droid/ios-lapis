@@ -959,4 +959,8 @@ Image.pth74.
 
 ## Chunk 95 (boot146: restore RB force + IOCFPlugInTypes + NUC geometry)
 
-| boot146 | Image.pth76 | RB+ACCHW 0x9f; empty IOCFPlugInTypes; NUC panel props; 8/16-byte IOMFB outs; IOSCLOSE log | qemu11 43G lva=off | **ГИПОТЕЗА**: HID→IOMFB open again; IOCFPlugInTypes ≠ 0xe00002f0; post-open IOCONN/IOEXT or IOSCLOSE explains silence. | out/logs/boot146 |
+| boot146 | Image.pth76 | RB+ACCHW 0x9f; empty IOCFPlugInTypes; NUC panel props; 8/16-byte IOMFB outs; IOSCLOSE log | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB+ACCHW FORCED; HID→IOCFPlugInTypes **x0=0** (was 0xe00002f0); DisplayPortCount→IOMFB open+nuc. **0** IOCONN/IOSCLOSE/IOEXT from BB. BB alive post-open (mach msgid `w00t`). NAMEI `/usr/appleinternal/lib/HIDPlugins` miss. FDR open→exit1 (known cal). SB chrono+RB, no backboard XPC yet. | out/logs/boot146 |
+
+## Chunk 96 (boot147: HIDPlugins path + UC class + async/note MIG)
+
+| boot147 | Image.pth77 | usr/appleinternal HIDPlugins; UC IOClass+LapisUC; NOTE/ASYNC/GETSVC hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: HID plugin path ENOENT gone; post-open NOTE/ASYNC/IOCONN or conformsTo LapisUC. | out/logs/boot147 |

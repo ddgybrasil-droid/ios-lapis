@@ -617,8 +617,12 @@ def on_iosopen():
         if not interesting and _iosopen_cnt['n'] > 80:
             return False
         typ = r('x3') & 0xffffffff
-        P('IOSOPEN proc=%s type=%d svc=%#x' % (pn, typ, r('x0')))
-        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d' % (pn0 or '?', typ))
+        # is_io_service_open_extended: connection out lives at *(x7) on this
+        # kernel (MIG wrapper); log it on return when present.
+        outp = r('x7')
+        P('IOSOPEN proc=%s type=%d svc=%#x outp=%#x' % (pn, typ, r('x0'), outp))
+        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
+            pn0 or '?', typ, outp))
     except Exception as e:
         P('ERR iosopen %s' % e)
     return False
@@ -736,6 +740,14 @@ BP('_is_io_connect_method_scalarI_structureO', _mk_ioconn('SSo'), addr=0xfffffe0
 BP('_is_io_connect_method_scalarI_structureI', _mk_ioconn('SSi'), addr=0xfffffe0007b1a4a8)
 BP('_is_io_connect_method_structureI_structureO', _mk_ioconn('SoSo'), addr=0xfffffe0007b1ac04)
 BP('_is_io_connect_method_var_output', _mk_ioconn('VO'), addr=0xfffffe0007b18170)
+# boot146: BB opens IOMFB then only sends mach 'w00t' — never hits method MIG.
+# Catch notification/async/get_service which often follow Open before methods.
+BP('_is_io_connect_async_method', _mk_ioconn('ASYNC'), addr=0xfffffe0007b18818)
+BP('_is_io_connect_set_notification_port', _mk_ioconn('NOTE'), addr=0xfffffe0007b177cc)
+BP('_is_io_connect_set_notification_port_64', _mk_ioconn('NOTE64'), addr=0xfffffe0007b1785c)
+BP('_is_io_connect_get_service', _mk_ioconn('GETSVC'), addr=0xfffffe0007b1773c)
+BP('_is_io_connect_add_client', _mk_ioconn('ADDCL'), addr=0xfffffe0007b180c8)
+BP('_is_io_connect_set_properties', _mk_ioconn('SETPROP'), addr=0xfffffe0007b1816c)
 
 _ioreg_cnt = {'n': 0}
 def _mk_ioreg(tag):
@@ -832,7 +844,12 @@ def on_mach_msg2():
             return False
         if 'runningboard' in pn0.lower():
             _mm2['rb'] = 1
-        if not _mm2['rb'] and 'runningboard' not in pn0.lower():
+        # boot146: BB post-IOMFB-open only shows up as mach 'w00t' — always
+        # log BB/SB; keep the RB-first gate for other UI procs only.
+        if (not _mm2['rb'] and 'runningboard' not in pn0.lower()
+                and 'backboard' not in pn0.lower()
+                and 'springboard' not in pn0.lower()
+                and pn0 != 'SpringBoard'):
             return False
         ap = r('x0')
         # Trap entry: x0 → mach_msg2_trap_args on kernel stack.

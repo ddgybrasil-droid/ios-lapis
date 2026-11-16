@@ -531,7 +531,23 @@ int lapis_is_io_object_conforms_to(void *obj, const char *name,
 		return kr;
 	if (*out)
 		return kr;
-	if (!obj || !name || !is_lapis_match_name(name))
+	if (!obj || !name)
+		return kr;
+	/*
+	 * boot147: connection-side class checks for IOMFB UC. Our NUC is a
+	 * stock IOUserClient tagged LapisUC + IOClass=…UserClient.
+	 */
+	if (streq(name, "IOMobileFramebufferUserClient") ||
+	    streq(name, "IOUserClient")) {
+		void *tag = IORegistryEntry_copyProperty(obj, "LapisUC");
+		if (tag) {
+			*out = 1;
+			IOLog("LAPIS iomfb: conformsTo LapisUC\n");
+			OSObject_release(tag);
+			return kr;
+		}
+	}
+	if (!is_lapis_match_name(name))
 		return kr;
 	stub = lapis_published_stub(name);
 	if (!stub)
@@ -640,9 +656,9 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 		return kIOReturnUnsupported;
 	}
 	/*
-	 * boot144/145: BB opens IOMFB type=0 then goes silent (0 IOCONN). Seed
-	 * common panel geometry on the user client itself so IORegistry probes
-	 * against the connection object do not see an empty property set.
+	 * boot144/146: BB opens IOMFB type=0 then no method MIG (only mach
+	 * 'w00t'). Seed panel geometry + IOClass so connection-side registry
+	 * probes and class checks see an IOMFB user client, not a blank UC.
 	 */
 	set_u32(client, "IODisplayWidth", 2420);
 	set_u32(client, "IODisplayHeight", 1668);
@@ -650,6 +666,9 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	set_u32(client, "IODisplayPixelsHigh", 1668);
 	set_u32(client, "IODisplayFrequency", 120);
 	IORegistryEntry_setProperty_bool(client, "IOMFBMainDisplay", 1);
+	IORegistryEntry_setProperty_cstr(client, "IOClass",
+					 "IOMobileFramebufferUserClient");
+	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
 	return 0;

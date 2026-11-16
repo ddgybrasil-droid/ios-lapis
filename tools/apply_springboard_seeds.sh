@@ -28,6 +28,11 @@ DIRS=(
   AppleInternal/Library/HIDPlugins/SessionFilters
   AppleInternal/Library/HIDPlugins/ServicePlugins
   AppleInternal/Library/HIDPlugins/ConnectionPlugins
+  # boot146: BB NAMEI's /usr/appleinternal/lib/HIDPlugins (not AppleInternal/Library).
+  usr/appleinternal/lib/HIDPlugins
+  usr/appleinternal/lib/HIDPlugins/SessionFilters
+  usr/appleinternal/lib/HIDPlugins/ServicePlugins
+  usr/appleinternal/lib/HIDPlugins/ConnectionPlugins
   System/Library/Preferences/Logging/Subsystems
   Library/Preferences/Logging/Subsystems
   private/var/preferences
