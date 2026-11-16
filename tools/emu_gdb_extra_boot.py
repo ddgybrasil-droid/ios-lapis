@@ -513,18 +513,26 @@ def on_client_memory():
     return False
 BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
 
-# boot99/100: cfprefsd burns CPU — likely shm_open / pshm path. Log name + kr.
+# boot99/100: cfprefsd burns CPU — shm_open path. Kernel ABI is
+# shm_open(proc_t, struct shm_open_args *uap, int32_t *retval) with
+# uap->name @0 (user_addr_t), uap->oflag @0x10.
 _shm_cnt = {'n': 0}
 def on_shm_open():
     _shm_cnt['n'] += 1
     if _shm_cnt['n'] > 40:
         return False
     try:
-        name = cstr(r('x0'), 96)
-        P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
-            cur_pname(), name, r('x1') & 0xffffffff, r('x2') & 0xffffffff))
-        RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (
-            cur_pname()[0] if cur_pname() else '?', name))
+        uap = r('x1')
+        name_va = m64(uap) if uap else 0
+        oflag = m32(uap + 0x10) if uap else 0
+        name = ustr(name_va, 96) if name_va else None
+        pn = cur_pname()
+        # Prefer cfprefsd / apple.* names; still log a few early hits.
+        interesting = (name and ('cfprefs' in name or name.startswith('apple.'))) or _shm_cnt['n'] <= 8
+        if interesting:
+            P('SHM_OPEN proc=%s name=%r oflag=%#x' % (pn, name, oflag or 0))
+            RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (
+                pn[0] if pn else '?', name))
     except Exception as e:
         P('ERR shm_open %s' % e)
     return False
