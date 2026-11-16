@@ -280,6 +280,27 @@ def on_pkill():
     return False
 BP('___pthread_kill',on_pkill)
 
+# Capture abort/assert reason strings (SpringBoard CoverSheet wall).
+def _astr(a,n=256):
+    try:
+        if not a: return None
+        return ustr(a,n)
+    except Exception:
+        try: return cstr(a,n)
+        except Exception: return None
+def on_assert_rtn():
+    P('ASSERT_RTN file=%r line=%d func=%r expr=%r proc=%s'%(
+        _astr(r('x0')), r('x1')&0xffffffff, _astr(r('x2')), _astr(r('x3')), cur_pname()))
+    return False
+def on_err():
+    # err(eval, fmt, ...) — x1 often fmt when eval in x0
+    P('ERR eval=%d fmt=%r proc=%s'%(r('x0')&0xffffffff, _astr(r('x1')), cur_pname()))
+    return False
+try: BP('___assert_rtn', on_assert_rtn)
+except Exception as e: P('no __assert_rtn %s'%e)
+try: BP('_err', on_err)
+except Exception as e: P('no _err %s'%e)
+
 # csops entitlement queries (CS_OPS_STATUS 0, CS_OPS_ENTITLEMENTS_BLOB 7, CS_OPS_DER_ENTITLEMENTS_BLOB 16) with result
 _cs_seen={}
 def on_csops():

@@ -449,4 +449,7 @@ Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKU
 
 | boot70 | Image.pth23 | restore container_init+pac_strip+syspath | qemu11 43G lva=off | ПРОВЕРЕНО: past `_container_init`; **FIPS_POST integrity FAILED** (−74) → launchd panic fips. | out/logs/boot70 |
 | boot71 | Image.pth23 | + FIPS reseal | qemu11 43G lva=off | ПРОВЕРЕНО: FIPS PASS; Early boot; **lsd wall cleared**; SpringBoard CoverSheet `_phoneListWidth` SIGABRT×14. | out/logs/boot71 |
-| boot72 | Image.pth24 | + CoverSheet width stub + IOMFB 2420×1668 props + MG plist | qemu11 43G lva=off | running… | out/logs/boot72 |
+| boot72 | Image.pth24 | + CoverSheet width stub + IOMFB 2420×1668 props + MG plist | qemu11 43G lva=off | ПРОВЕРЕНО: same SpringBoard SIGABRT stack (CoverSheet symbols); short stub did not change FP chain. | out/logs/boot72 |
+| boot73 | Image.pth24 | + onceToken=-1 + width data seed + once-block stub | qemu11 43G lva=off | ПРОВЕРЕНО: unchanged SB SIGABRT×5; FP still shows cold.1 (likely FP-walk noise or non-executing stub path). | out/logs/boot73 |
+| boot74 | Image.pth24 | full method+cold.1 overwrite | qemu11 43G lva=off | ПРОВЕРЕНО: still SB SIGABRT; next: assert/err string hooks + SearchUI/FeatureFlags seeds. | out/logs/boot74 |
+| boot75 | Image.pth24 | + assert hooks + SearchUI resources + SB FeatureFlags | qemu11 43G lva=off | running… | out/logs/boot75 |
