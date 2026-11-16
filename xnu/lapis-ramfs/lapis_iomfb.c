@@ -276,24 +276,46 @@ void *lapis_copyMatchingService(void *dict)
  */
 static void *lapis_stub_iterator(const char *name)
 {
-	void *s, *set, *it;
+	void *s, *set, *it, *peek;
 
 	s = lapis_published_stub(name);
 	if (!s)
 		return 0;
 	set = OSSet_withCapacity(1);
-	if (set && OSSet_setObject(set, s)) {
-		it = OSCollectionIterator_withCollection(set);
-		if (it)
-			OSCollectionIterator_reset(it);
+	if (!set) {
+		OSObject_release(s);
+		return 0;
+	}
+	if (!OSSet_setObject(set, s)) {
 		OSObject_release(s);
 		OSObject_release(set);
-		return it;
+		return 0;
 	}
+	/* set retains s */
 	OSObject_release(s);
-	if (set)
+	it = OSCollectionIterator_withCollection(set);
+	if (!it) {
 		OSObject_release(set);
-	return 0;
+		return 0;
+	}
+	/*
+	 * boot121: userspace IOIteratorNext returned null after a successful
+	 * GetMatchingServices. Peek+reset here so we never hand out an empty
+	 * iterator; keep an extra set retain until after peek in case
+	 * withCollection's retain is deferred until reset/first Next.
+	 */
+	OSCollectionIterator_reset(it);
+	peek = OSCollectionIterator_getNextObject(it);
+	if (!peek) {
+		IOLog("LAPIS iomfb: stub iter EMPTY\n");
+		OSObject_release(it);
+		OSObject_release(set);
+		return 0;
+	}
+	IOLog("LAPIS iomfb: stub iter ok\n");
+	OSCollectionIterator_reset(it);
+	OSObject_release(set);
+	return it;
 }
 
 /*

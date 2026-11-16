@@ -287,8 +287,13 @@ def on_io_iterator_next():
         _ionext_n['n'] += 1
         if _ionext_n['n'] > 80:
             return False
-        P('IOITER_NEXT proc=%s' % (pn,))
-        RetBP(r('x30'), 'IOITER_NEXT_RET proc=%s' % (pn0 or '?',))
+        # is_io_iterator_next(iterator, io_object_t *out): x0=kr on return; *x1=object.
+        try:
+            outp = r('x1'); obj0 = m32(outp) if outp else 0
+        except Exception:
+            outp, obj0 = 0, 0
+        P('IOITER_NEXT proc=%s outp=%#x obj_before=%#x' % (pn, outp, obj0))
+        RetBP(r('x30'), 'IOITER_NEXT_RET proc=%s outp=%#x' % (pn0 or '?', outp))
     except Exception as e:
         P('ERR ioiter %s' % e)
     return False

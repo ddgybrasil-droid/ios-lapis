@@ -791,4 +791,12 @@ Image.pth64.
 - Image.pth65 + DSC `.44` + CD rehash.
 Image.pth65.
 
-| boot121 | Image.pth65 | plural &iterator ABI cave | qemu11 43G lva=off | **ГИПОТЕЗА**: correct iterator out-param → Next port → Open → FDR IOSOPEN. | out/logs/boot121 |
+| boot121 | Image.pth65 | plural &iterator ABI cave | qemu11 43G lva=off | **ПРОВЕРЕНО**: `IOKMATCH services` + `IOITER_NEXT` (kr=0) but **no FDR IOSOPEN** — userspace Next object null (stub OSSet iterator likely empty/use-after-release). | out/logs/boot121 |
+
+## Chunk 71 (boot122: stub iterator peek+retain)
+
+- `lapis_stub_iterator`: peek getNextObject before hand-off; log EMPTY/ok; safer set retain.
+- Image.pth66 ramfs replace; DSC cave unchanged from boot121.
+Image.pth66.
+
+| boot122 | Image.pth66 | stub iter peek + plural cave | qemu11 43G lva=off | **ГИПОТЕЗА**: non-empty stub iter → Next port → Open → FDR IOSOPEN. | out/logs/boot122 |
