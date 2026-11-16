@@ -49,7 +49,7 @@ extern void *IOService_nameMatching(const char *, void *)
 extern void *IOService_resourceMatching(const char *, void *)
 	__asm__("_ZN9IOService16resourceMatchingEPKcP12OSDictionary");
 extern void *IOService_copyMatchingService(void *)
-	__asm__("_ZN9IOService18copyMatchingServiceEP12OSDictionary");
+	__asm__("_ZN9IOService19copyMatchingServiceEP12OSDictionary");
 extern void IORegistryEntry_setName(void *, const char *, const void *)
 	__asm__("_ZN15IORegistryEntry7setNameEPKcPK15IORegistryPlane");
 extern void IORegistryEntry_setProperty_bool(void *, const char *, unsigned char)

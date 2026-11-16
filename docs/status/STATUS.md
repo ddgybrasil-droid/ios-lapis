@@ -547,6 +547,6 @@ Image.pth34 sha256 ba865e29eae43313004de830e057bb8bef83af48aa7528290466944e6e2ba
 
 - Still Offline after IOResources attach/start/publishResource.
 - Add kernel self-test: `serviceMatching` / `nameMatching` / `resourceMatching` + `copyMatchingService("IOGPU")` at publish time.
-Image.pth35 sha256 ba865e29eae43313004de830e057bb8bef83af48aa7528290466944e6e2ba9c9.
+Image.pth35 sha256 99718069db4ed8099be5f5d09cef02d2d82823cbad0ef9e1785f9bcd38fd5a81.
 
 | boot90 | Image.pth35 | self-match IOGPU probe | qemu11 43G lva=off | running… | out/logs/boot90 |
