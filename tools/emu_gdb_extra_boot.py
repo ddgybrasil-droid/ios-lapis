@@ -36,10 +36,17 @@ class _RetSite(gdb.Breakpoint):
                 # boot155/156: BB waits on frontboard.systemappservices (SB) after
                 # IOMFB open with 0 post-open IOCONN and burns CPU. Force 0x9f like
                 # RB so display/CA init can proceed without SB frontboard publish.
-                force_bb = ("proc=backboardd" in t and (
-                        "name='com.apple.runningboard'" in t or
-                        "name='com.apple.ACCHWComponentAuthService'" in t or
-                        "name='com.apple.frontboard.systemappservices'" in t))
+                # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
+                # spins — allow real RB/frontboard once post_iomfb so display
+                # assertions can check in; keep ACCHW forced always.
+                _force_names = ["name='com.apple.ACCHWComponentAuthService'"]
+                if not _mm2.get('post_iomfb'):
+                    _force_names += [
+                        "name='com.apple.runningboard'",
+                        "name='com.apple.frontboard.systemappservices'",
+                    ]
+                force_bb = ("proc=backboardd" in t and
+                            any(n in t for n in _force_names))
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)

@@ -1,0 +1,9 @@
+Image.pth93 = Image.pth92 + post-IOMFB real RB + AppleBacklightDisplay
+  boot162: restored IOMFB open; 0 post-open IOCONN; BB msgid 11602→0x1903 then spin.
+  - GDB: stop forcing RB/frontboard after 2nd BB IOSOPEN (post_iomfb); keep ACCHW
+  - Publish AppleBacklightDisplay + IODisplayWrangler stubs
+  - Log messageClients after IOMFB NUC
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth93

@@ -1023,4 +1023,8 @@ Image.pth74.
 
 ## Chunk 111 (boot162: restore 4-byte CLEARED + boot160 pulse; keep entitlement/messageClients)
 
-| boot162 | Image.pth92 | 4-byte CLEARED; boot160 digitizer pulse; keep HID entitlement + IOMFB messageClients | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot160 path to IOMFB open; entitlement+messageClients advance post-open IOCONN. | out/logs/boot162 |
+| boot162 | Image.pth92 | 4-byte CLEARED; boot160 digitizer pulse; keep HID entitlement + IOMFB messageClients | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB **alive** past frontboard 4-byte CLEARED (no EXC). HID entitlement/`Unregistered` **x0=0**; Paravirt→DisplayPortCount→**IOMFB IOSOPEN+nuc**; `MACHMSG2_WINDOW` ok. Still **0** post-open IOMFB IOCONN/canvas/sel8. Post-open: one mach msgid **11602**→`0x1903` then `MACHMSG2_SPIN` lr=`mach_syscall+0x190`. SB→chrono+RB. | out/logs/boot162 |
+
+## Chunk 112 (boot163: post-IOMFB real RB + AppleBacklightDisplay)
+
+| boot163 | Image.pth93 | stop RB/frontboard force after IOMFB open; AppleBacklightDisplay stub | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open msgid 11602 needs real RB; backlight stub + real RB → IOMFB/CA IOCONN. | out/logs/boot163 |
