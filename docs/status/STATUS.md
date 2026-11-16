@@ -775,4 +775,12 @@ Image.pth62.
 - Image.pth63 (=pth62 kernel) + DSC `.44` cave + CD rehash.
 Image.pth63.
 
-| boot119 | Image.pth63 | singular GMS cave d50 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetMatchingService returns IOMFB port → Open → FDR IOSOPEN. | out/logs/boot119 |
+| boot119 | Image.pth63 | singular GMS cave d50 | qemu11 43G lva=off | **ПРОВЕРЕНО**: singular `IOKMATCH service` IOMFB + resource x0=0; **no FAR=0x574**; **still no FDR IOSOPEN** — userspace service port likely 0 so cave returned NoDevice before Open. | out/logs/boot119 |
+
+## Chunk 69 (boot120: singular then plural+Next, master d50)
+
+- Cave: try GetMatchingService; on null, Matching again → GetMatchingServices → Next → Release → Open. Master GOT d50.
+- Image.pth64 (=pth63 kernel) + DSC `.44` + CD rehash.
+Image.pth64.
+
+| boot120 | Image.pth64 | singular→plural Next cave | qemu11 43G lva=off | **ГИПОТЕЗА**: Next yields IOMFB port → Open → FDR IOSOPEN. | out/logs/boot120 |
