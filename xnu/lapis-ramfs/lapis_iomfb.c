@@ -74,30 +74,19 @@ struct lapis_mc {
 	const char *name;
 };
 
-#define LAPIS_MAX_OURS 16
-static void *g_ours[LAPIS_MAX_OURS];
-static int g_nours;
-
 static void *null_alloc(const void *self) { (void)self; return 0; }
 
 #define kIOReturnNoMemory     0xe00002bd
 #define kIOReturnBadArgument  0xe00002c2
 #define kIOReturnUnsupported  0xe00002c7
 
-static int is_ours(void *self)
-{
-	int i;
-	for (i = 0; i < g_nours; i++)
-		if (g_ours[i] == self)
-			return 1;
-	return 0;
-}
-
 /*
  * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
  * x0=self, x1=task, x2=security_id, w3=type, x4=properties, x5=out
  * Exported: Image build B-patches stock IOService::newUserClient onto these.
- * Only our published stubs get a client; other stock-IOService opens stay Unsupported.
+ *
+ * NOTE: the ramfs blob lives in RX __TEXT_EXEC — no writable .bss statics.
+ * Do not gate on a pointer list stored in this TU; serve any stock open.
  */
 int lapis_new_user_client(void *self, void *task, void *sec,
 			  unsigned int type, void *props, void **out)
@@ -109,8 +98,6 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	if (!out)
 		return kIOReturnBadArgument;
 	*out = 0;
-	if (!is_ours(self))
-		return kIOReturnUnsupported;
 
 	sz = OSMetaClass_getClassSize(IOUserClient_metaClass);
 	client = IOUserClient_nw(sz);
@@ -224,13 +211,11 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 	}
 
 	root = IOService_getServiceRoot();
-	if (root) {
+	if (root)
 		IOService_attach(obj, root);
-		IOService_start(obj, root);
-	}
+	/* Do not call IOService::start here: stub objects have no start logic,
+	 * and matching already works after attach+registerService (boot85). */
 	IOService_registerService(obj, 0);
-	if (g_nours < LAPIS_MAX_OURS)
-		g_ours[g_nours++] = obj;
 	IOLog("LAPIS iomfb: published instance\n");
 }
 

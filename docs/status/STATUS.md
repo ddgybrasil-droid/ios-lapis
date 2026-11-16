@@ -518,11 +518,11 @@ Image.pth30 sha256 c29096ad1b5df320a2163660a4697ae69e7dbfcc7119d49fd6cb094ce11f5
 | boot84 | Image.pth29 | runtime ml_static_protect nuc | qemu11 43G lva=off | **ПРОВЕРЕНО**: early PANIC in `ml_static_protect.cold` during `lapis_iomfb_register` | out/logs/boot84 |
 | boot85 | Image.pth30 | static NUC B-patch + KRExperiments seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: no panic; metaclasses published; **IOSOPEN→nuc ok→x0=0** (powerd); IOGPU+IOMFB IOKMATCH; KRExperiments `.pb` found (only `_fbs.bin` was missing); **XPC `com.apple.runningboard` never looked up**; runningboardd silent after IOGPU match (no check-in). | out/logs/boot85 |
 
-## Chunk 36 (boot86: start-after-attach + AGX + gated nuc)
+## Chunk 36 (boot86–87: AGX + no RX-blob statics)
 
-- `publish_one`: `IOService::start` after attach; track published objs; MetalDevice props on IOGPU/AGX/IOAccelerator.
-- `lapis_new_user_client`: only serve our published stubs (else Unsupported).
-- Publish AGXAccelerator + IOAccelerator; seed empty GMPOWER `_fbs.bin`.
-Image.pth31 sha256 248c1b79b8fbb5f03184a58acf7a0e6b94833c56a1892a7f085de9d5dd1c1d4a.
+- **boot86 ПРОВЕРЕНО**: PANIC writing `g_nours` — ramfs blob is RX `__TEXT_EXEC`; no writable statics allowed.
+- Publish AGXAccelerator + IOAccelerator with MetalDevice props; keep attach+registerService (no start); ungated nuc (no pointer list); seed empty GMPOWER `_fbs.bin`.
+Image.pth32 sha256 9e4f11e70ae4a73effabf7818abd4ee0d825404b0da96354942697e3f73d8334.
 
-| boot86 | Image.pth31 | start+AGX+gated nuc + fbs.bin | qemu11 43G lva=off | running… | out/logs/boot86 |
+| boot86 | Image.pth31 | start+AGX+gated nuc (RX statics) | qemu11 43G lva=off | **ПРОВЕРЕНО**: PANIC on `g_nours` store in RX blob | out/logs/boot86 |
+| boot87 | Image.pth32 | AGX+Metal props; no RX statics | qemu11 43G lva=off | running… | out/logs/boot87 |
