@@ -72,6 +72,12 @@ extern int OSArray_setObject(void *, const void *)
 	__asm__("_ZN7OSArray9setObjectEPK15OSMetaClassBase");
 extern void *OSCollectionIterator_withCollection(const void *)
 	__asm__("_ZN20OSCollectionIterator14withCollectionEPK12OSCollection");
+/* withCollection leaves valid=false until reset(); in-kernel getNextObject
+ * (addMatchingNotification existing drain) returns NULL without it. Userland
+ * IOUserIterator wraps GMS and calls reset — which is why GMS looked fine
+ * while CES→invokeNotifier never saw our stub (boot99/100 FDR hang). */
+extern void OSCollectionIterator_reset(void *)
+	__asm__("_ZN20OSCollectionIterator5resetEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
@@ -231,6 +237,8 @@ static void *lapis_stub_iterator(const char *name)
 	arr = OSArray_withCapacity(1);
 	if (arr && OSArray_setObject(arr, s)) {
 		it = OSCollectionIterator_withCollection(arr);
+		if (it)
+			OSCollectionIterator_reset(it);
 		OSObject_release(s);
 		OSObject_release(arr);
 		return it;

@@ -626,4 +626,12 @@ Image.pth44 sha256 f34b4b10dd516d5f236c0ff0d6d31acb40e88c7efd4f7a181bcb9af378e9a
 - CES path re-asserts the same before returning the stub iterator.
 Image.pth45 sha256 243c21885ed0bd55517150482219531b5eed983c54db6bf61ec6614ab0af2f14.
 
-| boot100 | Image.pth45 | IOMFB state bits for notify invoke | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR CES→handler invoke→IOSOPEN→nuc; shm_open gdb logs for cfprefsd. | out/logs/boot100 |
+| boot100 | Image.pth45 | IOMFB state bits for notify invoke | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES via resource + RET x0=0; RB sel=32 OK; state@+0x48 confirmed by stock CES `ldr w8,[x21,#0x48]`. FDR still **hung** (no IOSOPEN) — root cause NOT inactive: `OSCollectionIterator::withCollection` leaves `valid=false`; in-kernel `getNextObject` (addMatchingNotification existing drain @0xfffffe0007ac0974) returns NULL until `reset()`. GMS looked fine because userland `IOUserIterator` resets. cfprefsd still burns CPU; shm_open names OK, oflag was read from wrong uap offset (@0x10=mode, not @8). | out/logs/boot100 |
+
+## Chunk 50 (boot101: OSCollectionIterator reset for CES invoke)
+
+- `lapis_stub_iterator`: call `OSCollectionIterator::reset` after `withCollection` so CES→addMatchingNotification→invokeNotifier sees the stub.
+- gdb `shm_open` oflag @uap+8, mode @uap+0x10.
+Image.pth46 (ramfs cdd66f32…).
+
+| boot101 | Image.pth46 | iterator reset before CES return | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR CES→invokeNotifier→IOSOPEN→nuc; cfprefsd shm oflags readable. | out/logs/boot101 |

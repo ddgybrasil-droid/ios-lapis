@@ -514,8 +514,9 @@ def on_client_memory():
 BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
 
 # boot99/100: cfprefsd burns CPU — shm_open path. Kernel ABI is
-# shm_open(proc_t, struct shm_open_args *uap, int32_t *retval) with
-# uap->name @0 (user_addr_t), uap->oflag @0x10.
+# shm_open(proc_t, struct shm_open_args *uap, int32_t *retval). On arm64 each
+# arg is padded to 8: uap->name @0, uap->oflag @8, uap->mode @0x10.
+# boot100 logged garbage oflags from reading mode at @0x10 as oflag.
 _shm_cnt = {'n': 0}
 def on_shm_open():
     _shm_cnt['n'] += 1
@@ -524,13 +525,15 @@ def on_shm_open():
     try:
         uap = r('x1')
         name_va = m64(uap) if uap else 0
-        oflag = m32(uap + 0x10) if uap else 0
+        oflag = m32(uap + 0x8) if uap else 0
+        mode = m32(uap + 0x10) if uap else 0
         name = ustr(name_va, 96) if name_va else None
         pn = cur_pname()
         # Prefer cfprefsd / apple.* names; still log a few early hits.
         interesting = (name and ('cfprefs' in name or name.startswith('apple.'))) or _shm_cnt['n'] <= 8
         if interesting:
-            P('SHM_OPEN proc=%s name=%r oflag=%#x' % (pn, name, oflag or 0))
+            P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
+                pn, name, oflag or 0, mode or 0))
             RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (
                 pn[0] if pn else '?', name))
     except Exception as e:
