@@ -649,4 +649,11 @@ Image.pth47 (ramfs 19ea0455…).
 - Before calling match handler, set `IOServiceUserNotification::armed` @+0x48 so first queue sendPings and wakes FDR runloop.
 Image.pth48 (ramfs 10c39b40…).
 
-| boot103 | Image.pth48 | arm userNotify before force handler | qemu11 43G lva=off | **ГИПОТЕЗА**: ping → FDR drain → IOSOPEN→nuc. | out/logs/boot103 |
+| boot103 | Image.pth48 | arm userNotify before force handler | qemu11 43G lva=off | **ПРОВЕРЕНО**: forced handler ran; still no IOSOPEN. Post-orig arm is too late — stock CES drain already queued with armed=0 (count>0 → force won't ping). | out/logs/boot103 |
+
+## Chunk 53 (boot104: arm userNotify BEFORE stock AMN drain)
+
+- Set armed@+0x48 on IOMobileFramebuffer notify target before calling orig addMatchingNotification so first invoke sendPings.
+Image.pth49 (ramfs a9e828e9…).
+
+| boot104 | Image.pth49 | pre-arm userNotify before AMN orig | qemu11 43G lva=off | **ГИПОТЕЗА**: stock invoke pings → FDR IOSOPEN→nuc. | out/logs/boot104 |

@@ -347,14 +347,24 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 	const char *name;
 	void *s;
 	unsigned int *st;
+	int ours = 0;
+
+	name = matching ? lapis_match_dict_name(matching) : 0;
+	/* Only FDR's IOMobileFramebuffer notify needs the armed/ping fix. */
+	ours = name && streq(name, "IOMobileFramebuffer") && target && handler;
+
+	/*
+	 * boot103/104: handler sendPings only when armed && count==0. Init
+	 * leaves armed=0, so stock existing-drain queues without waking FDR.
+	 * Arm userNotify (armed @+0x48) BEFORE orig so the first invoke pings.
+	 * Post-orig arm fails when CES already queued (count>0 → no ping).
+	 */
+	if (ours)
+		*((unsigned char *)target + 0x48) = 1;
 
 	ret = lapis_addMatchingNotification_orig(type, matching, handler,
 						 target, ref, priority);
-	if (!ret || !matching || !handler || !target)
-		return ret;
-
-	name = lapis_match_dict_name(matching);
-	if (!name || !is_lapis_match_name(name))
+	if (!ret || !ours)
 		return ret;
 
 	s = lapis_published_stub(name);
@@ -362,12 +372,7 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 		return ret;
 	st = (unsigned int *)((char *)s + 0x48);
 	*st = (*st & ~1u) | 0x1e;
-	/*
-	 * boot102: handler only sendPings when armed. Init leaves armed=0, so
-	 * the first queue never wakes a runloop waiter (FDR hang after forced
-	 * handler with no IOSOPEN). Arm before invoke (IOServiceUserNotification
-	 * armed @+0x48 — not IOService::__state).
-	 */
+	/* Fallback if stock drain missed (empty iter): re-arm + force. */
 	*((unsigned char *)target + 0x48) = 1;
 	((lapis_match_handler_t)handler)(target, ref, s, ret);
 	OSObject_release(s);
