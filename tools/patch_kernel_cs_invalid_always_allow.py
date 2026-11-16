@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """usage: patch_kernel_cs_invalid_always_allow.py IN OUT
 
-cs_invalid_page soft path (forced by make_boot_image) still takes a deny/SIGKILL
-branch when a per-process flag is set (UserEventAgent + invalid /usr/lib/dyld
-pages → final status 0x25003201, denying page sending SIGKILL).
+cs_invalid_page soft path (forced by make_boot_image) still reaches a deny/SIGKILL
+branch for UserEventAgent + invalid /usr/lib/dyld pages (final status 0x25003201).
 
-At RT 0xfffffe0007473764 the soft path does `cbnz w8, hard` then
-`mov w0,#0x32; ret` for the allow path. Rewrite the cbnz into an unconditional
-branch to the allow epilogue so every soft-path hit allows the page.
+boot80: patching only the late `cbnz` at 0x…3764 was insufficient — an earlier
+`tbnz w8,#1` at 0x…3710 jumps into the hard/deny block at 0x…37d8.
+
+Fix: at soft-path entry RT 0xfffffe0007473700, unconditional branch to the
+allow epilogue at 0xfffffe0007473768 (`mov w0,#0x32` + stack restore + ret).
 """
 import hashlib
 import struct
@@ -17,9 +18,10 @@ TEXT_BASE = 0xFFFFFE0007004000
 SLIDE = 0x175B0
 off = lambda rt: rt + SLIDE - TEXT_BASE
 
-SITE = 0xFFFFFE0007473764  # cbnz w8, hard
-EXPECT = 0x350001A8         # cbnz w8, #+0x34
-ALLOW = 0xFFFFFE0007473768  # mov w0, #0x32
+SOFT = 0xFFFFFE0007473700  # soft-path entry (make_boot_image target)
+ALLOW = 0xFFFFFE0007473768  # mov w0,#0x32; epilogue
+# Prior boot80 attempt (kept idempotent if present):
+OLD_CBNZ = 0xFFFFFE0007473764
 
 
 def b(pc, tgt):
@@ -28,8 +30,14 @@ def b(pc, tgt):
 
 src, dst = sys.argv[1:3]
 img = bytearray(open(src, "rb").read())
-cur = struct.unpack_from("<I", img, off(SITE))[0]
-assert cur == EXPECT or cur == b(SITE, ALLOW), hex(cur)
-struct.pack_into("<I", img, off(SITE), b(SITE, ALLOW))
+
+# Soft entry: always jump to allow epilogue.
+struct.pack_into("<I", img, off(SOFT), b(SOFT, ALLOW))
+
+# Keep the late site on the allow path too (idempotent vs boot80 partial patch).
+cur = struct.unpack_from("<I", img, off(OLD_CBNZ))[0]
+if cur in (0x350001A8, b(OLD_CBNZ, ALLOW)):
+    struct.pack_into("<I", img, off(OLD_CBNZ), b(OLD_CBNZ, ALLOW))
+
 open(dst, "wb").write(img)
 print("sha256", hashlib.sha256(img).hexdigest())

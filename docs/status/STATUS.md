@@ -479,4 +479,12 @@ Fix:
 - `apply_springboard_seeds.sh`: mobile Library/SpringBoard + caches + container dirs.
 Image.pth26 sha256 d5441392b10ee7ed96b4b5779fca128319d8943b8ce22702ab5dd8f229df21b7.
 
-| boot80 | Image.pth26 | IOGPU/CLCD stubs + cs_invalid always-allow + SB seeds | qemu11 43G lva=off | running… | out/logs/boot80 |
+| boot80 | Image.pth26 | IOGPU/CLCD stubs + cs_invalid always-allow + SB seeds | qemu11 43G lva=off | ПРОВЕРЕНО: IOGPU/CLCD metaclasses ok; SBSTATIC pass=1; **0 SIGABRT**; SB/backboardd/runningboardd running. **cs_invalid deny still** (tbnz@0x…3710 bypassed late cbnz patch). XPC `com.apple.runningboard` still x0=0; runningboardd NAMEI missing LifecyclePolicy + RunningBoard plists. | out/logs/boot80 |
+
+## Chunk 32 (boot81: soft-entry always-allow + RunningBoard seeds)
+
+- `patch_kernel_cs_invalid_always_allow.py`: soft entry 0x…3700 → b allow epilogue (covers tbnz deny escape).
+- `apply_runningboard_seeds.sh`: RunningBoard/*.plist + LifecyclePolicy/domains.plist + 133 DomainAttributes.
+Image.pth27 sha256 14511e5297b2e905a80eee8a3de3295a93c8c4a1868504fe9c25b2c315a042c8.
+
+| boot81 | Image.pth27 | soft-entry allow + RunningBoard/LifecyclePolicy seeds | qemu11 43G lva=off | running… | out/logs/boot81 |
