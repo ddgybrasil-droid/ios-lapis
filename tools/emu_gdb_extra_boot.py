@@ -512,3 +512,20 @@ def on_client_memory():
         P('ERR cmem %s' % e)
     return False
 BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
+
+# boot99/100: cfprefsd burns CPU — likely shm_open / pshm path. Log name + kr.
+_shm_cnt = {'n': 0}
+def on_shm_open():
+    _shm_cnt['n'] += 1
+    if _shm_cnt['n'] > 40:
+        return False
+    try:
+        name = cstr(r('x0'), 96)
+        P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
+            cur_pname(), name, r('x1') & 0xffffffff, r('x2') & 0xffffffff))
+        RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (
+            cur_pname()[0] if cur_pname() else '?', name))
+    except Exception as e:
+        P('ERR shm_open %s' % e)
+    return False
+BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
