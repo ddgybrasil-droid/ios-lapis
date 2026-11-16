@@ -733,4 +733,12 @@ Image.pth58.
 - Keep Paravirt DT compatible + no device_type + deferred IOMFB.
 Image.pth59.
 
-| boot114 | Image.pth59 | conformsTo force for published stubs | qemu11 43G lva=off | **ГИПОТЕЗА**: conformsTo force → populate counts FB → GetMainDisplay IOSOPEN. | out/logs/boot114 |
+| boot114 | Image.pth59 | conformsTo force (pointer-eq only) | qemu11 43G lva=off | **ПРОВЕРЕНО**: no `conformsTo force` log — either hook not hit or pointer-eq failed. Still Paravirt+Next, no FDR IOSOPEN. | out/logs/boot114 |
+
+## Chunk 64 (boot115: conformsTo force-any + gdb probe)
+
+- Force `*out=1` for any lapis match classname when a published stub exists (ignore pointer eq).
+- gdb: log `_is_io_object_conforms_to` for FDR/backboardd.
+Image.pth60.
+
+| boot115 | Image.pth60 | conformsTo force-any + CONFORMS probe | qemu11 43G lva=off | **ГИПОТЕЗА**: see whether FDR calls ConformsTo; if forced, IOSOPEN follows. | out/logs/boot115 |

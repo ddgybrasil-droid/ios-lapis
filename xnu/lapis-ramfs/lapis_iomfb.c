@@ -472,10 +472,15 @@ int lapis_is_io_object_conforms_to(void *obj, const char *name,
 	stub = lapis_published_stub(name);
 	if (!stub)
 		return kr;
-	if (stub == obj) {
-		*out = 1;
-		IOLog("LAPIS iomfb: conformsTo force\n");
-	}
+	/*
+	 * Notify/MIG may pass the same OSObject* as publishResource, or a
+	 * distinct retained alias — accept either pointer equality or a
+	 * second published lookup hit (same class name). Always force for
+	 * lapis match names when a stub exists: metaCast cannot see us.
+	 */
+	*out = 1;
+	IOLog(stub == obj ? "LAPIS iomfb: conformsTo force eq\n"
+			  : "LAPIS iomfb: conformsTo force any\n");
 	OSObject_release(stub);
 	return kr;
 }

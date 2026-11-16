@@ -485,6 +485,25 @@ def on_iosopen():
     except Exception as e:
         P('ERR iosopen %s' % e)
     return False
+
+# boot114/115: does FDR call IOObjectConformsTo on the IOMFB stub?
+def on_conforms():
+    try:
+        pn=cur_pname(); pn0=(pn[0] if pn else '') or ''
+        if 'IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower():
+            return False
+        # x1 = class name (kernel pointer to C string)
+        try:
+            name=bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0',1)[0].decode()
+        except Exception:
+            name='?'
+        P('CONFORMS proc=%s class=%r'%(pn,name))
+        RetBP(r('x30'), 'CONFORMS_RET proc=%s class=%s'%(pn0,name))
+    except Exception as e:
+        P('ERR conforms %s'%e)
+    return False
+BP('_is_io_object_conforms_to', on_conforms)
+
 BP('_is_io_service_open_extended', on_iosopen)
 
 # Log IOUserClient::externalMethod selectors (selector in w1) after our opens.
