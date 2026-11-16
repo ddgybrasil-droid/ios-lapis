@@ -28,13 +28,14 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as e:
                     extra+=' obj_err=%r'%e
             if t.startswith('XPC_LOOKUP_RET'):
-                # boot137/139: force BB ACCHW → 0x9f (boot55 HID path) + CLEAR ports.
-                # boot144: also forcing runningboard made BB open IOMFB then get
-                # relaunched (KeepAlive) — it needs a real RB connection to stay up
-                # and serve SB. Only force ACCHW now; leave runningboard alone.
+                # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
+                # boot145: ACCHW-only left BB with a real RB port; it hung on RB
+                # check-in and never reached HIDServiceSupport/IOMFB. RB force is
+                # required to skip that hang; post-open silence is a separate wall.
                 # Out-port ptrs are embedded in the RetBP tag (out4=/out6=/out7=).
-                force_bb = ("proc=backboardd" in t and
-                            "name='com.apple.ACCHWComponentAuthService'" in t)
+                force_bb = ("proc=backboardd" in t and (
+                        "name='com.apple.runningboard'" in t or
+                        "name='com.apple.ACCHWComponentAuthService'" in t))
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -642,19 +643,35 @@ BP('_is_io_object_conforms_to', on_conforms)
 
 BP('_is_io_service_open_extended', on_iosopen)
 
+# boot146: after IOMFB open BB went silent — catch close/teardown if it bails.
+def on_iosclose():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if 'backboard' not in pn0.lower() and 'SpringBoard' not in pn0 and 'IOMFB' not in pn0:
+            return False
+        P('IOSCLOSE proc=%s conn=%#x' % (pn, r('x0')))
+        RetBP(r('x30'), 'IOSCLOSE_RET proc=%s' % (pn0 or '?'))
+    except Exception as e:
+        P('ERR iosclose %s' % e)
+    return False
+BP('_is_io_service_close', on_iosclose)
+
 # Log IOUserClient::externalMethod selectors (selector in w1) after our opens.
 _em_cnt = {'n': 0}
 def on_external_method():
     _em_cnt['n'] += 1
-    if _em_cnt['n'] > 80:
-        return False
     try:
         sel = r('x1') & 0xffffffff
         args = r('x2')
         extra = ''
         pn = cur_pname()
+        pn0 = (pn[0] if pn else '') or ''
+        # Always keep BB/SB/IOMFB method traffic; cap unrelated noise.
+        if _em_cnt['n'] > 80 and 'backboard' not in pn0.lower() and 'SpringBoard' not in pn0 and 'IOMFB' not in pn0:
+            return False
         # Dump IOExternalMethodArguments output fields for RB/surface sels.
-        if args and (sel in (0, 2, 4, 13) or (pn and 'runningboard' in str(pn))):
+        if args and (sel in (0, 2, 4, 13) or (pn and 'runningboard' in str(pn))
+                     or 'backboard' in pn0.lower()):
             try:
                 sin_c = m32(args + 40); sout_c = m32(args + 80)
                 st_in = m32(args + 56); st_out = m32(args + 96)

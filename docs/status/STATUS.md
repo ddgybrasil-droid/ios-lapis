@@ -955,4 +955,8 @@ Image.pth74.
 
 ## Chunk 94 (boot145: ACCHW-only force, real RB for BB)
 
-| boot145 | Image.pth75 | ACCHW 0x9f only; RB real | qemu11 43G lva=off | **ГИПОТЕЗА**: BB stays up after IOMFB open, serves display to SB. | out/logs/boot145 |
+| boot145 | Image.pth75 | ACCHW 0x9f only; RB real | qemu11 43G lva=off | **ПРОВЕРЕНО**: ACCHW FORCED+CLEARED; RB real x0=0. BB hung after RB check-in MACHMSG — **never** reached HIDServiceSupport/IOMFB. RB 0x9f force is required for HID path. Post-open silence is a separate wall. Delayed launchd CON lines were not a BB relaunch. | out/logs/boot145 |
+
+## Chunk 95 (boot146: restore RB force + IOCFPlugInTypes + NUC geometry)
+
+| boot146 | Image.pth76 | RB+ACCHW 0x9f; empty IOCFPlugInTypes; NUC panel props; 8/16-byte IOMFB outs; IOSCLOSE log | qemu11 43G lva=off | **ГИПОТЕЗА**: HID→IOMFB open again; IOCFPlugInTypes ≠ 0xe00002f0; post-open IOCONN/IOEXT or IOSCLOSE explains silence. | out/logs/boot146 |

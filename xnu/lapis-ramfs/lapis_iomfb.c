@@ -60,6 +60,8 @@ extern void IORegistryEntry_setProperty_obj(void *, const char *, void *)
 	__asm__("_ZN15IORegistryEntry11setPropertyEPKcP8OSObject");
 extern void *OSNumber_withNumber(unsigned long long, unsigned int)
 	__asm__("_ZN8OSNumber10withNumberEyj");
+extern void *OSDictionary_withCapacity(unsigned int)
+	__asm__("_ZN12OSDictionary12withCapacityEj");
 extern void *OSDictionary_getObject_cstr(void *, const char *)
 	__asm__("_ZNK12OSDictionary9getObjectEPKc");
 extern const char *OSString_getCStringNoCopy(void *)
@@ -637,6 +639,17 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 		IOLog("LAPIS iomfb: nuc start fail\n");
 		return kIOReturnUnsupported;
 	}
+	/*
+	 * boot144/145: BB opens IOMFB type=0 then goes silent (0 IOCONN). Seed
+	 * common panel geometry on the user client itself so IORegistry probes
+	 * against the connection object do not see an empty property set.
+	 */
+	set_u32(client, "IODisplayWidth", 2420);
+	set_u32(client, "IODisplayHeight", 1668);
+	set_u32(client, "IODisplayPixelsWide", 2420);
+	set_u32(client, "IODisplayPixelsHigh", 1668);
+	set_u32(client, "IODisplayFrequency", 120);
+	IORegistryEntry_setProperty_bool(client, "IOMFBMainDisplay", 1);
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
 	return 0;
@@ -765,6 +778,20 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 			u32[1] = 0x10000;
 			u32[2] = 0x40000000; /* byte budget */
 			u16[0x22 / 2] = 1; /* connect-success gate */
+		}
+		/*
+		 * boot146: common IOMFB GetDisplaySize-shaped outs are 8/16 bytes
+		 * (width, height[, scale]). Prefer panel geometry over the
+		 * generic "presence" header so userspace does not treat the
+		 * framebuffer as 1×selector.
+		 */
+		else if (sz == 8 || sz == 16) {
+			u32[0] = 2420;
+			u32[1] = 1668;
+			if (sz == 16) {
+				u32[2] = 1;
+				u32[3] = 120;
+			}
 		} else {
 			/* Generic presence header for other selectors. */
 			if (sz >= 4)
@@ -776,6 +803,7 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 			if (sz >= 16)
 				u32[3] = 1;
 		}
+
 		*(uint32_t *)((char *)args + 96) = sz;
 	}
 	return 0;
@@ -839,6 +867,16 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "VendorID", 0x5ac);
 		set_u32(obj, "ProductID", 1);
 		set_u32(obj, "LocationID", 1);
+		/*
+		 * boot144: BB probes IOCFPlugInTypes on the HID match and gets
+		 * 0xe00002f0 (missing). Publish an empty dict so CreateCFProperty
+		 * succeeds; CFPlugin load then no-ops without a UUID entry.
+		 */
+		{
+			void *plug = OSDictionary_withCapacity(0);
+			if (plug)
+				IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", plug);
+		}
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {
@@ -862,6 +900,11 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		IORegistryEntry_setProperty_bool(obj, "external", 0);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
+		{
+			void *plug = OSDictionary_withCapacity(0);
+			if (plug)
+				IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", plug);
+		}
 	}
 
 	/*
