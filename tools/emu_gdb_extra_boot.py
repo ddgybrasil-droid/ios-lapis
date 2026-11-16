@@ -475,13 +475,17 @@ BP('___mac_syscall', on_mac_syscall)
 # on our stub providers so boot84 can prove newUserClient is reached after IOGPU/IOMFB match.
 _iosopen_cnt = {'n': 0}
 def on_iosopen():
-    _iosopen_cnt['n'] += 1
-    if _iosopen_cnt['n'] > 80:
-        return False
     try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        interesting = ('IOMFB' in pn0 or 'FDR' in pn0 or 'backboard' in pn0.lower()
+                       or 'SpringBoard' in pn0 or 'springboard' in pn0.lower())
+        _iosopen_cnt['n'] += 1
+        # Always log FDR/display clients; cap noise from others.
+        if not interesting and _iosopen_cnt['n'] > 80:
+            return False
         typ = r('x3') & 0xffffffff
-        P('IOSOPEN proc=%s type=%d svc=%#x' % (cur_pname(), typ, r('x0')))
-        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d' % (cur_pname()[0] if cur_pname() else '?', typ))
+        P('IOSOPEN proc=%s type=%d svc=%#x' % (pn, typ, r('x0')))
+        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d' % (pn0 or '?', typ))
     except Exception as e:
         P('ERR iosopen %s' % e)
     return False

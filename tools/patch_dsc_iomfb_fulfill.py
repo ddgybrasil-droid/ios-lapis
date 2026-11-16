@@ -25,26 +25,39 @@ import struct
 import sys
 from pathlib import Path
 
-INSN_VA = 0x2288058C8
 SUBCACHE_BASE = 0x225874000
-FILE_OFF = INSN_VA - SUBCACHE_BASE  # 0x2f918c8
-EXPECT_BNE = 0x54000241  # b.ne #+0x48
 NOP = 0xD503201F
+
+# (unslid VA, expected stock insn or already-patched, patched insn, label)
+PATCHES = (
+    # match_callback: fulfill even when Act != Ref
+    (0x2288058C8, (0x54000241, NOP), NOP, "fulfill b.ne -> NOP"),
+    # match_callback: always take Act_FB++ path (ignore w22 gate)
+    (0x2288057B4, (0x34000B96, NOP), NOP, "Act++ cbz w22 -> NOP"),
+    # GetMainDisplay: first Disp slot is always "main" (skip +0x98==1 test)
+    # stock: cmp w9,#1; b.eq +0x24 → open. Replace b.eq with b.
+    (0x2288047DC, (0x54000120, 0x14000009), 0x14000009, "main check b.eq -> b"),
+)
 
 
 def patch_bytes(buf: bytearray, *, write: bool) -> bool:
-    cur = struct.unpack_from("<I", buf, FILE_OFF)[0]
-    if cur == NOP:
-        print(f"{INSN_VA:#x}: already NOP")
-        return False
-    if cur != EXPECT_BNE:
-        raise SystemExit(
-            f"{INSN_VA:#x}: unexpected insn {cur:#x} (want bne {EXPECT_BNE:#x})"
-        )
-    print(f"{INSN_VA:#x}: bne -> NOP (fileoff {FILE_OFF:#x})")
-    if write:
-        struct.pack_into("<I", buf, FILE_OFF, NOP)
-    return True
+    changed = False
+    for va, expect, want, label in PATCHES:
+        fo = va - SUBCACHE_BASE
+        cur = struct.unpack_from("<I", buf, fo)[0]
+        if cur == want:
+            print(f"{va:#x}: already patched ({label})")
+            continue
+        if cur not in expect:
+            raise SystemExit(
+                f"{va:#x}: unexpected insn {cur:#x} (want one of "
+                f"{[hex(x) for x in expect]}) for {label}"
+            )
+        print(f"{va:#x}: {label} (fileoff {fo:#x}) {cur:#x} -> {want:#x}")
+        if write:
+            struct.pack_into("<I", buf, fo, want)
+        changed = True
+    return changed
 
 
 def patch_file(path: Path, *, write: bool) -> None:
@@ -78,19 +91,14 @@ def patch_image(img: Path, *, write: bool) -> None:
             if off in seen:
                 continue
             seen.add(off)
-            abs_off = root_off + off + FILE_OFF
-            f.seek(abs_off)
-            word = f.read(4)
-            cur = struct.unpack("<I", word)[0]
-            if cur == NOP:
-                print(f"{pl}: already NOP")
-            elif cur != EXPECT_BNE:
-                raise SystemExit(f"{pl}: insn {cur:#x} want {EXPECT_BNE:#x}")
-            else:
-                print(f"{pl}: patch @ {abs_off:#x}")
-                if write:
-                    f.seek(abs_off)
-                    f.write(struct.pack("<I", NOP))
+            # Read a window covering all patch sites.
+            base_abs = root_off + off
+            f.seek(base_abs)
+            buf = bytearray(f.read(size))
+            print(f"{pl}:")
+            if patch_bytes(buf, write=write) and write:
+                f.seek(base_abs)
+                f.write(buf)
             n += 1
         if not n:
             raise SystemExit("no .44 extent")

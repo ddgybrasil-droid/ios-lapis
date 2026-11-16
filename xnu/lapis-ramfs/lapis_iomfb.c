@@ -412,12 +412,12 @@ static void lapis_deferred_iomfb_ping(void *param0, void *param1)
 	h = (lapis_match_handler_t)ctx->handler;
 
 	/*
-	 * boot106: 200ms fired before FDR listened. boot115: 3s works for
-	 * Next delivery but GetMainDisplay is already blocked on
-	 * pthread_dependency — deliver ASAP once AMN returned, then retry.
+	 * boot106: 200ms fired before FDR listened. boot116: 500ms raced
+	 * inside AMN MIG (pings before IOKMATCH_RET). Keep ≥2s so empty
+	 * Next can arm, then retry.
 	 */
-	IOSleep(500);
-	for (i = 0; i < 12; i++) {
+	IOSleep(2000);
+	for (i = 0; i < 10; i++) {
 		while ((obj = IOServiceUserNotification_copyNextObject(target)))
 			OSObject_release(obj);
 		armed = *((unsigned char *)target + 0x48);

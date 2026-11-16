@@ -750,4 +750,13 @@ Image.pth60.
 - Image.pth61; DSC CD rehash after .44 patch.
 Image.pth61.
 
-| boot116 | Image.pth61 | DSC fulfill NOP + external bool | qemu11 43G lva=off | **ГИПОТЕЗА**: fulfill unblocks GetMainDisplay → FDR IOSOPEN on IOMFB stub. | out/logs/boot116 |
+| boot116 | Image.pth61 | DSC fulfill NOP + external bool | qemu11 43G lva=off | **ПРОВЕРЕНО**: 500ms ping raced inside AMN (all deferred before `IOKMATCH_RET`); post-AMN Next got prequeued stub; **still no FDR IOSOPEN**. Fulfill-only NOP insufficient — either Act++ gated by w22 or main-flag (+0x98) never set so GetMainDisplay returns NoDevice without Open. | out/logs/boot116 |
+
+## Chunk 66 (boot117: Act++ + main-check force + 2s ping)
+
+- DSC `.44`: also NOP match_callback `cbz w22` before Act_FB++; replace GetMainDisplay `b.eq` main-flag test with unconditional `b` (first Disp slot always opens).
+- Deferred ping first sleep 2s (avoid AMN race); gdb always logs FDR/backboard/SB IOSOPEN.
+- Image.pth62 + CD rehash.
+Image.pth62.
+
+| boot117 | Image.pth62 | Act++/main force + 2s ping | qemu11 43G lva=off | **ГИПОТЕЗА**: GetMainDisplay opens first enumerated FB → FDR IOSOPEN. | out/logs/boot117 |
