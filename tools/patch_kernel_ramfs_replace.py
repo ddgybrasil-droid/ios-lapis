@@ -295,6 +295,30 @@ if cur != CMEM_PROLOGUE and decode_b(cur, CMEM) is None:
 wr32(img, CMEM, b(CMEM, cmem))
 assert decode_b(rd32(img, CMEM), CMEM) == cmem
 
+# --- IOServiceUserNotification::getNextObject poison → copyNextObject ---
+# boot105–107: ksym getNextObject @0x7b11668 is `b; adrp; brk #0xbffc`.
+# is_io_iterator_next (userland IOIteratorNext) dispatches OSIterator
+# vtable+0x148 (= ZTV getNextObject slot) — so FDR would brk-panic the
+# moment a notify ping wakes it to drain. Real drain is copyNextObject
+# @0x7b11678 (same class). IOUserIterator has the same poison/real pair.
+USN_GNO = 0xfffffe0007b11668
+USN_CNO = 0xfffffe0007b11678
+IUI_GNO = 0xfffffe0007b106cc
+IUI_CNO = 0xfffffe0007b106dc
+for gno, cno, label in (
+    (USN_GNO, USN_CNO, 'IOServiceUserNotification'),
+    (IUI_GNO, IUI_CNO, 'IOUserIterator'),
+):
+    cur = rd32(img, gno)
+    dst = decode_b(cur, gno)
+    # Stock: b to adrp/brk thunk, or already redirected to copyNextObject.
+    if dst not in (gno + 4, cno):
+        raise SystemExit(
+            '%s getNextObject @%#x insn %#x dst %r not poison-thunk/cno'
+            % (label, gno, cur, dst))
+    wr32(img, gno, b(gno, cno))
+    assert decode_b(rd32(img, gno), gno) == cno
+
 open(sys.argv[2], 'wb').write(img)
 blob_sha = hashlib.sha256(blob).hexdigest()
 print('replaced ramfs %d bytes sha256=%s @%#x' % (len(blob), blob_sha, BLOB_VA))
@@ -309,3 +333,5 @@ print('  copyExistingServices %#x -> %#x (tramp %#x)' % (CES, ces_hook, ces_orig
 print('  addMatchingNotification %#x -> %#x (tramp %#x)' % (AMN, amn_hook, amn_orig))
 print('  externalMethod %#x -> %#x' % (EM, em))
 print('  clientMemoryForType %#x -> %#x' % (CMEM, cmem))
+print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOServiceUserNotification', USN_GNO, USN_CNO))
+print('  getNextObject %s %#x -> copyNextObject %#x' % ('IOUserIterator', IUI_GNO, IUI_CNO))

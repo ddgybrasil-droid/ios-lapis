@@ -678,4 +678,12 @@ Image.pth51.
 - Tag IOMFB stub `IOMFBMainDisplay` + `IOMFBDisplayExternal=0` for GetMainDisplay/embedded match.
 Image.pth52 (ramfs 14e4fa7b…).
 
-| boot107 | Image.pth52 | long deferred IOMFB notify retries | qemu11 43G lva=off | **ГИПОТЕЗА**: retry pings after FDR listens → IOSOPEN→nuc. | out/logs/boot107 |
+| boot107 | Image.pth52 | long deferred IOMFB notify retries | qemu11 43G lva=off | **ПРОВЕРЕНО (partial)**: superseded mid-boot. RE: `is_io_iterator_next` uses OSIterator vtable+0x148 = `IOServiceUserNotification::getNextObject` which is **poison brk** @`0x7b11668` (boot105). Even a perfect ping would panic on FDR's IOIteratorNext. | out/logs/boot107 |
+
+## Chunk 57 (boot108: getNextObject → copyNextObject)
+
+- Patch poison `getNextObject` stubs (`IOServiceUserNotification` + `IOUserIterator`) to `b copyNextObject`.
+- Keep boot107 long deferred ping retries + IOMFBMainDisplay props.
+Image.pth53.
+
+| boot108 | Image.pth53 | getNextObject→copyNextObject + long ping | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR IOIteratorNext drains stub → IOSOPEN→nuc. | out/logs/boot108 |
