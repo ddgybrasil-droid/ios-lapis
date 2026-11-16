@@ -1007,4 +1007,8 @@ Image.pth74.
 
 ## Chunk 107 (boot158: restore HID pulse + keep w00t filter)
 
-| boot158 | Image.pth88 | restore enqueue pulse; keep w00t filter + IOREGPROP hooks | qemu11 43G lva=off | **ГИПОТЕЗА**: no BRK after NOTE64; IOMFB open again; less GDB-amplified spin; canvas? | out/logs/boot158 |
+| boot158 | Image.pth88 | restore enqueue pulse; keep w00t filter + IOREGPROP hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote ok enq` but BB still **BRK** `elr=…dd44` after NOTE64 (kernel==pth86). New get_property* GDB hooks implicated. No IOMFB. | out/logs/boot158 |
+
+## Chunk 108 (boot159: drop get_property* GDB hooks)
+
+| boot159 | Image.pth89 | same kernel as pth88; remove plain/bytes/rec IOREGPROP BPs | qemu11 43G lva=off | **ГИПОТЕЗА**: no BRK; IOMFB+frontboard like boot156; w00t filter kept. | out/logs/boot159 |

@@ -803,10 +803,8 @@ def _mk_ioreg(tag):
 BP('_is_io_registry_entry_get_property_bin', _mk_ioreg('bin'), addr=0xfffffe0007b165a8)
 BP('_is_io_registry_entry_get_property_bin_buf', _mk_ioreg('buf'), addr=0xfffffe0007b16098)
 BP('_is_io_registry_entry_get_properties_bin', _mk_ioreg('all'), addr=0xfffffe0007b16084)
-# boot156: Open post-path may use non-bin property MIG (canvas-width silent).
-BP('_is_io_registry_entry_get_property', _mk_ioreg('plain'), addr=0xfffffe0007b159e4)
-BP('_is_io_registry_entry_get_property_bytes', _mk_ioreg('bytes'), addr=0xfffffe0007b15728)
-BP('_is_io_registry_entry_get_property_recursively', _mk_ioreg('rec'), addr=0xfffffe0007b15bd0)
+# boot158: get_property/bytes/rec hooks coincided with NOTE64→BRK even with
+# HID pulse restored (kernel==pth86 which survived). Drop them; keep w00t filter.
 
 _iomap_cnt = {'n': 0}
 def on_io_map_mem():
