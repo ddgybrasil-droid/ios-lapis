@@ -927,4 +927,8 @@ Image.pth74.
 
 - Image.pth75: `lapis_resolve_match_stub` maps IOPropertyMatch.HIDServiceSupport → IOHIDEventService; richer HID props; logging/HIDPlugin seeds.
 
-| boot138 | Image.pth75 | HID property-match CES + seeds | qemu11 43G lva=off | **ГИПОТЕЗА**: CES returns HID stub → IOITER non-empty → BB past BRK toward display/IOMFB. | out/logs/boot138 |
+| boot138 | Image.pth75 | HID property-match CES + seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: CES+stub iter OK; IOITER obj=`0x939aa340`. Same unslid BRK as boot137 (`__pthread_mutex_firstfit_wake+96`, FAR crash_info; malloc freelist FP) — **not** empty-vs-filled HID. Forced 0x9f left out-port (`x7*=0x1903`). Next: clear out-port on force; ServicePlugins seeds. | out/logs/boot138 |
+
+## Chunk 88 (boot139: clear forced XPC out-port)
+
+| boot139 | Image.pth75 | FORCED_XPCERR + CLEARED out-port | qemu11 43G lva=off | **ГИПОТЕЗА**: BB no longer uses half-open RB/ACCHW port → no mutex/heap BRK; HID path continues to display. | out/logs/boot139 |

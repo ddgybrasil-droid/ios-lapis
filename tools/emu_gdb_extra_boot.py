@@ -31,9 +31,13 @@ class _RetSite(gdb.Breakpoint):
                 # boot137: boot55 reached HIDServiceSupport when ACCHW/RB lookups
                 # returned 0x9f (sandbox). Modern boots get ports then stall on half-up
                 # RB. Force the boot55 miss for backboardd only (SB still uses RB).
-                if ("proc=backboardd" in t and (
+                # boot138: same BRK (pthread_mutex_firstfit_wake / malloc freelist) with
+                # or without HID CES — forced x0=0x9f but out-port still set
+                # (x7*=0x1903). Clear out-port so BB cannot use a half-open RB conn.
+                force_bb = ("proc=backboardd" in t and (
                         "name='com.apple.runningboard'" in t or
-                        "name='com.apple.ACCHWComponentAuthService'" in t)):
+                        "name='com.apple.ACCHWComponentAuthService'" in t))
+                if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
                         x0 = 0x9f
@@ -46,8 +50,13 @@ class _RetSite(gdb.Breakpoint):
                         if not ptr: continue
                         if 0x100000000 <= ptr < 0x300000000 or (ptr>>40)==0xfffffe:
                             try:
-                                v=m64(ptr); extra+=' %s*=%#x'%(label,v)
-                                if v and v < 0x10000: extra+='(port?)'
+                                if force_bb:
+                                    # Zero mach_port_t out-param (32-bit name).
+                                    gdb.selected_inferior().write_memory(ptr, b'\x00\x00\x00\x00')
+                                    extra+=' %s*=CLEARED'%label
+                                else:
+                                    v=m64(ptr); extra+=' %s*=%#x'%(label,v)
+                                    if v and v < 0x10000: extra+='(port?)'
                             except Exception:
                                 try: extra+=' %s*=w:%#x'%(label,m32(ptr))
                                 except Exception: pass
