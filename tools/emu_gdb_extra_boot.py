@@ -273,6 +273,24 @@ def _iok(tag,ma,cnt):
 BP('_is_io_service_get_matching_services_bin',lambda: _iok('services',r('x1'),r('x2')))
 BP('_is_io_service_get_matching_service_bin',lambda: _iok('service',r('x1'),r('x2')))
 BP('_is_io_service_add_notification_bin_64',lambda: _iok('notify',r('x2'),r('x3')))
+# boot108: 8 deferred pings, no poison panic, still no FDR IOSOPEN.
+# Log whether FDR ever drains the notify iterator (and what Next returns).
+_ionext_n = {'n': 0}
+def on_io_iterator_next():
+    try:
+        pn = cur_pname()
+        pn0 = (pn[0] if pn else '') or ''
+        if 'IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower():
+            return False
+        _ionext_n['n'] += 1
+        if _ionext_n['n'] > 40:
+            return False
+        P('IOITER_NEXT proc=%s' % (pn,))
+        RetBP(r('x30'), 'IOITER_NEXT_RET proc=%s' % (pn0 or '?',))
+    except Exception as e:
+        P('ERR ioiter %s' % e)
+    return False
+BP('_is_io_iterator_next', on_io_iterator_next, addr=0xfffffe0007b13c88)
 def _uframes(tag, extra=''):
     th=r('TPIDR_EL1'); ss=m64(th+0x110)
     fp,lr,sp,pc=[m64(ss+8+0xe8+8*i) for i in range(4)]

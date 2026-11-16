@@ -686,4 +686,12 @@ Image.pth52 (ramfs 14e4fa7b…).
 - Keep boot107 long deferred ping retries + IOMFBMainDisplay props.
 Image.pth53.
 
-| boot108 | Image.pth53 | getNextObject→copyNextObject + long ping | qemu11 43G lva=off | **ГИПОТЕЗА**: FDR IOIteratorNext drains stub → IOSOPEN→nuc. | out/logs/boot108 |
+| boot108 | Image.pth53 | getNextObject→copyNextObject + long ping | qemu11 43G lva=off | **ПРОВЕРЕНО**: getNextObject fix holds (**8× deferred ping**, **no brk panic**); CES+forced+pings all ran; **still no FDR IOSOPEN**. RB IOGPU→sel=13→32 OK. cfprefsd still burns CPU (never creates `apple.cfprefs.*.daemonv1`; clients O_CREAT it). | out/logs/boot108 |
+
+## Chunk 58 (boot109: deferred-only IOMFB delivery + IOITER probe)
+
+- CES **skips** IOMobileFramebuffer (stock empty during AMN); no force-queue — deferred alone delivers after FDR can arm on empty Next.
+- gdb: `_is_io_iterator_next` logs for IOMFB_FDR/backboardd.
+Image.pth54.
+
+| boot109 | Image.pth54 | deferred-only IOMFB + IOITER probe | qemu11 43G lva=off | **ГИПОТЕЗА**: empty-arm then deferred ping → FDR Next→IOSOPEN. | out/logs/boot109 |

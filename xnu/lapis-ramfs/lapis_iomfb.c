@@ -319,6 +319,17 @@ void *lapis_copyExistingServices(void *dict, unsigned int options,
 		return lapis_copyExistingServices_orig(dict, options, flags);
 
 	name = lapis_match_dict_name(dict);
+	/*
+	 * boot108/109: do NOT feed IOMobileFramebuffer through CES. Stock AMN
+	 * would queue into the userNotify during MIG (armed=0, no ping); FDR
+	 * then either hangs or never opens. Leave CES empty for IOMFB so
+	 * deferred ping alone delivers after FDR listens. Other classes keep
+	 * the resource CES path (RB/IOGPU notify etc.).
+	 */
+	if (name && streq(name, "IOMobileFramebuffer")) {
+		IOLog("LAPIS iomfb: CES skip IOMFB (deferred)\n");
+		return lapis_copyExistingServices_orig(dict, options, flags);
+	}
 	if (name) {
 		/* Re-assert non-inactive matched state before notify invoke. */
 		{
@@ -424,8 +435,6 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 {
 	void *ret;
 	const char *name;
-	void *s;
-	unsigned int *st;
 	int ours = 0;
 	lapis_thread_call_t tc;
 	struct lapis_iomfb_ping_ctx *ctx;
@@ -439,17 +448,13 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 	if (!ret || !ours)
 		return ret;
 
-	s = lapis_published_stub(name);
-	if (s) {
-		st = (unsigned int *)((char *)s + 0x48);
-		*st = (*st & ~1u) | 0x1e;
-		/* Queue now so getNextObject has something if FDR iterates. */
-		((lapis_match_handler_t)handler)(target, ref, s, ret);
-		OSObject_release(s);
-		IOLog("LAPIS iomfb: forced match handler\n");
-	}
+	/*
+	 * boot108: force-queue during AMN + 8 deferred pings (getNextObject
+	 * fixed) still yielded no FDR IOSOPEN. Stop force-queuing here so
+	 * FDR's post-AMN empty IOIteratorNext can set armed; deferred path
+	 * alone delivers once the port is listening. CES also skips IOMFB.
+	 */
 
-	/* Deferred ping: wake the port after MIG returns (see comment above). */
 	ctx = IOMallocZero(sizeof(*ctx));
 	if (!ctx) {
 		IOLog("LAPIS iomfb: deferred ping alloc fail\n");
