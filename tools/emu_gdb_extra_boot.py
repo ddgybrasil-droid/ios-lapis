@@ -324,7 +324,10 @@ DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0
           'container_legacy_lookup':0x1e275de24,
           'err':0x18f098f44,
           'abort':0x18f099c04,
-          'abort_with_reason':0x23226a5f0}
+          'abort_with_reason':0x23226a5f0,
+          # SpringBoard _SBStaticInitializer right after SecTaskGetCodeSignStatus (w0=status)
+          'SBStatic_status':0x224040bf8,
+          'SBStatic_cold':0x2241f6e00}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -404,6 +407,13 @@ def _ufn(n):
         elif n=='container_system_path_for_identifier':
             P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
             RetBP(r('x30'),'CM_SYSPATH_RET proc=%s'%pn)
+        elif n=='SBStatic_status':
+            st=r('x0')&0xffffffff
+            masked=st&0x0fffffff&0xfc000001
+            P('SBSTATIC_STATUS proc=%s status=%#x masked=%#x want=0x4000001 pass=%d'%(
+                pn,st,masked,1 if masked==0x04000001 else 0))
+        elif n=='SBStatic_cold':
+            P('SBSTATIC_COLD proc=%s (platformBinary assert path)'%pn)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False

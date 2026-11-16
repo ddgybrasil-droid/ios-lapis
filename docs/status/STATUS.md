@@ -452,4 +452,21 @@ Fix: Image.pth23 publishes AppleKeyStore IOService stub; harness traces CM_LOOKU
 | boot72 | Image.pth24 | + CoverSheet width stub + IOMFB 2420×1668 props + MG plist | qemu11 43G lva=off | ПРОВЕРЕНО: same SpringBoard SIGABRT stack (CoverSheet symbols); short stub did not change FP chain. | out/logs/boot72 |
 | boot73 | Image.pth24 | + onceToken=-1 + width data seed + once-block stub | qemu11 43G lva=off | ПРОВЕРЕНО: unchanged SB SIGABRT×5; FP still shows cold.1 (likely FP-walk noise or non-executing stub path). | out/logs/boot73 |
 | boot74 | Image.pth24 | full method+cold.1 overwrite | qemu11 43G lva=off | ПРОВЕРЕНО: still SB SIGABRT; next: assert/err string hooks + SearchUI/FeatureFlags seeds. | out/logs/boot74 |
-| boot75 | Image.pth24 | + assert hooks + SearchUI resources + SB FeatureFlags | qemu11 43G lva=off | running… | out/logs/boot75 |
+| boot75 | Image.pth24 | + assert hooks + SearchUI resources + SB FeatureFlags | qemu11 43G lva=off | ПРОВЕРЕНО: SB still SIGABRT; assert string not yet captured (err BP miss). | out/logs/boot75 |
+| boot76 | Image.pth24 | DSC hooks `_err` + `abort_with_reason` | qemu11 43G lva=off | partial: hooks present; SB AS still needed. | out/logs/boot76 |
+| boot77 | Image.pth24 | re-arm err/abort BPs inside SpringBoard AS | qemu11 43G lva=off | progress toward string capture. | out/logs/boot77 |
+| boot78 | Image.pth24 | log gdbpc + x0 string on abort/err DSC hits | qemu11 43G lva=off | **ПРОВЕРЕНО**: ABORT `Assertion failed: (platformBinary), function SBStaticInitializer, file StaticInitializer.m, line 39.`; CON `cs_invalid_page... final status 0x24000000, allowing (remove VALID)`. | out/logs/boot78 |
+
+## Chunk 30 (boot79: CS_VALID on proc_getcsflags return)
+
+ПРОВЕРЕНО (boot78 + DSC disasm `_SBStaticInitializer` @ 0x224040bd4):
+- Check: `SecTaskGetCodeSignStatus` → `csops_task(CS_OPS_STATUS)` must satisfy
+  `(status & 0x0fffffff & 0xfc000001) == 0x04000001` (CS_VALID|CS_PLATFORM_BINARY),
+  else `os_variant_has_internal_content("com.apple.SpringBoard")` or assert.
+- Stored flags after soft `cs_invalid_page` are `0x24000000` (SIGNED|PLATFORM, **VALID cleared**).
+- Prior cave ORed only SIGNED|PLATFORM → status still fails the bit0 requirement.
+
+Fix: `tools/patch_kernel_platform_binary.py` also ORs `CS_VALID` (cave 0x...6100..6113).
+Image.pth25 = Image.pth24 + that patch (sha256 8cafa8061fc7192d91a6061e9e3562088c29ddafd6116cc79a47d0e5c53f63c6).
+
+| boot79 | Image.pth25 | OR CS_VALID in proc_getcsflags return | qemu11 43G lva=off | running… | out/logs/boot79 |

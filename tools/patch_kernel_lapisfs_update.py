@@ -11,7 +11,7 @@ TEXT_BASE = 0xFFFFFE0007004000; SLIDE = 0x175B0
 off = lambda rt: rt + SLIDE - TEXT_BASE
 ENTRY = 0xFFFFFE000743D4E8; VFSOPS = 0xFFFFFE000743DC20
 VFS_ISUPDATE = 0xFFFFFE000761C930
-CAVE = 0xFFFFFE0007996120        # after the proc_getcsflags cave (0x...6100-0x...610f)
+CAVE = 0xFFFFFE0007996120        # after the proc_getcsflags cave (0x...6100-0x...6113)
 def b(pc, t, link=False): return (0x94000000 if link else 0x14000000) | (((t - pc) >> 2) & 0x3FFFFFF)
 src, dst = sys.argv[1:3]
 img = bytearray(open(src, "rb").read())
