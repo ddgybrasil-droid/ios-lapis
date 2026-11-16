@@ -516,4 +516,13 @@ Image.pth28.
 Image.pth30 sha256 c29096ad1b5df320a2163660a4697ae69e7dbfcc7119d49fd6cb094ce11f5180.
 
 | boot84 | Image.pth29 | runtime ml_static_protect nuc | qemu11 43G lva=off | **ПРОВЕРЕНО**: early PANIC in `ml_static_protect.cold` during `lapis_iomfb_register` | out/logs/boot84 |
-| boot85 | Image.pth30 | static NUC B-patch + KRExperiments seeds | qemu11 43G lva=off | running… | out/logs/boot85 |
+| boot85 | Image.pth30 | static NUC B-patch + KRExperiments seeds | qemu11 43G lva=off | **ПРОВЕРЕНО**: no panic; metaclasses published; **IOSOPEN→nuc ok→x0=0** (powerd); IOGPU+IOMFB IOKMATCH; KRExperiments `.pb` found (only `_fbs.bin` was missing); **XPC `com.apple.runningboard` never looked up**; runningboardd silent after IOGPU match (no check-in). | out/logs/boot85 |
+
+## Chunk 36 (boot86: start-after-attach + AGX + gated nuc)
+
+- `publish_one`: `IOService::start` after attach; track published objs; MetalDevice props on IOGPU/AGX/IOAccelerator.
+- `lapis_new_user_client`: only serve our published stubs (else Unsupported).
+- Publish AGXAccelerator + IOAccelerator; seed empty GMPOWER `_fbs.bin`.
+Image.pth31 sha256 248c1b79b8fbb5f03184a58acf7a0e6b94833c56a1892a7f085de9d5dd1c1d4a.
+
+| boot86 | Image.pth31 | start+AGX+gated nuc + fbs.bin | qemu11 43G lva=off | running… | out/logs/boot86 |

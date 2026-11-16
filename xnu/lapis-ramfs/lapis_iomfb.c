@@ -74,16 +74,30 @@ struct lapis_mc {
 	const char *name;
 };
 
+#define LAPIS_MAX_OURS 16
+static void *g_ours[LAPIS_MAX_OURS];
+static int g_nours;
+
 static void *null_alloc(const void *self) { (void)self; return 0; }
 
 #define kIOReturnNoMemory     0xe00002bd
 #define kIOReturnBadArgument  0xe00002c2
 #define kIOReturnUnsupported  0xe00002c7
 
+static int is_ours(void *self)
+{
+	int i;
+	for (i = 0; i < g_nours; i++)
+		if (g_ours[i] == self)
+			return 1;
+	return 0;
+}
+
 /*
  * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
  * x0=self, x1=task, x2=security_id, w3=type, x4=properties, x5=out
  * Exported: Image build B-patches stock IOService::newUserClient onto these.
+ * Only our published stubs get a client; other stock-IOService opens stay Unsupported.
  */
 int lapis_new_user_client(void *self, void *task, void *sec,
 			  unsigned int type, void *props, void **out)
@@ -95,6 +109,8 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 	if (!out)
 		return kIOReturnBadArgument;
 	*out = 0;
+	if (!is_ours(self))
+		return kIOReturnUnsupported;
 
 	sz = OSMetaClass_getClassSize(IOUserClient_metaClass);
 	client = IOUserClient_nw(sz);
@@ -197,16 +213,30 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "AppleMaxVerticalPixels", 1668);
 	}
 
+	/* GPU / Metal clients probe these on matched accelerator nodes. */
+	if ((m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'G') ||
+	    (m->name[0] == 'A' && m->name[1] == 'G' && m->name[2] == 'X') ||
+	    (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'A' &&
+	     m->name[3] == 'c')) {
+		IORegistryEntry_setProperty_bool(obj, "MetalDevice", 1);
+		IORegistryEntry_setProperty_cstr(obj, "MetalPluginName", "IOGPUMetal");
+		set_u32(obj, "IOGPUMetalCaps", 1);
+	}
+
 	root = IOService_getServiceRoot();
-	if (root)
+	if (root) {
 		IOService_attach(obj, root);
+		IOService_start(obj, root);
+	}
 	IOService_registerService(obj, 0);
+	if (g_nours < LAPIS_MAX_OURS)
+		g_ours[g_nours++] = obj;
 	IOLog("LAPIS iomfb: published instance\n");
 }
 
 void lapis_iomfb_register(void)
 {
-	struct lapis_mc iomfb, surface, hid, aks, gpu, clcd;
+	struct lapis_mc iomfb, surface, hid, aks, gpu, clcd, agx, accel;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
@@ -223,6 +253,11 @@ void lapis_iomfb_register(void)
 	/* display pipeline probes AppleCLCD / IODisplayWrangler-class names */
 	if (register_mc(&clcd, "AppleCLCD") == 0)
 		IOLog("LAPIS iomfb: metaclass AppleCLCD ok\n");
+	/* Some clients match AGX / IOAccelerator family names instead of IOGPU. */
+	if (register_mc(&agx, "AGXAccelerator") == 0)
+		IOLog("LAPIS iomfb: metaclass AGXAccelerator ok\n");
+	if (register_mc(&accel, "IOAccelerator") == 0)
+		IOLog("LAPIS iomfb: metaclass IOAccelerator ok\n");
 
 	publish_one(&iomfb, 0);
 	publish_one(&surface, 0);
@@ -230,4 +265,6 @@ void lapis_iomfb_register(void)
 	publish_one(&aks, 0);
 	publish_one(&gpu, 0);
 	publish_one(&clcd, 0);
+	publish_one(&agx, 0);
+	publish_one(&accel, 0);
 }
