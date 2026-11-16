@@ -33,9 +33,13 @@ class _RetSite(gdb.Breakpoint):
                 # check-in and never reached HIDServiceSupport/IOMFB. RB force is
                 # required to skip that hang; post-open silence is a separate wall.
                 # Out-port ptrs are embedded in the RetBP tag (out4=/out6=/out7=).
+                # boot155/156: BB waits on frontboard.systemappservices (SB) after
+                # IOMFB open with 0 post-open IOCONN and burns CPU. Force 0x9f like
+                # RB so display/CA init can proceed without SB frontboard publish.
                 force_bb = ("proc=backboardd" in t and (
                         "name='com.apple.runningboard'" in t or
-                        "name='com.apple.ACCHWComponentAuthService'" in t))
+                        "name='com.apple.ACCHWComponentAuthService'" in t or
+                        "name='com.apple.frontboard.systemappservices'" in t))
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -893,7 +897,9 @@ def on_mach_msg2():
         if not sending and recving and _mm2['n'] > 40:
             return False
         _mm2['n'] += 1
-        if _mm2['n'] > 300:
+        # boot155: 300-cap burned before IOMFB open — keep logging BB forever
+        # (cheap) so post-open w00t/CA traffic stays visible.
+        if _mm2['n'] > 300 and 'backboard' not in pn0.lower():
             return False
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,

@@ -861,10 +861,11 @@ int lapis_register_notification_port(void *self, void *port,
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
+		/* IODataQueue::enqueue returns Boolean: true(1)=success. */
 		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
-		IOLog(enq ? "LAPIS iomfb: regnote ok enqfail\n"
-			  : "LAPIS iomfb: regnote ok enq\n");
+		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
+			  : "LAPIS iomfb: regnote ok enqfail\n");
 		return 0;
 	}
 	IOLog("LAPIS iomfb: regnote ok\n");

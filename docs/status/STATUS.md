@@ -995,4 +995,8 @@ Image.pth74.
 
 ## Chunk 104 (boot155: HID queue pulse enqueue after NOTE64)
 
-| boot155 | Image.pth85 | IOSharedDataQueue::enqueue 8B pulse after setNotificationPort | qemu11 43G lva=off | **ГИПОТЕЗА**: regnote ok enq; BB CPU burn gone; Peek/Dequeue advances; IOMFB/CA or SB→backboard. | out/logs/boot155 |
+| boot155 | Image.pth85 | IOSharedDataQueue::enqueue 8B pulse after setNotificationPort | qemu11 43G lva=off | **ПРОВЕРЕНО**: log said `enqfail` but Boolean **true=success** (polarity bug). Still BB **CPU burn**; IOMFB open **0** IOCONN; BB→frontboard wait; SB→chrono+RB. Pulse alone insufficient. | out/logs/boot155 |
+
+## Chunk 105 (boot156: force BB frontboard XPC 0x9f)
+
+| boot156 | Image.pth86 | enqueue log polarity fix; BB frontboard.systemappservices→0x9f; MACHMSG2 BB uncapped | qemu11 43G lva=off | **ГИПОТЕЗА**: FORCED frontboard; BB past SB wait → IOMFB/CA IOCONN or less CPU burn. | out/logs/boot156 |
