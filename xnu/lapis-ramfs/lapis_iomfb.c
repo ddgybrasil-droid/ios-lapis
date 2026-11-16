@@ -412,11 +412,12 @@ static void lapis_deferred_iomfb_ping(void *param0, void *param1)
 	h = (lapis_match_handler_t)ctx->handler;
 
 	/*
-	 * boot106: 200ms fired before FDR listened. Give the loader time to
-	 * return from MIG and arm its IONotificationPort wait, then retry.
+	 * boot106: 200ms fired before FDR listened. boot115: 3s works for
+	 * Next delivery but GetMainDisplay is already blocked on
+	 * pthread_dependency — deliver ASAP once AMN returned, then retry.
 	 */
-	IOSleep(3000);
-	for (i = 0; i < 8; i++) {
+	IOSleep(500);
+	for (i = 0; i < 12; i++) {
 		while ((obj = IOServiceUserNotification_copyNextObject(target)))
 			OSObject_release(obj);
 		armed = *((unsigned char *)target + 0x48);
@@ -781,6 +782,13 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		/* GetMainDisplay / embedded-panel match (IOMFB.framework). */
 		IORegistryEntry_setProperty_bool(obj, "IOMFBMainDisplay", 1);
 		set_u32(obj, "IOMFBDisplayExternal", 0);
+		/*
+		 * boot116 RE of iomfb_match_callback: SearchCFProperty keys are
+		 * CFSTR("external") / "dfr" / "AppleTV" (booleans). Missing
+		 * "external" already marks main; set it false explicitly so a
+		 * parent-plane hit cannot flip the slot to external-only.
+		 */
+		IORegistryEntry_setProperty_bool(obj, "external", 0);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
 	}
 

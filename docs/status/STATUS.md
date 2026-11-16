@@ -741,4 +741,13 @@ Image.pth59.
 - gdb: log `_is_io_object_conforms_to` for FDR/backboardd.
 Image.pth60.
 
-| boot115 | Image.pth60 | conformsTo force-any + CONFORMS probe | qemu11 43G lva=off | **ГИПОТЕЗА**: see whether FDR calls ConformsTo; if forced, IOSOPEN follows. | out/logs/boot115 |
+| boot115 | Image.pth60 | conformsTo force-any + CONFORMS probe | qemu11 43G lva=off | **ПРОВЕРЕНО**: zero `CONFORMS` / no `conformsTo force*` — FDR never calls IOObjectConformsTo. Paravirt GMS + IOMFB deferred Next still ok; **still no FDR IOSOPEN**. RE: after Next, `iomfb_match_callback` increments Act_FB but only fulfills `pthread_dependency` when Act==Ref; if DisplayPortCount CFNumber fails Ref stays 0 → GetMainDisplay waits forever → never Open. | out/logs/boot115 |
+
+## Chunk 65 (boot116: DSC fulfill NOP + external bool + faster ping)
+
+- `tools/patch_dsc_iomfb_fulfill.py`: NOP `b.ne` @ unslid `0x2288058c8` in DSC `.44` so Act_FB increment always fulfills (single-display).
+- IOMFB stub: `external=false` bool (match_callback SearchCFProperty key); deferred ping first sleep 500ms ×12.
+- Image.pth61; DSC CD rehash after .44 patch.
+Image.pth61.
+
+| boot116 | Image.pth61 | DSC fulfill NOP + external bool | qemu11 43G lva=off | **ГИПОТЕЗА**: fulfill unblocks GetMainDisplay → FDR IOSOPEN on IOMFB stub. | out/logs/boot116 |
