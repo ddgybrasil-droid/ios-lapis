@@ -1,0 +1,9 @@
+Image.pth125 = Image.pth124 (same kernel) + DSC revert to boot190 cave
+  boot193–194: isa stash/restore (even *out-first + x23) → BB GMD_OUT_NULL
+  - Exact boot190 build_cave (408 bytes, full wipe, no isa stash)
+  - GDB: dump x19–x23 on GMD_OUT_NULL for diagnosis
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth124 /tmp/Image.pth125

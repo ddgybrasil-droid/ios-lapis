@@ -777,10 +777,13 @@ static void lapis_iomfb_deferred_wake(void *p0, void *p1)
 	else
 		msg = 0xe0000401u;
 	IOService_messageClients(ctx->service, msg, 0, 0);
-	/* boot186: re-nudge IOSurfaceRoot on every deferred tick (CA bind). */
+	/* boot186/189: re-nudge + republish IOSurfaceRoot each deferred tick. */
 	{
 		void *surf = lapis_published_stub("IOSurfaceRoot");
 		if (surf) {
+			unsigned int *st = (unsigned int *)((char *)surf + 0x48);
+			*st = (*st & ~1u) | 0x1e;
+			IOService_publishResource("IOSurfaceRoot", surf);
 			IOService_messageClients(surf, msg, 0, 0);
 			OSObject_release(surf);
 		}
@@ -862,6 +865,29 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 			}
 			OSObject_release(hid);
 		} else {
+			void *surf_cls = self ? IORegistryEntry_copyProperty(
+						       self, "IOClass")
+					     : 0;
+			const char *scn = surf_cls
+						 ? OSString_getCStringNoCopy(surf_cls)
+						 : 0;
+			int is_surface = scn && scn[0] == 'I' && scn[1] == 'O' &&
+					 scn[2] == 'S' && scn[3] == 'u';
+			if (surf_cls)
+				OSObject_release(surf_cls);
+			if (is_surface) {
+				/*
+				 * boot189: IOSurfaceRoot NUC — tag UC so sel13
+				 * limits path is clearly attributed; CA
+				 * ____ioSurfaceConnectInternal needs this.
+				 */
+				IORegistryEntry_setProperty_cstr(
+					client, "IOClass",
+					"IOSurfaceRootUserClient");
+				set_u32(client, "IOSurfaceMaxWidth", 2420);
+				set_u32(client, "IOSurfaceMaxHeight", 1668);
+				IOLog("LAPIS iomfb: surface nuc\n");
+			} else {
 			set_u32(client, "IODisplayWidth", 2420);
 			set_u32(client, "IODisplayHeight", 1668);
 			set_u32(client, "IODisplayPixelsWide", 2420);
@@ -889,8 +915,10 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 				IOLog("LAPIS iomfb: msgclients property-change\n");
 				/*
-				 * boot171: also nudge IOSurfaceRoot — CA/IOSurface
-				 * bind may wait on surface publish after FB open.
+				 * boot171: nudge IOSurfaceRoot after FB open.
+				 * boot189: publishResource/setProperty inside NUC
+				 * → GMD *out=0 regression; boot190: message only
+				 * here, republish stays in deferred wake.
 				 */
 				surf = lapis_published_stub("IOSurfaceRoot");
 				if (surf) {
@@ -911,6 +939,7 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 					if (wctx->tc)
 						thread_call_enter(wctx->tc);
 				}
+			}
 			}
 		}
 	}
@@ -1002,9 +1031,14 @@ static void lapis_hid_repulse(void *p0, void *p1)
 	(void)p1;
 	if (!ctx || !ctx->owner)
 		return;
-	/* Delay first re-pulse so NOTE64 consumer can arm. */
+	/*
+	 * boot187: rich pulse right after NOTE64 → BB BRK before GMD.
+	 * boot188: wait 2s before first rich pulse so GMD/IOMFB can run.
+	 */
 	if (ctx->n == 0)
-		IOSleep(100);
+		IOSleep(2000);
+	else
+		IOSleep(250);
 	lapis_fill_digitizer_pulse(pulse);
 	q = lapis_hid_queue_for(ctx->owner);
 	if (q) {
@@ -1014,10 +1048,8 @@ static void lapis_hid_repulse(void *p0, void *p1)
 			  : "LAPIS iomfb: repulse enqfail\n");
 	}
 	ctx->n++;
-	if (ctx->n < 6 && ctx->tc) {
-		IOSleep(250);
+	if (ctx->n < 6 && ctx->tc)
 		thread_call_enter(ctx->tc);
-	}
 }
 
 int lapis_register_notification_port(void *self, void *port,
@@ -1032,17 +1064,22 @@ int lapis_register_notification_port(void *self, void *port,
 	 * boot166: schedule delayed re-pulses (post-IOMFB xpc/pthread wait).
 	 */
 	unsigned char pulse[64];
-	int enq;
+	int enq, i;
 
 	(void)type;
 	(void)ref;
-	lapis_fill_digitizer_pulse(pulse);
+	/*
+	 * boot188: immediate enqueue is 8B zeros (boot159 held past NOTE64).
+	 * Rich digitizer arrives via delayed repulse after GMD window.
+	 */
+	for (i = 0; i < 64; i++)
+		pulse[i] = 0;
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
-		/* Boolean true(1)=success */
-		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
+		/* Boolean true(1)=success — 8-byte empty event */
+		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
 		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
 			  : "LAPIS iomfb: regnote ok enqfail\n");
@@ -1393,16 +1430,19 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		IORegistryEntry_setProperty_cstr(obj, "compatible",
 						 "paravirtualizedgraphics,gpu");
 	}
-	/* boot171: CA/IOSurface bind after IOMFB open — seed surface service. */
+	/* boot171/189: CA/IOSurface bind after IOMFB open — seed surface service. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'S' &&
 	    m->name[3] == 'u') {
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOSurfaceRoot");
 		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
 						 "IOSurfaceRoot");
+		IORegistryEntry_setProperty_cstr(obj, "IOUserClientClass",
+						 "IOSurfaceRootUserClient");
 		set_u32(obj, "IOSurfaceAddressBits", 64);
 		set_u32(obj, "IOSurfaceMaxBytesPerPixel", 16);
 		set_u32(obj, "IOSurfaceMaxWidth", 2420);
 		set_u32(obj, "IOSurfaceMaxHeight", 1668);
+		set_u32(obj, "IOSurfaceAllocSizeMax", 0x40000000);
 	}
 
 	/* GPU / Metal clients probe these on matched accelerator nodes. */

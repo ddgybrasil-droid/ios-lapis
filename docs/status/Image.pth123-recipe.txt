@@ -1,0 +1,10 @@
+Image.pth123 = Image.pth122 (same kernel) + DSC post-Open isa restore
+  boot192: isa-preserve → FDR isa≠0 WxH; BB GMD_OUT_NULL despite IOSOPEN ok.
+  - DSC cave: full zero object; save typed_malloc isa to [sp,#0]; restore
+    after Open + WxH seed, before str x21,[x19]
+  - GDB: capture non-zero isa; seed only from same-boot capture (no ASLR const)
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth122 /tmp/Image.pth123

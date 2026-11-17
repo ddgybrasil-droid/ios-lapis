@@ -1,0 +1,8 @@
+Image.pth118 = Image.pth117 + soft HID NOTE64 pulse + GMD uread fix
+  boot187: SB RB forced; BB BRK after rich digitizer pulse on NOTE64.
+  - lapis_iomfb: NOTE64 enqueues 8B zeros; rich pulse delayed 2s
+  - GDB: GMD *out via inferior read_memory (not kernel m64)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth117 /tmp/Image.pth118

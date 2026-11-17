@@ -5,12 +5,12 @@ GNU ld (GNU Binutils for Ubuntu) 2.42
 KSYMS=/agent/repos/ios-lapis/tpro-fix/ksyms.txt
 CFLAGS=-Os -ffreestanding -nostdlib -fno-pic -fno-pie -mgeneral-regs-only -mstrict-align     -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common -fno-builtin     -fno-ident -fno-exceptions -Wall -Wno-unused-parameter
 OBJS=lapis_ramfs.o lapis_amfi.o lapis_iomedia.o lapis_iomfb.o lapis_sandbox.o
-ramfs.bin_bytes=23872
-26bf9d3bd7bfb7ef4d21fedec275d5d82f5df2ab29f00f15904408c25099f457  ramfs.bin
+ramfs.bin_bytes=24248
+2b1ae3424b9cacb712eb9066fe351894c1fc00588c2e106caf9b439060b50f14  ramfs.bin
 fffffe0007440584 T lapis_amfi_boot
 fffffe00074405b4 T lapis_iomedia_register
-fffffe0007442428 T lapis_iomfb_register
+fffffe0007442548 T lapis_iomfb_register
 fffffe000743fe78 T lapis_ramfs_wrap
-fffffe000744271c T lapis_sandbox_register
-fffffe0007441cc0 T lapis_new_user_client
-fffffe0007441fe8 T lapis_new_user_client_simple
+fffffe000744283c T lapis_sandbox_register
+fffffe0007441d48 T lapis_new_user_client
+fffffe0007442120 T lapis_new_user_client_simple

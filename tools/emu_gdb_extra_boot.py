@@ -27,16 +27,81 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
-            # boot187: after GMD body, dump *out and size fields @+0x30/+0x34.
+            # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
+            # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
+            # out* is userspace — use inferior read_memory, not kernel m64.
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
-                    obj = m64(op) if op else 0
-                    extra += ' *out=%#x' % obj
+                    obj = 0
+                    if op:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(op, 8))
+                            obj = int.from_bytes(raw, 'little')
+                        except Exception:
+                            obj = 0
+                    extra += ' *out=%#x' % (obj or 0)
+                    if not obj:
+                        extra += ' GMD_OUT_NULL'
+                        # boot195: dump callee-saved regs at cave return to
+                        # see if x19/x21 survived Open when *out stays null.
+                        try:
+                            def _reg(n):
+                                return int(gdb.parse_and_eval('$' + n)) & 0xffffffffffffffff
+                            extra += ' regs=x19=%#x,x20=%#x,x21=%#x,x22=%#x,x23=%#x' % (
+                                _reg('x19'), _reg('x20'), _reg('x21'),
+                                _reg('x22'), _reg('x23'))
+                        except Exception as er:
+                            extra += ' regs_err=%r' % er
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
-                        w = m32(obj + 0x30) & 0xffffffff
-                        h = m32(obj + 0x34) & 0xffffffff
-                        extra += ' size=%dx%d' % (w, h)
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x30, 8))
+                            w = int.from_bytes(raw[0:4], 'little')
+                            h = int.from_bytes(raw[4:8], 'little')
+                            extra += ' size=%dx%d' % (w, h)
+                        except Exception as e2:
+                            extra += ' size_err=%r' % e2
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x14, 4))
+                            extra += ' conn=%#x' % int.from_bytes(raw, 'little')
+                        except Exception as e3:
+                            extra += ' conn_err=%r' % e3
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj, 0x40))
+                            words = ' '.join('%08x' % int.from_bytes(
+                                raw[i:i+4], 'little') for i in range(0, 0x40, 4))
+                            extra += ' obj40=[%s]' % words
+                            isa = int.from_bytes(raw[0:8], 'little')
+                            extra += ' isa=%#x' % isa
+                            # boot193: cave restores typed_malloc isa after Open.
+                            # If still zero, copy an earlier same-boot capture
+                            # (FDR) — never a cross-boot PAC'd constant (ASLR).
+                            if isa == 0:
+                                seed = int(_dsc.get('gmd_isa_seed', 0) or 0)
+                                if seed:
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            obj, seed.to_bytes(8, 'little'))
+                                        extra += ' ISA_SEEDED=%#x' % seed
+                                    except Exception as e6:
+                                        extra += ' isa_seed_err=%r' % e6
+                            else:
+                                _dsc['gmd_isa_seed'] = isa
+                                extra += ' ISA_CAPTURED'
+                        except Exception as e4:
+                            extra += ' obj40_err=%r' % e4
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x838, 4))
+                            extra += ' f838=%#x' % int.from_bytes(raw, 'little')
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0xc08, 4))
+                            extra += ' fc08=%#x' % int.from_bytes(raw, 'little')
+                        except Exception as e5:
+                            extra += ' flag_err=%r' % e5
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):
@@ -442,11 +507,10 @@ def _iok(tag,ma,cnt):
             and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
         _mm2['bb_iomfb_match'] = 1
         P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
-    # boot185: watch CA/IOSurface bind after GMD.
-    if (any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD') for x in s)
-            and ('backboard' in pn0.lower() or 'SpringBoard' in pn0
-                 or pn0 in ('', '?'))):
-        P('BB_SURFACE_MATCH tag=%s proc=%s keys=%s' % (
+    # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
+    if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
+           for x in s):
+        P('SURFACE_MATCH tag=%s proc=%s keys=%s' % (
             tag, pn0 or '?', ','.join(s[:6])))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
@@ -693,10 +757,38 @@ def _ufn(n):
             P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
             RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
         elif n=='IOMFB_GMD_body':
+            # boot190: capture out* (x0) and note x19 after mov in cave.
             outp = r('x0')
             _dsc['gmd_out'] = outp
-            P('GMD_BODY proc=%s out=%#x' % (pn, outp))
+            P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
+                pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
+            # boot197: single shared bp on final str (cave+0x178). boot196
+            # showed x19/x21 sane at STR but *out still 0 — force the store
+            # via gdb write_memory and verify readback (TCG bp may skip insn).
+            if _dsc.get('slide') is not None and not _dsc.get('gmd_str_armed'):
+                str_va = 0x22880511c + 0x178 + _dsc['slide']
+                try:
+                    def _on_gmd_str():
+                        x19, x21 = r('x19'), r('x21')
+                        pn2 = (cur_pname() or ['?'])[0]
+                        P('GMD_STR proc=%s x19=%#x x21=%#x' % (pn2, x19, x21))
+                        if x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    x19, (x21 & 0xffffffffffffffff).to_bytes(8, 'little'))
+                                got = int.from_bytes(bytes(
+                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
+                                P('GMD_STR_FORCE proc=%s *out=%#x readback=%#x' % (
+                                    pn2, x21, got))
+                            except Exception as e:
+                                P('GMD_STR_FORCE_ERR %r' % e)
+                        return False
+                    BP('gmd_str', _on_gmd_str, str_va)
+                    _dsc['gmd_str_armed'] = 1
+                    P('GMD_STR_BP %#x' % str_va)
+                except Exception as e:
+                    P('GMD_STR_BP_ERR %r' % e)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False

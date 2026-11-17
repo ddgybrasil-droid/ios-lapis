@@ -1123,4 +1123,48 @@ Image.pth74.
 
 ## Chunk 136 (boot187: force SB runningboard; dump GMD *out)
 
-| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past null RB + confirm GMD object WxH → CA/IOSurface. | out/logs/boot187 |
+| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ПРОВЕРЕНО**: SB RB **FORCED**; BB **BRK after NOTE64** (rich pulse) — never GMD; FDR GMD dump failed (userspace *out via m64). | out/logs/boot187 |
+
+## Chunk 137 (boot188: soft HID NOTE64 pulse; fix GMD *out uread)
+
+| boot188 | Image.pth118 | NOTE64→8B zeros; rich pulse after 2s; uread GMD *out; keep SB RB force | qemu11 43G lva=off | **ПРОВЕРЕНО**: soft pulse → **no BB BRK**; **BB GMD_BODY_RET *out size=2420×1668**; MATCH→WINDOW→IOSOPEN; SB RB **FORCED**; SB got **system-app-server** port. Still **0 SURFACE/sel8/sel13**; post-GMD HID flood + XPC `0x10004004`. | out/logs/boot188 |
+
+## Chunk 138 (boot189: deepen IOSurface NUC/sel13 after GMD)
+
+| boot189 | Image.pth119 | IOSurfaceRootUserClient NUC; republish+link on IOMFB open; SURFACE_MATCH any; GMD obj40 dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW→IOSOPEN+surface wake; **GMD *out=0** (regression vs boot188 WxH) — in-NUC publishResource/setProperty suspected; SB system-app-server **null**; **0 SURFACE/sel13**. | out/logs/boot189 |
+
+## Chunk 139 (boot190: revert in-NUC surface publish; keep UC tag + deferred republish)
+
+| boot190 | Image.pth120 | NUC surface wake = message only (boot188); keep IOSurfaceRootUserClient + deferred republish; GMD_OUT_NULL tag | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD **restored** `*out size=2420×1668 conn=0x7e0b`; SB system-app-server port ok; NOTE64 ok. **obj40 isa=0** (cave zeroes typed-malloc header); still **0 SURFACE/sel13**. | out/logs/boot190 |
+
+## Chunk 140 (boot191: GMD cave preserve isa/refcount)
+
+| boot191 | Image.pth121 | DSC cave zero skips +0x00..+0x0f; GMD isa/f838/fc08 dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: cave rewrite → FDR `cs_invalid_page` on GMD; first BB mostly `proc=?` never NOTE64/GMD; BB respawn too late for T=900. **No BB GMD/isa sample.** | out/logs/boot191 |
+
+## Chunk 141 (boot192: retest isa-preserve cave, longer timeout)
+
+| boot192 | Image.pth122 | same DSC isa-preserve; T=1100; catch BB GMD isa + SURFACE | qemu11 43G lva=off | **ГИПОТЕЗА**: settled cave page + more time → BB GMD with isa≠0 → SURFACE. | out/logs/boot192 |
+
+## Chunk 141 (boot192: retest isa-preserve cave, longer timeout)
+
+| boot192 | Image.pth122 | same DSC isa-preserve; T=1100; catch BB GMD isa + SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR GMD `isa=0x100000204bfb079` size=2420×1668 (cs_invalid allow). BB IOSOPEN ok but **GMD_OUT_NULL** (*out=0) — isa live during Open breaks BB store. SB RB FORCED. **0 SURFACE/sel13**. Boot killed mid-run (gdb Killed). | out/logs/boot192 |
+
+## Chunk 142 (boot193: post-Open isa restore)
+
+| boot193 | Image.pth123 | DSC: full wipe + stash isa@[sp] + restore after Open; GDB ISA_CAPTURED/seed same-boot only | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB have_obj IOSOPEN ok + surface wake, but **GMD_OUT_NULL** (regression vs boot190). FDR also null (same as boot190). isa restore *before* `str x21,[x19]` and/or `[sp,#0]` stash suspected. **0 SURFACE**. | out/logs/boot193 |
+
+## Chunk 143 (boot194: publish *out before isa; stash in x23)
+
+| boot194 | Image.pth124 | DSC: full wipe; isa in x23; `str x21,[x19]` then `str x23,[x21]`; GDB isa log | qemu11 43G lva=off | **ПРОВЕРЕНО**: still **GMD_OUT_NULL** after have_obj Open (surface wake ok). Order/x23 did not fix — any isa-stash cave diverges from boot190. | out/logs/boot194 |
+
+## Chunk 144 (boot195: revert cave to boot190 + reg dump)
+
+| boot195 | Image.pth125 | DSC exact boot190 wipe (408B); GDB dump x19–x23 on GMD_OUT_NULL | qemu11 43G lva=off | **ПРОВЕРЕНО**: early `proc=?` GMD **WxH isa=0** ok; BB Open+surface wake then **GMD_OUT_NULL**; RetBP regs `x21=0x30b1bcba` (caller) — Open likely clobbers cave x19/x21 before `str`. | out/logs/boot195 |
+
+## Chunk 145 (boot196: reload out*/obj from stack before str)
+
+| boot196 | Image.pth126 | DSC: stash out*@[sp,#0] obj@[sp,#0x18]; reload before str; GMD_STR bp | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD_STR **x19/x21 sane** (BB obj=`0x122184000`) but still **GMD_OUT_NULL** — native `str` not sticking (TCG bp?) or cleared before ret. | out/logs/boot196 |
+
+## Chunk 146 (boot197: GDB force *out at GMD_STR)
+
+| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ГИПОТЕЗА**: forced *out → WxH for BB → isa/SURFACE next. | out/logs/boot197 |
