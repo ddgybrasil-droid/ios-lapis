@@ -1131,4 +1131,8 @@ Image.pth74.
 
 ## Chunk 138 (boot189: deepen IOSurface NUC/sel13 after GMD)
 
-| boot189 | Image.pth119 | IOSurfaceRootUserClient NUC; republish+link on IOMFB open; SURFACE_MATCH any; GMD obj40 dump | qemu11 43G lva=off | **ГИПОТЕЗА**: after GMD WxH, CA opens IOSurfaceRoot → sel13 limits → bind. | out/logs/boot189 |
+| boot189 | Image.pth119 | IOSurfaceRootUserClient NUC; republish+link on IOMFB open; SURFACE_MATCH any; GMD obj40 dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW→IOSOPEN+surface wake; **GMD *out=0** (regression vs boot188 WxH) — in-NUC publishResource/setProperty suspected; SB system-app-server **null**; **0 SURFACE/sel13**. | out/logs/boot189 |
+
+## Chunk 139 (boot190: revert in-NUC surface publish; keep UC tag + deferred republish)
+
+| boot190 | Image.pth120 | NUC surface wake = message only (boot188); keep IOSurfaceRootUserClient + deferred republish; GMD_OUT_NULL tag | qemu11 43G lva=off | **ГИПОТЕЗА**: restore GMD *out WxH then CA can reach SURFACE. | out/logs/boot190 |

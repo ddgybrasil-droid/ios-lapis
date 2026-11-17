@@ -915,19 +915,13 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 				IOLog("LAPIS iomfb: msgclients property-change\n");
 				/*
-				 * boot171/189: nudge + re-publish IOSurfaceRoot
-				 * after FB open so CA can match/open sel13.
+				 * boot171: nudge IOSurfaceRoot after FB open.
+				 * boot189: publishResource/setProperty inside NUC
+				 * → GMD *out=0 regression; boot190: message only
+				 * here, republish stays in deferred wake.
 				 */
 				surf = lapis_published_stub("IOSurfaceRoot");
 				if (surf) {
-					unsigned int *st;
-					IORegistryEntry_setProperty_obj(
-						self, "IOSurfaceRoot", surf);
-					IOService_publishResource(
-						"IOSurfaceRoot", surf);
-					st = (unsigned int *)((char *)surf +
-							      0x48);
-					*st = (*st & ~1u) | 0x1e;
 					IOService_messageClients(
 						surf, LAPIS_IOMSG_PROPERTY_CHANGE,
 						0, 0);

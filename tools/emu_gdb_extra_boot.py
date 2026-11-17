@@ -41,6 +41,8 @@ class _RetSite(gdb.Breakpoint):
                         except Exception:
                             obj = 0
                     extra += ' *out=%#x' % (obj or 0)
+                    if not obj:
+                        extra += ' GMD_OUT_NULL'
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
                         try:
                             raw = bytes(gdb.selected_inferior().read_memory(
@@ -719,9 +721,11 @@ def _ufn(n):
             P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
             RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
         elif n=='IOMFB_GMD_body':
+            # boot190: capture out* (x0) and note x19 after mov in cave.
             outp = r('x0')
             _dsc['gmd_out'] = outp
-            P('GMD_BODY proc=%s out=%#x' % (pn, outp))
+            P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
+                pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))

@@ -1,0 +1,10 @@
+Image.pth120 = Image.pth119 - in-NUC surface publishResource
+  boot189: GMD *out=0 regression (boot188 had 2420×1668); SB system-app-server null.
+  Suspect: publishResource/setProperty_obj inside IOMFB NUC during GMD Open.
+  - NUC surface wake: messageClients only (boot188)
+  - Keep: IOSurfaceRootUserClient tag, deferred republish, SURFACE_MATCH
+  - GDB: GMD_OUT_NULL tag; GMD_BODY x19/x21 log
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth118 /tmp/Image.pth120
