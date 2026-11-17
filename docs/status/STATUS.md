@@ -1151,4 +1151,8 @@ Image.pth74.
 
 ## Chunk 142 (boot193: post-Open isa restore)
 
-| boot193 | Image.pth123 | DSC: full wipe + stash isa@[sp] + restore after Open; GDB ISA_CAPTURED/seed same-boot only | qemu11 43G lva=off | **ГИПОТЕЗА**: BB gets *out WxH (boot190) + isa≠0 (post-Open) → CA can msgSend → SURFACE/sel13. | out/logs/boot193 |
+| boot193 | Image.pth123 | DSC: full wipe + stash isa@[sp] + restore after Open; GDB ISA_CAPTURED/seed same-boot only | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB have_obj IOSOPEN ok + surface wake, but **GMD_OUT_NULL** (regression vs boot190). FDR also null (same as boot190). isa restore *before* `str x21,[x19]` and/or `[sp,#0]` stash suspected. **0 SURFACE**. | out/logs/boot193 |
+
+## Chunk 143 (boot194: publish *out before isa; stash in x23)
+
+| boot194 | Image.pth124 | DSC: full wipe; isa in x23; `str x21,[x19]` then `str x23,[x21]`; GDB isa log | qemu11 43G lva=off | **ГИПОТЕЗА**: boot190 *out order + post-publish isa → BB WxH + isa≠0 → SURFACE. | out/logs/boot194 |
