@@ -43,11 +43,12 @@ class _RetSite(gdb.Breakpoint):
                 # boot171: gestalt/locationd forced pre-open, but analyticsd was
                 # looked up *after* IOMFB open (post_iomfb gate skipped it) and
                 # returned x0=0/null — boot172: always force analyticsd for BB.
-                # boot176: always force locationd too (post-open W00T peer
-                # was locationd port 0x5403 after force gate skipped it).
+                # boot176: always force locationd (post-open W00T peer).
+                # boot180: do NOT always-force analyticsd — after 0x40000388
+                # fake, BB talks msgid 1026/1018 then respawned; allow real
+                # analyticsd once post_iomfb like boot163.
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
-                    "name='com.apple.analyticsd'",
                     "name='com.apple.locationd.registration'",
                 ]
                 if not _mm2.get('post_iomfb'):
@@ -55,6 +56,7 @@ class _RetSite(gdb.Breakpoint):
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
+                        "name='com.apple.analyticsd'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -80,10 +82,10 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
-                    # boot175–178: any cfprefs NULLPORT → BRK before IOMFB.
-                    # boot179: skip all cfprefs (boot176 path that reached open).
-                    if (not force_bb
-                            and ("proc=backboardd" in t or "proc=?" in t)
+                    # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
+                    # NULLPORT for proc=backboardd (not bare proc=? — that hit
+                    # wirelessinsightsd in boot179).
+                    if (not force_bb and 'proc=backboardd' in t
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
@@ -994,33 +996,38 @@ def on_mach_msg2():
         # boot156: uncapped BB logging drowned the run in w00t/0x40000000
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
-        # boot173/174: w00t/0x40000000 post-open waits.
-        # boot176: after real IOMFB open BB got msgid 0x40000388→0x80b with
-        # x0=0x10004004 then went quiet (0 IOCONN). boot177: also fake that
-        # XPC class (0x40000388/0x40000384) post-IOMFB for BB.
-        if msgid in (1999646836, 1073741824,  # 'w00t' / 0x40000000
-                     0x40000388, 0x40000384):
-            if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
+        # boot179: W00T_FAKE on w00t/0x40000000 after 0x40000388 → BB respawn.
+        # boot180: fake ONLY 0x40000388/384 (the post-open error); log others.
+        if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_n', 0) < 4):
                 _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
-                if _mm2['w00t_n'] <= 6:
-                    P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
-                        pn0, msgid, remote, _mm2['w00t_n']))
+                P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
+                    pn0, msgid, remote, _mm2['w00t_n']))
+                try:
+                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                except Exception as e:
+                    P('W00T_U err=%r' % e)
+            return False
+        if msgid in (0x40000388, 0x40000384):
+            if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
+                _mm2['xpc388_n'] = _mm2.get('xpc388_n', 0) + 1
+                if _mm2['xpc388_n'] <= 6:
+                    P('POST_IOMFB_XPC388 proc=%s msgid=%#x remote=%#x n=%d' % (
+                        pn0, msgid, remote, _mm2['xpc388_n']))
                     try:
-                        _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                        _uframes('POST_IOMFB_XPC388_U',
+                                 'n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
-                        P('W00T_U err=%r' % e)
-                if _mm2['w00t_n'] <= 64:
+                        P('XPC388_U err=%r' % e)
+                if _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)
                         gdb.execute('set $pc = $x30', to_string=True)
-                        if _mm2['w00t_n'] <= 8:
-                            P('POST_IOMFB_W00T_FAKE n=%d msgid=%#x' % (
-                                _mm2['w00t_n'], msgid))
+                        if _mm2['xpc388_n'] <= 8:
+                            P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
-                        P('W00T_FAKE err=%r' % e)
-                if msgid in (0x40000388, 0x40000384):
-                    return False  # don't fall through to generic log
-            if msgid in (1999646836, 1073741824):
+                        P('XPC388_FAKE err=%r' % e)
                 return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.

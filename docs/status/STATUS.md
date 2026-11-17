@@ -1091,4 +1091,8 @@ Image.pth74.
 
 ## Chunk 128 (boot179: skip all cfprefs NULLPORT; keep 0x40000388 fake)
 
-| boot179 | Image.pth109 | no cfprefs NULLPORT (boot176); proc=? forces; W00T_FAKE 0x40000388 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean open like boot176 + fake failing XPC → IOMFB IOCONN/sel8. | out/logs/boot179 |
+| boot179 | Image.pth109 | no cfprefs NULLPORT (boot176); proc=? forces; W00T_FAKE 0x40000388 | qemu11 43G lva=off | **ПРОВЕРЕНО**: clean MATCH→WINDOW; XPC388+w00t FAKE fired; then analytics + **BB respawn**; still **0** sel8/canvas. cfprefs both null (left alone). | out/logs/boot179 |
+
+## Chunk 129 (boot180: fake only 0x40000388; real analyticsd post-open)
+
+| boot180 | Image.pth110 | XPC388_FAKE only; stop w00t fake; analyticsd real after IOMFB; NULLPORT BB-only | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid respawn from w00t fake + allow analytics → IOMFB IOCONN/sel8. | out/logs/boot180 |
