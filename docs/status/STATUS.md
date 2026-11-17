@@ -1263,5 +1263,21 @@ Image.pth74.
 
 ## Chunk 170 (boot221: real frontboard/MG + SB RB NULLPORT)
 
-| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB/MG port before GMD unlocks CA after FLAG98. | out/logs/boot221 |
+| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MG/frontboard → **NULLPORT** (no real port); FLAG98+obj90 ok; **W00T** returned. Restore blanket force. | out/logs/boot221 |
+
+## Chunk 171 (boot222: restore FB/MG force + cave FLAG98)
+
+| boot222 | Image.pth152 | restore frontboard/MG force; cave seeds +0x98/+0x838/+0xc08; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no W00T; BB_GMD_OK+FLAG98+XPC388_FAKE; HID NOTE64; **0 SURFACE** this run; still 0 BB IOMFB IOEXT. | out/logs/boot222 |
+
+## Chunk 172 (boot223: post-GMD IOCONN any-proc)
+
+| boot223 | Image.pth153 | post-GMD IOCONN sample any proc; keep cave flags+FB force; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: POST_GMD_ANY only ReportCrash/containermanager — **no CA/IOMFB**. No XPC388 this run; still 0 BB IOMFB IOEXT. Open post-path sel=5 was missing from cave. | out/logs/boot223 |
+
+## Chunk 173 (boot224: cave post-Open CallMethod sel=5)
+
+| boot224 | Image.pth154 | GMD cave after Open: IOConnectCallMethod sel=5 (UCAL); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB+FDR IOEXTMETHOD sel=5 x0=0** (first IOMFB IOEXT!); BB_GMD_OK+FLAG98+XPC388_FAKE; no W00T; still no further sels/SURFACE. | out/logs/boot224 |
+
+## Chunk 174 (boot225: cave sel5 + sel8 GetDisplaySize)
+
+| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetDisplaySize after UCAL advances CA past first bind. | out/logs/boot225 |
 

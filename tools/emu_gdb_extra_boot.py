@@ -278,13 +278,13 @@ class _RetSite(gdb.Breakpoint):
                     # force 0x9f like other auth services.
                     "name='com.apple.oscard'",
                 ]
-                # boot221: stop blanket-forcing frontboard/MG pre-IOMFB —
-                # boot220 denied them before GMD and BB never retried; CA may
-                # need a real SB/MG port. Keep RB forced pre-open (hang risk).
-                # NULLPORT below still denies null-endpoint "success".
+                # boot221: real frontboard/MG → only NULLPORT (same deny) + W00T.
+                # boot222: restore blanket force (boot220 stable, no W00T).
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
+                        "name='com.apple.frontboard.systemappservices'",
+                        "name='com.apple.mobilegestalt.xpc'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -1108,20 +1108,33 @@ BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_clien
 def _ui_iokit_proc(pn0):
     pl = (pn0 or '').lower()
     return ('backboard' in pl or 'SpringBoard' in (pn0 or '') or 'springboard' in pl
-            or 'IOMFB' in (pn0 or '') or 'FDR' in (pn0 or ''))
+            or 'IOMFB' in (pn0 or '') or 'FDR' in (pn0 or '')
+            or 'runningboard' in pl or 'WindowServer' in (pn0 or '')
+            or 'CARender' in (pn0 or '') or 'coreanimation' in pl)
 
 _iocm_cnt = {'n': 0}
 def _mk_ioconn(tag):
     def on():
         try:
             pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
-            if not _ui_iokit_proc(pn0):
+            # boot223: after BB_GMD_OK, also sample non-UI procs — CA may live
+            # under an unexpected pname and was filtered out.
+            ui = _ui_iokit_proc(pn0)
+            post = _mm2.get('bb_gmd_ok')
+            if not ui and not post:
                 return False
             _iocm_cnt['n'] += 1
-            if _iocm_cnt['n'] > 200:
-                return False
+            if ui:
+                if _iocm_cnt['n'] > 200:
+                    return False
+            else:
+                if _iocm_cnt.get('post_n', 0) >= 80:
+                    return False
+                _iocm_cnt['post_n'] = _iocm_cnt.get('post_n', 0) + 1
             sel = r('x1') & 0xffffffff
-            P('IOCONN_%s proc=%s sel=%d conn=%#x' % (tag, pn, sel, r('x0')))
+            extra = '' if ui else ' POST_GMD_ANY'
+            P('IOCONN_%s proc=%s sel=%d conn=%#x%s' % (
+                tag, pn, sel, r('x0'), extra))
             RetBP(r('x30'), 'IOCONN_%s_RET proc=%s sel=%d' % (tag, pn0 or '?', sel))
         except Exception as e:
             P('ERR ioconn_%s %s' % (tag, e))

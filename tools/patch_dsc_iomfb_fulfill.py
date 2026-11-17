@@ -40,6 +40,9 @@ REL = 0x22C6CE740  # IOObjectRelease
 # never reached IOSOPEN (CFPrefs side-work / typed-malloc path). boot126:
 # lightweight typed-malloc 0xf30 + minimal field init, skip ALLOC prefs.
 IOSOPEN = 0x22C6CE800
+# boot224: real IOMobileFramebufferOpen post-path calls this with w1=#5
+# (UCAL) right after IOServiceOpen — cave was skipping it (0 post-GMD IOEXT).
+CALLMETHOD = 0x22C6CE650
 TYPE_INIT = 0x22880686C  # fills malloc-type slot at TYPE_SLOT
 TYPED_MALLOC = 0x22C6CE8B0  # malloc_type_malloc(zone=0, type, size, 0)
 TYPE_SLOT_ADRP, TYPE_SLOT_OFF = 0x2801A3000, 0x520
@@ -218,6 +221,31 @@ def build_cave() -> list[int]:
     # GetMainDisplay callers see 2420×1668 without a separate sel8 round-trip.
     cbnz_sz = len(code)
     emit(0)  # cbnz w20 → skip_size
+    # boot224: mirror Open post-path IOConnectCallMethod(conn, 5, …)
+    # (site 0x22882c5ac). Selector 5 is UCAL; stub @CALLMETHOD.
+    emit(0xB94016A0)  # ldr w0, [x21, #0x14]  connection
+    emit(0xA9007FFF)  # stp xzr, xzr, [sp]
+    emit(0x910043E2)  # add x2, sp, #0x10
+    emit(0xF90007FF)  # str xzr, [sp, #0x10]  one zero input scalar
+    emit(0x528000A1)  # movz w1, #5
+    emit(0x52800023)  # movz w3, #1
+    emit(0xD2800004)  # movz x4, #0
+    emit(0xD2800005)  # movz x5, #0
+    emit(0xD2800006)  # movz x6, #0
+    emit(0xD2800007)  # movz x7, #0
+    emit(enc_bl(pc, CALLMETHOD))
+    # boot225: also GetDisplaySize sel=8 with 2 scalar outs (boot147/182 RE).
+    emit(0xB94016A0)  # ldr w0, [x21, #0x14]
+    emit(0x52800101)  # movz w1, #8
+    emit(0xD2800002)  # movz x2, #0
+    emit(0x52800003)  # movz w3, #0
+    emit(0xD2800004)  # movz x4, #0
+    emit(0xD2800005)  # movz x5, #0
+    emit(0x910043E6)  # add x6, sp, #0x10  output scalars
+    emit(0x52800048)  # movz w8, #2
+    emit(0xB90003E8)  # str w8, [sp]  outputCnt=2
+    emit(0x910003E7)  # mov x7, sp
+    emit(enc_bl(pc, CALLMETHOD))
     emit(0x52812E88)  # movz w8, #2420
     emit(0xB90032A8)  # str w8, [x21, #0x30]
     emit(0x5280D088)  # movz w8, #1668
@@ -226,6 +254,14 @@ def build_cave() -> list[int]:
     emit(0xB9003AA8)  # str w8, [x21, #0x38]
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
+    # boot222: seed fulfilled/main @+0x98 and active flags @+0x838/+0xc08
+    # (boot220 GDB FLAG98 / f838 / fc08) so CA sees them without RetBP races.
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB9009AA8)  # str w8, [x21, #0x98]
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB9083AA8)  # str w8, [x21, #0x838]
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB90C0AA8)  # str w8, [x21, #0xc08]
     skip_size = pc
     emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)
