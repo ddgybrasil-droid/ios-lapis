@@ -1271,5 +1271,9 @@ Image.pth74.
 
 ## Chunk 172 (boot223: post-GMD IOCONN any-proc)
 
-| boot223 | Image.pth153 | post-GMD IOCONN sample any proc; keep cave flags+FB force; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: CA IOConnect was filtered by pname — catch POST_GMD_ANY. | out/logs/boot223 |
+| boot223 | Image.pth153 | post-GMD IOCONN sample any proc; keep cave flags+FB force; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: POST_GMD_ANY only ReportCrash/containermanager — **no CA/IOMFB**. No XPC388 this run; still 0 BB IOMFB IOEXT. Open post-path sel=5 was missing from cave. | out/logs/boot223 |
+
+## Chunk 173 (boot224: cave post-Open CallMethod sel=5)
+
+| boot224 | Image.pth154 | GMD cave after Open: IOConnectCallMethod sel=5 (UCAL); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: mirroring real Open post-path sel5 unlocks first IOMFB IOEXT / CA. | out/logs/boot224 |
 

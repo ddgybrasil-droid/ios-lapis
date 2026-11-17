@@ -1,0 +1,8 @@
+Image.pth154 = Image.pth153 + DSC cave post-Open CallMethod sel=5
+  boot223: POST_GMD_ANY had no CA; Open post-path sel5 missing from cave.
+  boot224: after IOSOPEN success, BL IOConnectCallMethod(conn, 5, …); T=1800.
+
+Build:
+  cp /tmp/Image.pth153 /tmp/Image.pth154
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write
