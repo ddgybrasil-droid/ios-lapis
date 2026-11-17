@@ -414,10 +414,12 @@ def _iok(tag,ma,cnt):
     if k not in _iok_seen or ui:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
     # boot176: arm post_iomfb on BB IOMobileFramebuffer match (not Nth open).
-    if ('backboard' in pn0.lower()
-            and any('IOMobileFramebuffer' in x for x in s)):
+    # boot182: also arm for proc=? (boot181 GMD/IOMFB open logged as ? and
+    # skipped MATCH → no WINDOW).
+    if (any('IOMobileFramebuffer' in x for x in s)
+            and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
         _mm2['bb_iomfb_match'] = 1
-        P('BB_IOMFB_MATCH tag=%s' % tag)
+        P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
     if interesting or tag=='service' or ui:

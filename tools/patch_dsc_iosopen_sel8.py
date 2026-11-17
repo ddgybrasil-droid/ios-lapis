@@ -72,8 +72,10 @@ def build_wrap() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame 0x80: save regs + out[2] uint64 @0x60 + outputCnt @0x70
-    emit(0xD503237F)  # pacibsp
+    # Frame 0x80: save regs + out[2] uint64 @0x60 + outputCnt @0x70.
+    # boot182: NO pacibsp/retab — stub is entered via B from an ADRP/BR
+    # stub (LR already signed by caller's blr). pacibsp+retab BRK'd BB
+    # after HID NOTE64 in boot181 despite sel8 success on GMD open.
     emit(0xD10203FF)  # sub sp, sp, #0x80
     emit(0xA9027BFD)  # stp x29, x30, [sp, #0x20]
     emit(0xA9036FFC)  # stp x28, x27, [sp, #0x30]
@@ -141,7 +143,7 @@ def build_wrap() -> list[int]:
     emit(0xA94467FA)
     emit(0xA9455FF8)
     emit(0x910203FF)  # add sp, sp, #0x80
-    emit(0xD65F0FFF)  # retab
+    emit(0xD65F03C0)  # ret (plain; LR from caller blr)
 
     def patch(idx: int, word: int) -> None:
         code[idx] = word

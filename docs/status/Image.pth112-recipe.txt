@@ -1,0 +1,10 @@
+Image.pth112 = Image.pth111 kernel + plain-ret IOSOPEN sel8 wrap
+  boot181: sel=8 x0=0 on GMD IOMFB open; BB BRK after HID NOTE64 (pacibsp/retab?).
+  - DSC: rewrite wrap without pacibsp/retab (plain ret)
+  - dsc_cd_rehash.py
+  - GDB: BB_IOMFB_MATCH also for proc=?
+
+Build:
+  cp /tmp/Image.pth111 /tmp/Image.pth112
+  python3 tools/patch_dsc_iosopen_sel8.py --image /tmp/fullroot-mnt2.img --write --force
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

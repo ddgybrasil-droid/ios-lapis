@@ -1099,4 +1099,8 @@ Image.pth74.
 
 ## Chunk 130 (boot181: fixed IOSOPEN→sel8 wrap ABI)
 
-| boot181 | Image.pth111 | DSC wrap inputCnt=0+outCnt=2; Open-wrap sel8; always analyticsd; XPC388_FAKE | qemu11 43G lva=off | **ГИПОТЕЗА**: boot173 FAR=0 was NULL inputCnt=1; fixed wrap → kernel sel8 after BB IOMFB open. | out/logs/boot181 |
+| boot181 | Image.pth111 | DSC wrap inputCnt=0+outCnt=2; Open-wrap sel8; always analyticsd; XPC388_FAKE | qemu11 43G lva=off | **ПРОВЕРЕНО**: **sel=8 x0=0** on GMD/IOMFB open (proc=?); no BB_IOMFB_MATCH; BB HID NOTE64 then **BRK** (pacibsp/retab?). Never BB IOMFB WINDOW. | out/logs/boot181 |
+
+## Chunk 131 (boot182: plain-ret wrap + MATCH for proc=?)
+
+| boot182 | Image.pth112 | wrap without pacibsp/retab; BB_IOMFB_MATCH for proc=?; keep sel8 ABI | qemu11 43G lva=off | **ГИПОТЕЗА**: plain ret stops BRK; MATCH arms WINDOW; BB survives to CA after sel8. | out/logs/boot182 |
