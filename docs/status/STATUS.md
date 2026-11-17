@@ -1079,4 +1079,8 @@ Image.pth74.
 
 ## Chunk 125 (boot176: IOMFB-match WINDOW; skip cfprefs NULLPORT; always locationd)
 
-| boot176 | Image.pth106 | post_iomfb only after BB IOMobileFramebuffer match; no cfprefs NULLPORT; always force locationd | qemu11 43G lva=off | **ГИПОТЕЗА**: correct post-open gate + deny locationd W00T peer → IOMFB IOCONN/sel8. | out/logs/boot176 |
+| boot176 | Image.pth106 | post_iomfb only after BB IOMobileFramebuffer match; no cfprefs NULLPORT; always force locationd | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW ok; no BB EXC; locationd FORCED; IOMFB open; user cfprefs port ok. Post-open msgid **0x40000388**→0x80b **x0=0x10004004** then quiet — **0** IOMFB IOCONN/sel8. | out/logs/boot176 |
+
+## Chunk 126 (boot177: fake post-IOMFB XPC 0x40000388 + system cfprefs NULLPORT)
+
+| boot177 | Image.pth107 | W00T_FAKE includes 0x40000388/384; NULLPORT cfprefs.system only | qemu11 43G lva=off | **ГИПОТЕЗА**: fake the failing post-open XPC → BB continues to IOMFB IOCONN/sel8. | out/logs/boot177 |

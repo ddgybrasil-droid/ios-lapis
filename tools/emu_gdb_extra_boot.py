@@ -77,11 +77,12 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
-                    # boot175: null-port deny for BB. boot176: skip cfprefs —
-                    # forcing it caused BRK EXC before IOMFB; null stalls but
-                    # real system port often arrives on retry/respawn.
+                    # boot175/176: skip user cfprefsd.daemon NULLPORT (BRK).
+                    # boot177: still deny null cfprefsd.daemon.system for BB.
+                    _cfprefs_user = ("name='com.apple.cfprefsd.daemon'" in t
+                                     and 'daemon.system' not in t)
                     if (not force_bb and 'proc=backboardd' in t
-                            and 'cfprefsd' not in t
+                            and not _cfprefs_user
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
                         for ptr in (x4, x6, x7):
@@ -991,10 +992,12 @@ def on_mach_msg2():
         # boot156: uncapped BB logging drowned the run in w00t/0x40000000
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
-        # boot173: post-IOMFB BB CPU burn with no SPIN — sample w00t/0x40000000.
-        # boot174: IOSOPEN→sel8 wrap EXC'd BB; instead fake-success these
-        # post-open XPC/dispatch waits so BB can reach IOMFB IOCONN/CA.
-        if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+        # boot173/174: w00t/0x40000000 post-open waits.
+        # boot176: after real IOMFB open BB got msgid 0x40000388→0x80b with
+        # x0=0x10004004 then went quiet (0 IOCONN). boot177: also fake that
+        # XPC class (0x40000388/0x40000384) post-IOMFB for BB.
+        if msgid in (1999646836, 1073741824,  # 'w00t' / 0x40000000
+                     0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
                 _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
                 if _mm2['w00t_n'] <= 6:
@@ -1013,7 +1016,10 @@ def on_mach_msg2():
                                 _mm2['w00t_n'], msgid))
                     except Exception as e:
                         P('W00T_FAKE err=%r' % e)
-            return False
+                if msgid in (0x40000388, 0x40000384):
+                    return False  # don't fall through to generic log
+            if msgid in (1999646836, 1073741824):
+                return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.
         # boot167: also dump trap msg header words (identify port peer).
