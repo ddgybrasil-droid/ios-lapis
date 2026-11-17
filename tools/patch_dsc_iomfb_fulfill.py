@@ -361,23 +361,29 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
         wrap.append(insn)
         wpc += 4
 
-    # boot229: must save x30 across BL CALLMETHOD or ret loops forever
-    # (boot227/228: GMD thread stuck, no GMD_BODY_RET).
-    wemit(0xD10083FF)  # sub sp, sp, #0x20
-    wemit(0xF9000BFE)  # str x30, [sp, #0x10]
+    # boot229: save x30 across BL CALLMETHOD (else ret loops, no GMD_BODY_RET).
+    # boot230: CallMethod arg9/arg10 live at [sp]/[sp,#8]. boot228/229 put
+    # outputCnt/scalars there → garbage outputStruct → BB sel=8 0xe00002bf
+    # (no IOEXT). Zero stack args; keep scalars/cnt/x30 in the private frame.
+    # Also save x21 across CallMethod (sel=5 may have left it live for WRAP).
+    wemit(0xD10103FF)  # sub sp, sp, #0x40
+    wemit(0xA9007FFF)  # stp xzr, xzr, [sp]       arg9/arg10 = NULL
+    wemit(0xF9001BFE)  # str x30, [sp, #0x30]
+    wemit(0xF90017F5)  # str x21, [sp, #0x28]
     wemit(0xB94016A0)  # ldr w0, [x21, #0x14]
     wemit(0x52800101)  # movz w1, #8
     wemit(0xD2800002)  # movz x2, #0
     wemit(0x52800003)  # movz w3, #0
     wemit(0xD2800004)  # movz x4, #0
     wemit(0xD2800005)  # movz x5, #0
-    wemit(0x910023E6)  # add x6, sp, #0x8  output scalars
+    wemit(0x910043E6)  # add x6, sp, #0x10  output scalars
     wemit(0x52800048)  # movz w8, #2
-    wemit(0xB90003E8)  # str w8, [sp]  outputCnt
-    wemit(0x910003E7)  # mov x7, sp
+    wemit(0xB90023E8)  # str w8, [sp, #0x20]  outputCnt
+    wemit(0x910083E7)  # add x7, sp, #0x20
     wemit(enc_bl(wpc, CALLMETHOD))
-    wemit(0xF9400BFE)  # ldr x30, [sp, #0x10]
-    wemit(0x910083FF)  # add sp, sp, #0x20
+    wemit(0xF94017F5)  # ldr x21, [sp, #0x28]
+    wemit(0xF9401BFE)  # ldr x30, [sp, #0x30]
+    wemit(0x910103FF)  # add sp, sp, #0x40
     wemit(0xD65F03C0)  # ret
     wrap_blob = b"".join(struct.pack("<I", w) for w in wrap)
     fo_wrap = WRAP_SEL8 - SUBCACHE_BASE

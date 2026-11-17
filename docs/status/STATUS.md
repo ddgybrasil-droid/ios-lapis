@@ -1295,5 +1295,9 @@ Image.pth74.
 
 ## Chunk 178 (boot229: WRAP save x30)
 
-| boot229 | Image.pth159 | WRAP save/restore x30 across CallMethod; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GMD_BODY_RET returns after sel5+8; BB_GMD_OK. | out/logs/boot229 |
+| boot229 | Image.pth159 | WRAP save/restore x30 across CallMethod; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **GMD_BODY_RET + BB_GMD_OK + FLAG98**; BB sel=5 **IOMFB_UCAL x0=0**; BB sel=8 → **0xe00002bf** (no IOEXT — WRAP private frame reused [sp] for outputCnt, CallMethod read it as outputStruct); FDR sel8 IOEXT ok; SURFACE sel13→32; SB got system-app-server. | out/logs/boot229 |
+
+## Chunk 179 (boot230: WRAP CallMethod stack ABI)
+
+| boot230 | Image.pth160 | WRAP: zero arg9/arg10; scalars@+0x10; cnt@+0x20; save x21+x30; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB sel=8 hits IOEXTMETHOD + IOMFB_GETSIZE x0=0; keep GMD_BODY_RET. | out/logs/boot230 |
 
