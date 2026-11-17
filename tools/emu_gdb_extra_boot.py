@@ -27,6 +27,18 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
+            # boot187: after GMD body, dump *out and size fields @+0x30/+0x34.
+            if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
+                try:
+                    op = int(t.split('out=')[1].split()[0], 16)
+                    obj = m64(op) if op else 0
+                    extra += ' *out=%#x' % obj
+                    if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
+                        w = m32(obj + 0x30) & 0xffffffff
+                        h = m32(obj + 0x34) & 0xffffffff
+                        extra += ' size=%dx%d' % (w, h)
+                except Exception as e:
+                    extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
@@ -59,8 +71,18 @@ class _RetSite(gdb.Breakpoint):
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
                 # boot178: treat proc=? like backboardd for force-name list.
+                # boot186: SB got real RB with null ports after BB GMD ok —
+                # boot187: force RB (and frontboard) for SpringBoard too.
                 force_bb = (("proc=backboardd" in t or "proc=?" in t) and
                             any(n in t for n in _force_names))
+                _sb_force = [
+                    "name='com.apple.runningboard'",
+                    "name='com.apple.frontboard.systemappservices'",
+                    "name='com.apple.analyticsd'",
+                ]
+                force_sb = ("proc=SpringBoard" in t and
+                            any(n in t for n in _sb_force))
+                force_bb = force_bb or force_sb
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -671,8 +693,10 @@ def _ufn(n):
             P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
             RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
         elif n=='IOMFB_GMD_body':
-            P('GMD_BODY proc=%s out=%#x' % (pn, r('x0')))
-            RetBP(r('x30'), 'GMD_BODY_RET proc=%s' % pn)
+            outp = r('x0')
+            _dsc['gmd_out'] = outp
+            P('GMD_BODY proc=%s out=%#x' % (pn, outp))
+            RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False

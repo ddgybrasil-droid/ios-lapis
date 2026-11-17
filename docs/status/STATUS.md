@@ -1119,4 +1119,8 @@ Image.pth74.
 
 ## Chunk 135 (boot186: force analyticsd; IOSurface deferred wake; GMD_BODY log)
 
-| boot186 | Image.pth116 | always-force analyticsd; deferred wake nudges IOSurfaceRoot; GMD_BODY hook | qemu11 43G lva=off | **ГИПОТЕЗА**: deny analyticsd + surface re-wake → BB_SURFACE_MATCH / CA bind. | out/logs/boot186 |
+| boot186 | Image.pth116 | always-force analyticsd; deferred wake nudges IOSurfaceRoot; GMD_BODY hook | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB GMD_BODY_RET x0=0**; FDR GMD ok; no FAR=0; still **0** SURFACE/sel8; SB got **null RB** port; BB later msgid 3228. | out/logs/boot186 |
+
+## Chunk 136 (boot187: force SB runningboard; dump GMD *out)
+
+| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past null RB + confirm GMD object WxH → CA/IOSurface. | out/logs/boot187 |
