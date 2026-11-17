@@ -1043,4 +1043,8 @@ Image.pth74.
 
 ## Chunk 116 (boot167: richer digitizer + deferred IOMFB wake + SPIN hdr)
 
-| boot167 | Image.pth97 | boot161-style digitizer fields; deferred IOMFB messageClients; SPIN msg hdr dump | qemu11 43G lva=off | **ГИПОТЕЗА**: classified touch event + delayed FB property-change → BB IOCONN/sel8; SPIN_HDR names the `0x7c03` peer. | out/logs/boot167 |
+| boot167 | Image.pth97 | boot161-style digitizer fields; deferred IOMFB messageClients; SPIN msg hdr dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: richer `regnote`/`repulse` + `deferred wake msgclients` ok; CLEARED ok; IOMFB open+WINDOW. Still **0** IOMFB IOCONN/canvas/sel8. `SPIN_HDR` send=2 data=0 opt=`0x31`/`0x40231` (**MACH_SEND_NOTIFY**+timeout) → remote `0x7c03` — service/notify wait, not IOKit. Post-open mach: XPC `0x40000388`/`1026`. Missing props: `IOClassNameOverride`/`Hidden`/`ProtectedAccess`/`SensorPropertySupported` **0xe00002f0**. | out/logs/boot167 |
+
+## Chunk 117 (boot168: real frontboard + seed missing HID/IOMFB props)
+
+| boot168 | Image.pth98 | drop frontboard 0x9f force; seed IOClassNameOverride/Hidden/… | qemu11 43G lva=off | **ГИПОТЕЗА**: real frontboard (SB) unblocks MACH_SEND_NOTIFY wait → CA/IOMFB IOCONN; missing prop seeds clear HID reject path. | out/logs/boot168 |

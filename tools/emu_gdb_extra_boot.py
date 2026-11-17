@@ -39,11 +39,13 @@ class _RetSite(gdb.Breakpoint):
                 # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
                 # spins — allow real RB/frontboard once post_iomfb so display
                 # assertions can check in; keep ACCHW forced always.
+                # boot168: SPIN_HDR is MACH_SEND_NOTIFY/send=2 (service wait), not
+                # IOKit. Forced frontboard 0x9f may skip SB/CA publish BB needs
+                # after IOMFB — keep ACCHW+RB force only; let frontboard be real.
                 _force_names = ["name='com.apple.ACCHWComponentAuthService'"]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
-                        "name='com.apple.frontboard.systemappservices'",
                     ]
                 force_bb = ("proc=backboardd" in t and
                             any(n in t for n in _force_names))
@@ -950,12 +952,25 @@ def on_mach_msg2():
                 if _mm2['spin1'] <= 3:
                     try:
                         data = m64(ap)
+                        ws = [0, 0, 0, 0]
                         if data:
-                            w0 = m32(data); w1 = m32(data + 4)
-                            w2 = m32(data + 8); w3 = m32(data + 12)
-                            P('%s_HDR data=%#x w=%#x,%#x,%#x,%#x opt=%#x send=%d' % (
-                                tag, data, w0 or 0, w1 or 0, w2 or 0, w3 or 0,
-                                opt64 & 0xffffffff, send_sz))
+                            # Userspace buffer — prefer gdb examine over m32.
+                            try:
+                                raw = gdb.execute('x/4wx %#x' % data,
+                                                   to_string=True)
+                                P('%s_HDR data=%#x %s opt=%#x send=%d' % (
+                                    tag, data, ' '.join(
+                                        raw.strip().splitlines()[:2]),
+                                    opt64 & 0xffffffff, send_sz))
+                            except Exception:
+                                for i in range(4):
+                                    ws[i] = m32(data + 4 * i) or 0
+                                P('%s_HDR data=%#x w=%#x,%#x,%#x,%#x opt=%#x send=%d' % (
+                                    tag, data, ws[0], ws[1], ws[2], ws[3],
+                                    opt64 & 0xffffffff, send_sz))
+                        else:
+                            P('%s_HDR data=0 opt=%#x send=%d' % (
+                                tag, opt64 & 0xffffffff, send_sz))
                     except Exception as e:
                         P('SPIN_HDR err=%r' % e)
                 # boot164/166: userspace frames; prefer post-IOMFB samples.

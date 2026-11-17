@@ -288,6 +288,15 @@ static void set_hid_identity_props(void *obj)
 		obj, "HIDServiceAccessEntitlement",
 		"com.apple.private.hid.client.event-dispatch");
 	IORegistryEntry_setProperty_bool(obj, "Unregistered", 0);
+	/*
+	 * boot167/168: BB CFProperty-gets these after NOTE64 (were 0xe00002f0).
+	 * Seed so EventServicePlugin / display bind does not reject the service.
+	 */
+	IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+					 "IOHIDEventService");
+	IORegistryEntry_setProperty_bool(obj, "Hidden", 0);
+	IORegistryEntry_setProperty_bool(obj, "ProtectedAccess", 0);
+	IORegistryEntry_setProperty_bool(obj, "SensorPropertySupported", 0);
 }
 
 #define VT_ENTRIES 32
@@ -1308,6 +1317,8 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		IORegistryEntry_setProperty_bool(obj, "external", 0);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
+		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+						 "IOMobileFramebuffer");
 		/* boot153: BB walks device_type/compatible before IOMFB open. */
 		IORegistryEntry_setProperty_cstr(obj, "device_type",
 						 "display-subsystem");
