@@ -80,13 +80,11 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
-                    # boot175/176: skip user cfprefsd.daemon NULLPORT (BRK).
-                    # boot177: still deny null cfprefsd.daemon.system for BB.
-                    _cfprefs_user = ("name='com.apple.cfprefsd.daemon'" in t
-                                     and 'daemon.system' not in t)
+                    # boot175–178: any cfprefs NULLPORT → BRK before IOMFB.
+                    # boot179: skip all cfprefs (boot176 path that reached open).
                     if (not force_bb
                             and ("proc=backboardd" in t or "proc=?" in t)
-                            and not _cfprefs_user
+                            and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
                         for ptr in (x4, x6, x7):

@@ -1087,4 +1087,8 @@ Image.pth74.
 
 ## Chunk 127 (boot178: force XPC names for proc=?)
 
-| boot178 | Image.pth108 | treat proc=? as BB for force-name + NULLPORT lists | qemu11 43G lva=off | **ГИПОТЕЗА**: restore RB/ACCHW 0x9f despite pname miss → HID→IOMFB + 0x40000388 fake. | out/logs/boot178 |
+| boot178 | Image.pth108 | treat proc=? as BB for force-name + NULLPORT lists | qemu11 43G lva=off | **ПРОВЕРЕНО**: forces ok (proc=backboardd); cfprefs.system NULLPORT → **BRK**/respawn; MATCH→WINDOW→IOMFB open then **quiet** (0 W00T/sel8). | out/logs/boot178 |
+
+## Chunk 128 (boot179: skip all cfprefs NULLPORT; keep 0x40000388 fake)
+
+| boot179 | Image.pth109 | no cfprefs NULLPORT (boot176); proc=? forces; W00T_FAKE 0x40000388 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean open like boot176 + fake failing XPC → IOMFB IOCONN/sel8. | out/logs/boot179 |
