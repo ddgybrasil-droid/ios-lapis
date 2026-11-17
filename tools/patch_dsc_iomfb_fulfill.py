@@ -101,8 +101,8 @@ def build_cave() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame: [sp,#0]=out*, [sp,#0x8]=iterator, [sp,#0x18]=obj,
-    # [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19, [sp,#0x40]=x29/x30.
+    # Frame: [sp,#0x8]=iterator out, [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19,
+    # [sp,#0x40]=x29/x30. Keep sp 16-byte aligned.
     emit(0xD503237F)  # pacibsp
     emit(0xD10143FF)  # sub sp, sp, #0x50
     emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
@@ -110,7 +110,6 @@ def build_cave() -> list[int]:
     emit(0xA9047BFD)  # stp x29, x30, [sp, #0x40]
     emit(0x910103FD)  # add x29, sp, #0x40
     emit(0xAA0003F3)  # mov x19, x0  (out*)
-    emit(0xF90003F3)  # str x19, [sp]  (boot196: out* survives Open)
     cbz0 = len(code)
     emit(0)  # cbz x19 → fail
 
@@ -158,13 +157,10 @@ def build_cave() -> list[int]:
     emit(0xD2800003)  # movz x3, #0
     emit(enc_bl(pc, TYPED_MALLOC))
     emit(0xAA0003F5)  # mov x21, x0  (obj)
-    emit(0xF9000FF5)  # str x21, [sp, #0x18]  (boot196: obj survives Open)
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # boot196: full wipe (boot190). Reload out*/obj from [sp,#0]/[sp,#0x18]
-    # before str — boot195 BB Open ok but *out null; RetBP showed x21=caller
-    # junk (Open may clobber callee-saved on BB). Keep isa=0 for now.
+    # boot199: exact boot190 full wipe; no stack reload; no cave insn bps.
     # zero object (16-byte stores) then set Open-critical fields.
     emit(0x6F00E400)  # movi v0.2d, #0
     emit(0xAA1503E8)  # mov x8, x21
@@ -228,8 +224,6 @@ def build_cave() -> list[int]:
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
     skip_size = pc
-    emit(0xF94003F3)  # ldr x19, [sp]       (reload out*)
-    emit(0xF9400FF5)  # ldr x21, [sp, #0x18] (reload obj)
     emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)
     emit(enc_bl(pc, REL))

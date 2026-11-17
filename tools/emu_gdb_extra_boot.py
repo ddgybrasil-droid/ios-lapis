@@ -763,76 +763,8 @@ def _ufn(n):
             P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
                 pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
-            # boot198: do NOT bp the str itself (TCG may skip it — boot196/197).
-            # Arm once on the next insn (mov x0,x22 @ cave+0x17c); if *out
-            # still 0, force write_memory while x19/x21 remain live.
-            if _dsc.get('slide') is not None and not _dsc.get('gmd_str_armed'):
-                after_va = 0x22880511c + 0x17c + _dsc['slide']
-                try:
-                    def _on_gmd_after_str():
-                        x19, x21 = r('x19'), r('x21')
-                        pn2 = (cur_pname() or ['?'])[0]
-                        got = 0
-                        try:
-                            if x19:
-                                got = int.from_bytes(bytes(
-                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
-                        except Exception:
-                            got = 0
-                        P('GMD_AFTER_STR proc=%s x19=%#x x21=%#x *out=%#x' % (
-                            pn2, x19, x21, got))
-                        # boot198: native str should have run (bp is AFTER it).
-                        # If still 0, force — stack out* may need gdb set {T}.
-                        if (not got) and x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
-                            ok = False
-                            try:
-                                gdb.selected_inferior().write_memory(
-                                    x19, (x21 & 0xffffffffffffffff).to_bytes(8, 'little'))
-                                ok = True
-                            except Exception as e:
-                                P('GMD_AFTER_STR_FORCE_ERR %r' % e)
-                                try:
-                                    gdb.execute(
-                                        'set {unsigned long long}%#x = %#x' % (
-                                            x19, x21 & 0xffffffffffffffff),
-                                        to_string=True)
-                                    ok = True
-                                    P('GMD_AFTER_STR_SET proc=%s' % pn2)
-                                except Exception as e2:
-                                    P('GMD_AFTER_STR_SET_ERR %r' % e2)
-                            if ok:
-                                try:
-                                    got2 = int.from_bytes(bytes(
-                                        gdb.selected_inferior().read_memory(x19, 8)), 'little')
-                                except Exception:
-                                    got2 = 0
-                                P('GMD_AFTER_STR_FORCE proc=%s *out=%#x readback=%#x' % (
-                                    pn2, x21, got2))
-                        # Seed isa on heap object (stack out* is caller's; obj is heap).
-                        if x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
-                            try:
-                                isa = int.from_bytes(bytes(
-                                    gdb.selected_inferior().read_memory(x21, 8)), 'little')
-                            except Exception:
-                                isa = 0
-                            seed = int(_dsc.get('gmd_isa_seed', 0) or 0)
-                            if isa == 0 and seed:
-                                try:
-                                    gdb.selected_inferior().write_memory(
-                                        x21, (seed & 0xffffffffffffffff).to_bytes(8, 'little'))
-                                    P('GMD_ISA_SEED proc=%s obj=%#x isa=%#x' % (
-                                        pn2, x21, seed))
-                                except Exception as e:
-                                    P('GMD_ISA_SEED_ERR %r' % e)
-                            elif isa:
-                                _dsc['gmd_isa_seed'] = isa
-                                P('GMD_ISA_CAPTURED %#x' % isa)
-                        return False
-                    BP('gmd_after_str', _on_gmd_after_str, after_va)
-                    _dsc['gmd_str_armed'] = 1
-                    P('GMD_AFTER_STR_BP %#x' % after_va)
-                except Exception as e:
-                    P('GMD_AFTER_STR_BP_ERR %r' % e)
+            # boot199: no instruction breakpoints in the GMD cave — boot196–198
+            # nearby-str bps left *out=0 even when x19/x21 looked sane (TCG TB).
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False

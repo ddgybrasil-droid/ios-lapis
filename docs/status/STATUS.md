@@ -1171,4 +1171,9 @@ Image.pth74.
 
 ## Chunk 147 (boot198: native str then force/set fallback)
 
-| boot198 | Image.pth128 | bp AFTER str; if *out=0 try write_memory then `set {u64}`; isa capture/seed on heap obj | qemu11 43G lva=off | **ГИПОТЕЗА**: native str to BB stack out* works without bp-on-str; gdb set helps if needed. | out/logs/boot198 |
+| boot198 | Image.pth128 | bp AFTER str; force/set fallback | qemu11 43G lva=off | **ПРОВЕРЕНО**: AFTER_STR still *out=0 (FDR+BB); write_memory MemoryError; gdb set readback 0. Nearby-str bp likely breaks TCG store. | out/logs/boot198 |
+
+## Chunk 148 (boot199: boot190 cave, zero cave insn bps)
+
+| boot199 | Image.pth129 | DSC exact boot190 408B; GMD_BODY log only (no str/after-str bps) | qemu11 43G lva=off | **ГИПОТЕЗА**: without cave insn bps native str sticks (boot190 BB WxH) → then isa/SURFACE. | out/logs/boot199 |
+
