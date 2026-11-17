@@ -234,6 +234,18 @@ def build_cave() -> list[int]:
     emit(0xD2800006)  # movz x6, #0
     emit(0xD2800007)  # movz x7, #0
     emit(enc_bl(pc, CALLMETHOD))
+    # boot225: also GetDisplaySize sel=8 with 2 scalar outs (boot147/182 RE).
+    emit(0xB94016A0)  # ldr w0, [x21, #0x14]
+    emit(0x52800101)  # movz w1, #8
+    emit(0xD2800002)  # movz x2, #0
+    emit(0x52800003)  # movz w3, #0
+    emit(0xD2800004)  # movz x4, #0
+    emit(0xD2800005)  # movz x5, #0
+    emit(0x910043E6)  # add x6, sp, #0x10  output scalars
+    emit(0x52800048)  # movz w8, #2
+    emit(0xB90003E8)  # str w8, [sp]  outputCnt=2
+    emit(0x910003E7)  # mov x7, sp
+    emit(enc_bl(pc, CALLMETHOD))
     emit(0x52812E88)  # movz w8, #2420
     emit(0xB90032A8)  # str w8, [x21, #0x30]
     emit(0x5280D088)  # movz w8, #1668

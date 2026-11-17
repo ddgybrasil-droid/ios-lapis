@@ -1275,5 +1275,9 @@ Image.pth74.
 
 ## Chunk 173 (boot224: cave post-Open CallMethod sel=5)
 
-| boot224 | Image.pth154 | GMD cave after Open: IOConnectCallMethod sel=5 (UCAL); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: mirroring real Open post-path sel5 unlocks first IOMFB IOEXT / CA. | out/logs/boot224 |
+| boot224 | Image.pth154 | GMD cave after Open: IOConnectCallMethod sel=5 (UCAL); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB+FDR IOEXTMETHOD sel=5 x0=0** (first IOMFB IOEXT!); BB_GMD_OK+FLAG98+XPC388_FAKE; no W00T; still no further sels/SURFACE. | out/logs/boot224 |
+
+## Chunk 174 (boot225: cave sel5 + sel8 GetDisplaySize)
+
+| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetDisplaySize after UCAL advances CA past first bind. | out/logs/boot225 |
 

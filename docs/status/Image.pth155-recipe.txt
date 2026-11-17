@@ -1,0 +1,8 @@
+Image.pth155 = Image.pth154 + cave sel8 after sel5
+  boot224: first BB IOMFB IOEXT sel=5 x0=0.
+  boot225: also CallMethod sel=8 GetDisplaySize (2 scalar outs); T=1800.
+
+Build:
+  cp /tmp/Image.pth154 /tmp/Image.pth155
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write
