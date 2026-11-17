@@ -1247,5 +1247,9 @@ Image.pth74.
 
 ## Chunk 166 (boot217: reliable PEEK_FAIL via x/gx)
 
-| boot217 | Image.pth147 | x/gx peek r/w; exempt 3228 from machmsg cap; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: every post-GMD peek → PEEK_FAIL clears busy-loop toward CA. | out/logs/boot217 |
+| boot217 | Image.pth147 | x/gx peek r/w; exempt 3228 from machmsg cap; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **3× PEEK_FAIL** then BB **respawn** + w00t; SURFACE sel32; oscard x0=3. PEEK_FAIL not a UI unlock (likely causes crash). | out/logs/boot217 |
+
+## Chunk 167 (boot218: drop PEEK_FAIL; force oscard)
+
+| boot218 | Image.pth148 | revert PEEK_FAIL; force oscard 0x9f; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop peek-crash; deny oscard like ACCHW → BB stays on GMD path toward CA. | out/logs/boot218 |
 

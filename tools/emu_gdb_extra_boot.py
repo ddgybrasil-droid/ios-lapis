@@ -198,11 +198,10 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
-            # boot214–217: msgid 3228 = mach_port_peek (base 3200+28).
-            # boot216: read_memory often MemoryError — use x/gx like GMD.
-            # After BB_GMD_OK force KERN_FAILURE (5) on every peek we can patch.
+            # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
+            # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
-                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 24):
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 12):
                 try:
                     data = int(_mm2.get('bb_3228_data') or 0)
                     if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
@@ -226,16 +225,6 @@ class _RetSite(gdb.Breakpoint):
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 52, 4))
                         extra += ' reply=[%s]' % words
-                        # RetCode is first u32 after NDR (header 24 + NDR 8).
-                        if _mm2.get('bb_gmd_ok'):
-                            try:
-                                gdb.selected_inferior().write_memory(
-                                    data + 32, (5).to_bytes(4, 'little'))
-                            except Exception:
-                                gdb.execute(
-                                    'set {unsigned int}%#x = 5' % (data + 32),
-                                    to_string=True)
-                            extra += ' PEEK_FAIL'
                 except Exception as er:
                     extra += ' reply_err=%r' % er
             if t.startswith('XPC_LOOKUP_RET'):
@@ -262,6 +251,9 @@ class _RetSite(gdb.Breakpoint):
                     # boot214: real analyticsd → w00t@0x4b03 → SPIN 0x10000000
                     # → BB respawn. Restore force (boot186 path).
                     "name='com.apple.analyticsd'",
+                    # boot218: oscard returned x0=3 then BB w00t/respawn path;
+                    # force 0x9f like other auth services.
+                    "name='com.apple.oscard'",
                 ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
