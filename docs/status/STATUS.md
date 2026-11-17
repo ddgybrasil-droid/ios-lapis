@@ -1239,5 +1239,9 @@ Image.pth74.
 
 ## Chunk 164 (boot215: restore analytics force + peek fail)
 
-| boot215 | Image.pth145 | restore analyticsd 0x9f; after GMD force mach_port_peek RetCode=KERN_FAILURE; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop peek-success busy-loop → BB reaches CA/IOMFB methods. | out/logs/boot215 |
+| boot215 | Image.pth145 | restore analyticsd 0x9f; after GMD force mach_port_peek RetCode=KERN_FAILURE; T=1400 | qemu11 43G lva=off | **НЕПОЛНО**: T=1400 STOPPED during BB early init (msgid 4811/3228); **0 HID/GMD/PEEK_FAIL**. Retest T=1800. | out/logs/boot215 |
+
+## Chunk 165 (boot216: PEEK_FAIL retest T=1800)
+
+| boot216 | Image.pth146 | same as boot215; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: longer window reaches GMD + PEEK_FAIL → CA progress. | out/logs/boot216 |
 
