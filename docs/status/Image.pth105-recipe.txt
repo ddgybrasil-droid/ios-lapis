@@ -1,0 +1,8 @@
+Image.pth105 = Image.pth104 kernel + GDB pre-IOMFB null-port deny
+  boot174: wrap reverted OK, but BB stalled on cfprefsd.daemon null port
+  before HID/IOMFB — W00T_FAKE never armed.
+  - GDB: FORCED_NULLPORT_0x9f for BB on any null-port XPC success (not only post_iomfb)
+  - Keep W00T_FAKE for when IOMFB open is reached again
+
+Build:
+  cp /tmp/Image.pth104 /tmp/Image.pth105

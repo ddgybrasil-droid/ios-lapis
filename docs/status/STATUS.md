@@ -1071,4 +1071,8 @@ Image.pth74.
 
 ## Chunk 123 (boot174: revert wrap; fake post-IOMFB W00T success)
 
-| boot174 | Image.pth104 | restore IOSOPEN stub; GDB W00T_FAKE x0=0/pc=lr after IOMFB open | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open w00t/0x40000000 XPC waits burn BB — fake success → IOMFB IOCONN/CA. | out/logs/boot174 |
+| boot174 | Image.pth104 | restore IOSOPEN stub; GDB W00T_FAKE x0=0/pc=lr after IOMFB open | qemu11 43G lva=off | **ПРОВЕРЕНО**: wrap reverted (no BB EXC). **Never reached IOMFB** — BB `cfprefsd.daemon` **x0=0/null** then msgid 11602 flood; W00T_FAKE unused. | out/logs/boot174 |
+
+## Chunk 124 (boot175: pre-IOMFB BB null-port deny)
+
+| boot175 | Image.pth105 | FORCED_NULLPORT for BB anytime (incl. cfprefs); keep W00T_FAKE | qemu11 43G lva=off | **ГИПОТЕЗА**: deny null cfprefs → restore HID→IOMFB open → W00T_FAKE can fire → IOCONN. | out/logs/boot175 |

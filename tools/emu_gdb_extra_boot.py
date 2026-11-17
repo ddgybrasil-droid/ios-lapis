@@ -75,10 +75,10 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
-                    # boot172: post-IOMFB BB XPC that "succeeds" with no port →
-                    # force deny (same MACH_SEND_NOTIFY class as analyticsd).
-                    if (not force_bb and _mm2.get('post_iomfb')
-                            and 'proc=backboardd' in t
+                    # boot172: post-IOMFB null-port XPC → deny.
+                    # boot174: BB stalled on cfprefsd.daemon x0=0/null *before*
+                    # HID/IOMFB — boot175: null-port deny for BB at any time.
+                    if (not force_bb and 'proc=backboardd' in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
                         for ptr in (x4, x6, x7):
