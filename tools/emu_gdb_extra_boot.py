@@ -72,10 +72,16 @@ class _RetSite(gdb.Breakpoint):
                         if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
                             try:
                                 if force_bb:
-                                    # boot161: 8-byte CLEARED smashed BB stack after
-                                    # frontboard force → EXC FAR=0x1536050. Keep 4.
-                                    gdb.selected_inferior().write_memory(
-                                        ptr, b'\x00\x00\x00\x00')
+                                    # boot161: 8-byte CLEARED smashed stack. boot164:
+                                    # write_memory often MemoryError — fall back to
+                                    # gdb set {unsigned int}.
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            ptr, b'\x00\x00\x00\x00')
+                                    except Exception:
+                                        gdb.execute(
+                                            'set {unsigned int}%#x = 0' % ptr,
+                                            to_string=True)
                                     extra += ' %s*=CLEARED' % label
                                 else:
                                     v = m64(ptr)
@@ -949,6 +955,15 @@ def on_mach_msg2():
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
+        # boot165: first few BB msgs after IOMFB open — userspace frames.
+        if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                and _mm2.get('post_uf', 0) < 3):
+            _mm2['post_uf'] = _mm2.get('post_uf', 0) + 1
+            try:
+                _uframes('POST_IOMFB_U', 'msgid=%d n=%d' % (
+                    msgid, _mm2['post_uf']))
+            except Exception as e:
+                P('POST_IOMFB_U err=%r' % e)
         if sending and recving:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))

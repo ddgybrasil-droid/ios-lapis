@@ -1031,4 +1031,8 @@ Image.pth74.
 
 ## Chunk 113 (boot164: SPIN userspace frames + IOMFB fb map + GetMainDisplay hook)
 
-| boot164 | Image.pth94 | MACHMSG2_SPIN uframes; IOMFB cmap RGBA fb; DSC GetMainDisplay log | qemu11 43G lva=off | **ГИПОТЕЗА**: SPIN PC names wait; IOMFB map not HID queue; GetMainDisplay call sites visible → next CA stub. | out/logs/boot164 |
+| boot164 | Image.pth94 | MACHMSG2_SPIN uframes; IOMFB cmap RGBA fb; DSC GetMainDisplay log | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SPIN_U` pc unslid≈`0x232236cd4` (libsystem near abort_with_reason) via xpc/`0x197f2*` — **pre-IOMFB** (CM_SYSPATH). `GMD_ENTER` **only FDR** (x0=0), never BB. `cmap iomfb fb` **0** (hidq only). IOMFB open+msgclients+WINDOW; still **0** post-open IOCONN/canvas. Post-open BB: analyticsd + msgid 1026/1018 then quiet. CLEARED all MemoryError. | out/logs/boot164 |
+
+## Chunk 114 (boot165: post-IOMFB uframes + CLEARED via set + cave size fields)
+
+| boot165 | Image.pth95 | post-IOMFB BB uframes; CLEARED set{int}; GMD cave store 2420×1668 | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open wait PC named; port CLEARED restored; GMD object sized → CA/sel8 path. | out/logs/boot165 |

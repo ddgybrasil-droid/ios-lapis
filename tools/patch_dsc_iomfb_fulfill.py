@@ -209,7 +209,20 @@ def build_cave() -> list[int]:
     emit(0x52800002)
     emit(0x910052A3)  # add x3, x21, #0x14
     emit(enc_bl(pc, IOSOPEN))
-    emit(0xAA0003F4)
+    emit(0xAA0003F4)  # mov x20, x0 (kr)
+    # boot165: on Open success, seed panel size into the light object so
+    # GetMainDisplay callers see 2420×1668 without a separate sel8 round-trip.
+    cbnz_sz = len(code)
+    emit(0)  # cbnz w20 → skip_size
+    emit(0x52812E88)  # movz w8, #2420
+    emit(0xB90032A8)  # str w8, [x21, #0x30]
+    emit(0x5280D088)  # movz w8, #1668
+    emit(0xB90036A8)  # str w8, [x21, #0x34]
+    emit(0x52812E88)  # movz w8, #2420
+    emit(0xB9003AA8)  # str w8, [x21, #0x38]
+    emit(0x5280D088)  # movz w8, #1668
+    emit(0xB9003EA8)  # str w8, [x21, #0x3c]
+    skip_size = pc
     emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)
     emit(enc_bl(pc, REL))
@@ -265,6 +278,7 @@ def build_cave() -> list[int]:
     patch_bne(bne_z, zloop)
     patch_b(b_have, have_obj)
     patch_b(b_epi0, epi)
+    patch_cbnz_w(cbnz_sz, 20, skip_size)
     return code
 
 
