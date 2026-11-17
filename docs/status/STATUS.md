@@ -1267,5 +1267,9 @@ Image.pth74.
 
 ## Chunk 171 (boot222: restore FB/MG force + cave FLAG98)
 
-| boot222 | Image.pth152 | restore frontboard/MG force; cave seeds +0x98/+0x838/+0xc08; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: permanent cave flags + boot220 force set = stable path; watch for IOMFB IOEXT. | out/logs/boot222 |
+| boot222 | Image.pth152 | restore frontboard/MG force; cave seeds +0x98/+0x838/+0xc08; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no W00T; BB_GMD_OK+FLAG98+XPC388_FAKE; HID NOTE64; **0 SURFACE** this run; still 0 BB IOMFB IOEXT. | out/logs/boot222 |
+
+## Chunk 172 (boot223: post-GMD IOCONN any-proc)
+
+| boot223 | Image.pth153 | post-GMD IOCONN sample any proc; keep cave flags+FB force; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: CA IOConnect was filtered by pname — catch POST_GMD_ANY. | out/logs/boot223 |
 
