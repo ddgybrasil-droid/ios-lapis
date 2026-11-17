@@ -1163,4 +1163,8 @@ Image.pth74.
 
 ## Chunk 145 (boot196: reload out*/obj from stack before str)
 
-| boot196 | Image.pth126 | DSC: stash out*@[sp,#0] obj@[sp,#0x18]; reload before str; GMD_STR bp | qemu11 43G lva=off | **ГИПОТЕЗА**: BB *out WxH survives Open clobber → then isa/SURFACE. | out/logs/boot196 |
+| boot196 | Image.pth126 | DSC: stash out*@[sp,#0] obj@[sp,#0x18]; reload before str; GMD_STR bp | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD_STR **x19/x21 sane** (BB obj=`0x122184000`) but still **GMD_OUT_NULL** — native `str` not sticking (TCG bp?) or cleared before ret. | out/logs/boot196 |
+
+## Chunk 146 (boot197: GDB force *out at GMD_STR)
+
+| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ГИПОТЕЗА**: forced *out → WxH for BB → isa/SURFACE next. | out/logs/boot197 |

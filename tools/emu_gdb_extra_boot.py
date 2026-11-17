@@ -763,20 +763,30 @@ def _ufn(n):
             P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
                 pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
-            # boot196: one-shot bp on final `str x21,[x19]` (cave+0x178 with
-            # reload insns; boot190 was +0x168) to log regs at publish time.
-            if _dsc.get('slide') is not None:
+            # boot197: single shared bp on final str (cave+0x178). boot196
+            # showed x19/x21 sane at STR but *out still 0 — force the store
+            # via gdb write_memory and verify readback (TCG bp may skip insn).
+            if _dsc.get('slide') is not None and not _dsc.get('gmd_str_armed'):
                 str_va = 0x22880511c + 0x178 + _dsc['slide']
                 try:
-                    def _on_gmd_str(pn=pn, outp=outp):
-                        def fn():
-                            x19, x21 = r('x19'), r('x21')
-                            P('GMD_STR proc=%s out=%#x x19=%#x x21=%#x' % (
-                                pn, outp, x19, x21))
-                            _dsc['gmd_str'] = (pn, outp, x19, x21)
-                            return False
-                        return fn
-                    BP('gmd_str_%s_%#x' % (pn, outp), _on_gmd_str(), str_va)
+                    def _on_gmd_str():
+                        x19, x21 = r('x19'), r('x21')
+                        pn2 = (cur_pname() or ['?'])[0]
+                        P('GMD_STR proc=%s x19=%#x x21=%#x' % (pn2, x19, x21))
+                        if x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    x19, (x21 & 0xffffffffffffffff).to_bytes(8, 'little'))
+                                got = int.from_bytes(bytes(
+                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
+                                P('GMD_STR_FORCE proc=%s *out=%#x readback=%#x' % (
+                                    pn2, x21, got))
+                            except Exception as e:
+                                P('GMD_STR_FORCE_ERR %r' % e)
+                        return False
+                    BP('gmd_str', _on_gmd_str, str_va)
+                    _dsc['gmd_str_armed'] = 1
+                    P('GMD_STR_BP %#x' % str_va)
                 except Exception as e:
                     P('GMD_STR_BP_ERR %r' % e)
         else:
