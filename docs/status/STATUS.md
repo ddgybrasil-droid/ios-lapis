@@ -1168,3 +1168,7 @@ Image.pth74.
 ## Chunk 146 (boot197: GDB force *out at GMD_STR)
 
 | boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ГИПОТЕЗА**: forced *out → WxH for BB → isa/SURFACE next. | out/logs/boot197 |
+
+## Chunk 147 (boot198: force *out after str, not on str)
+
+| boot198 | Image.pth128 | same DSC reload; GDB bp on insn *after* str; force if *out still 0 | qemu11 43G lva=off | **ГИПОТЕЗА**: TCG skips insn under bp (boot196–197); after-str bp lets native str run, force as backup → BB WxH → SURFACE. | out/logs/boot198 |
