@@ -1291,5 +1291,9 @@ Image.pth74.
 
 ## Chunk 177 (boot228: WRAP_SEL8 private stack)
 
-| boot228 | Image.pth158 | WRAP_SEL8 sub sp,#0x20 before CallMethod; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: private frame lets GMD return after sel8 with *out intact. | out/logs/boot228 |
+| boot228 | Image.pth158 | WRAP_SEL8 sub sp,#0x20 before CallMethod; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: still no GMD_BODY_RET; BB sel8 → **0xe00002bf** (no IOEXT). Root cause: WRAP `ret` used x30 clobbered by BL CallMethod (infinite ret). | out/logs/boot228 |
+
+## Chunk 178 (boot229: WRAP save x30)
+
+| boot229 | Image.pth159 | WRAP save/restore x30 across CallMethod; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GMD_BODY_RET returns after sel5+8; BB_GMD_OK. | out/logs/boot229 |
 

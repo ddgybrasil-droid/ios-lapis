@@ -361,18 +361,22 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
         wrap.append(insn)
         wpc += 4
 
+    # boot229: must save x30 across BL CALLMETHOD or ret loops forever
+    # (boot227/228: GMD thread stuck, no GMD_BODY_RET).
     wemit(0xD10083FF)  # sub sp, sp, #0x20
+    wemit(0xF9000BFE)  # str x30, [sp, #0x10]
     wemit(0xB94016A0)  # ldr w0, [x21, #0x14]
     wemit(0x52800101)  # movz w1, #8
     wemit(0xD2800002)  # movz x2, #0
     wemit(0x52800003)  # movz w3, #0
     wemit(0xD2800004)  # movz x4, #0
     wemit(0xD2800005)  # movz x5, #0
-    wemit(0x910043E6)  # add x6, sp, #0x10
+    wemit(0x910023E6)  # add x6, sp, #0x8  output scalars
     wemit(0x52800048)  # movz w8, #2
-    wemit(0xB90003E8)  # str w8, [sp]
+    wemit(0xB90003E8)  # str w8, [sp]  outputCnt
     wemit(0x910003E7)  # mov x7, sp
     wemit(enc_bl(wpc, CALLMETHOD))
+    wemit(0xF9400BFE)  # ldr x30, [sp, #0x10]
     wemit(0x910083FF)  # add sp, sp, #0x20
     wemit(0xD65F03C0)  # ret
     wrap_blob = b"".join(struct.pack("<I", w) for w in wrap)
