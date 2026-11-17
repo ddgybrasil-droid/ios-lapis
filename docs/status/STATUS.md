@@ -1255,5 +1255,9 @@ Image.pth74.
 
 ## Chunk 168 (boot219: real XPC388 after GMD)
 
-| boot219 | Image.pth149 | after BB_GMD_OK let 0x40000388 complete (no FAKE); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real post-GMD XPC388 unlocks CA/display bind. | out/logs/boot219 |
+| boot219 | Image.pth149 | after BB_GMD_OK let 0x40000388 complete (no FAKE); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no XPC388 at all after GMD; **W00T** returned; SURFACE sel32; still 0 BB IOMFB IOEXT. Restore FAKE. | out/logs/boot219 |
+
+## Chunk 169 (boot220: restore XPC388_FAKE + FLAG98)
+
+| boot220 | Image.pth150 | restore XPC388_FAKE; seed GMD obj+0x98=1; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: fulfilled flag @+0x98 lets CA bind display after GMD. | out/logs/boot220 |
 

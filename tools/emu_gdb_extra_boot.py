@@ -185,6 +185,21 @@ class _RetSite(gdb.Breakpoint):
                             _mm2['bb_gmd_ok'] = 1
                             if 'BB_GMD_FORCE' not in extra:
                                 extra += ' BB_GMD_OK'
+                        # boot220: CA may require main/fulfilled flag @+0x98
+                        # (boot116 RE). Seed 1 on successful GMD objects.
+                        if obj and w and h:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x98, (1).to_bytes(4, 'little'))
+                                extra += ' FLAG98=1'
+                            except Exception:
+                                try:
+                                    gdb.execute(
+                                        'set {unsigned int}%#x = 1' % (obj + 0x98),
+                                        to_string=True)
+                                    extra += ' FLAG98=1'
+                                except Exception as e98:
+                                    extra += ' flag98_err=%r' % e98
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             # boot211/212: BB HID path sees IOHID* CONFORMS → 0; force 1 so
@@ -1282,13 +1297,9 @@ def on_mach_msg2():
                                  'n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_U err=%r' % e)
-                # boot219: after BB_GMD_OK, do NOT short-circuit 0x40000388 —
-                # fake success may skip the real CA/display bind path.
-                if _mm2.get('bb_gmd_ok'):
-                    if _mm2['xpc388_n'] <= 8:
-                        P('POST_IOMFB_XPC388_REAL n=%d' % _mm2['xpc388_n'])
-                    # fall through to normal mach_msg2 RetBP
-                elif _mm2['xpc388_n'] <= 32:
+                # boot219: skipping FAKE after GMD → no XPC388 at all + W00T.
+                # Restore FAKE (boot218 stable path).
+                if _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)
                         gdb.execute('set $pc = $x30', to_string=True)
