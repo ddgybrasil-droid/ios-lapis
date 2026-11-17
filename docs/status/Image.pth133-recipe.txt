@@ -1,0 +1,7 @@
+Image.pth133 = Image.pth132 (same kernel+DSC wipe-from-+0x10)
+  boot202: BB *out WxH + isa ISA_CAPTURED; 0 SURFACE; SB RB forced.
+  boot203: after gmd_isa_seed, allow real SpringBoard↔runningboard.
+
+Build:
+  cp /tmp/Image.pth132 /tmp/Image.pth133
+  # DSC already written

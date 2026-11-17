@@ -141,14 +141,22 @@ class _RetSite(gdb.Breakpoint):
                 # boot187: force RB (and frontboard) for SpringBoard too.
                 force_bb = (("proc=backboardd" in t or "proc=?" in t) and
                             any(n in t for n in _force_names))
+                # boot187: force SB RB to avoid null-port hang before GMD.
+                # boot203: once BB GMD published *out with typed isa, allow real
+                # SB↔runningboard so display/CA assertion can reach IOSurface.
                 _sb_force = [
-                    "name='com.apple.runningboard'",
                     "name='com.apple.frontboard.systemappservices'",
                     "name='com.apple.analyticsd'",
                 ]
+                if not _dsc.get('gmd_isa_seed'):
+                    _sb_force.append("name='com.apple.runningboard'")
                 force_sb = ("proc=SpringBoard" in t and
                             any(n in t for n in _sb_force))
                 force_bb = force_bb or force_sb
+                if ("proc=SpringBoard" in t
+                        and "name='com.apple.runningboard'" in t
+                        and _dsc.get('gmd_isa_seed')):
+                    extra += ' SB_RB_REAL_POST_GMD_ISA'
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)

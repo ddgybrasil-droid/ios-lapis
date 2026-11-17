@@ -1187,5 +1187,9 @@ Image.pth74.
 
 ## Chunk 151 (boot202: preserve isa by skipping wipe of [obj,#0])
 
-| boot202 | Image.pth132 | boot199 frame; wipe from +0x10; no x23 | qemu11 43G lva=off | **ГИПОТЕЗА**: WxH like boot199 + isa≠0 → SURFACE/sel13. | out/logs/boot202 |
+| boot202 | Image.pth132 | boot199 frame; wipe from +0x10; no x23 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB *out WxH + isa=0x10000020b51f079 ISA_CAPTURED**. FDR *out_read MemoryError. Still **0 SURFACE/sel13**. SB RB still FORCED post-GMD. | out/logs/boot202 |
+
+## Chunk 152 (boot203: real SB runningboard after GMD isa)
+
+| boot203 | Image.pth133 | same DSC; stop forcing SB RB once gmd_isa_seed set | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB↔RB after typed isa → SURFACE/sel13. | out/logs/boot203 |
 
