@@ -1,6 +1,0 @@
-[    0.713728]: load_init_program: attempting to load /usr/appleinternal/sbin/launchd.development
-[    0.718166]: load_init_program: attempting to load /sbin/launchd
-[    0.727739]: Allowing spawn of iOS binary launchd since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
-[    0.780141]: shared_region: 0xe5db7dc100fe78e3 [1(launchd)] check_np(0x16cf2b930) vm_shared_region_start_address() returned 0x1
-[    0.865297]: shared_region: 0xe5db7dc100fe78e3 [1(launchd)] check_np(0x16cf2ad18) vm_shared_region_start_address() returned 0x1
-[    2.510688]: pid 1 exited -- exit reason namespace 2 subcode 0xb, description none

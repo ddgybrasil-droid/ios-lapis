@@ -1,8 +1,0 @@
-# Before dyld_skip_chained: chained-fixup walker SEGV
-MOUNTED
-MWL
-FAULT pc=1009cf5d0 lr=1009cf408 far=1007dc018 esr=92000007
-dyld_base=1009a4000 entry=1009cf564
-x0=1007dc000 x1=16f69eaa0 x2=16f69ead0 x3=0 x4=1
-x19=1007dc000 x20=16f69eaa0 x21=1007dc018 x22=16f69eae8 x23=1007e0000 x24=10075c000 x25=4000
-# unslid: pc=0x2b5d0 ldr x25,[x21]; lr=0x2b408; FAR=launchd __DATA+0x18

@@ -1,0 +1,83 @@
+# TPRO investigation on afc7b33 (no dyld nops) — QEMU + GDB, 2026-11-14
+
+Base: afc7b33 (= main after reverts #19/#20/#21; `git diff afc7b33 bf71694` is empty).
+Kernel: qemu/Image.ipados from tools/make_boot_image.py, unchanged,
+  sha256 64da5772b6ee2417dae9ad100459a7616dc0f28d812abd5e4d23f969ef79f2f3
+Root: copy of the 23F77 fullroot (5 269 504 000 bytes) with only
+  tools/patch_fullroot_container_init.py
+  tools/patch_fullroot_pthread_features.py
+  tools/patch_fullroot_pac_strip.py --nop-brk1
+No tools/patch_fullroot_dyld_* (#15-#18) applied.
+Harness: tools/emu_run_gdb.sh + tools/emu_gdb_driver.py
+  (-cpu max,pauth-impdef=on -smp 8 -m 43G, UFS readonly=on).
+QEMU 10.0.13 (Debian) and QEMU 11.0.0 (built from source) give the same result.
+
+## 1. Kernel already tells dyld "no TPRO"  [VERIFIED]
+
+dyld decides hardware TPRO only from the apple[] string `dyld_hw_tpro`:
+  /usr/lib/dyld VA 0x7b9fc..0x7ba14 (lsl::MemoryManager ctor):
+    adrp/add x1 -> "dyld_hw_tpro" (0x96df0); bl 0x884c (apple[] lookup)
+    cbz x0, skip; mov w8,#1; strb w8,[x20,#0x21]
+  Every TPRO write-window (msr s3_6_c15_c1_5) is behind `ldrb [x,#0x21]==1`
+  and then commpage byte 0xFFFFFC10C ((v & 0xfe) == 2), else `brk #1`.
+- Kernel image has no "dyld_hw_tpro" string (strings -a Image.ipados).
+- Kernel vm_map_tpro / vm_map_set_tpro / pmap_set_tpro are 4-byte stubs.
+- Commpage at runtime (gdb at exception_triage):
+    _commpage_ro_data_kva+0x100: 00..00   [0x10c]=0x0
+    user 0xfffffc100:            00..00
+So dyld runs its non-TPRO (mprotect) path. Nothing to add in the kernel.
+
+## 2. dyld finishes and launchd main() runs  [VERIFIED]
+
+User frame-pointer chain at the fatal exception (run "final"):
+  0x1cecdb264 ... 0x1a52d93f0 0x1a52d927c 0x10450b934 0x10450bd94 0x1044bac20
+  0x10450071c 0x104500668 0x1044d01fc 0x10470cc1c 0
+- DSC slide 0x1139c000 (found by matching the bytes at PC in .19).
+- launchd slide base 0x1044b8000 (the only base where every return address
+  follows a bl/blr in /sbin/launchd): frames 0x1000181fc (inside main,
+  LC_MAIN entry 0x100018058) -> 0x100048668 -> 0x10004871c -> 0x100002c20
+  -> 0x100053d94 -> 0x100053934 -> libswiftDispatch +0x227c/+0x23f0
+  -> libdispatch ... +0x13fdc.
+- Bottom frame = dyld base+0x4c1c, right after `blraaz x8` at dyld 0x4c18
+  (dyld start calling main).
+Same chain shape in runs base4, bsd, cp, q11base, brkdyld, final, repo-harness.
+
+Control: all 104 `brk #1` that --nop-brk1 had removed from /usr/lib/dyld
+restored (TPRO-required traps 0x2f38, 0x4b84, 0x8c40, 0x11140, ... included).
+Result unchanged: same libdispatch site, no SIGTRAP. dyld does not reach
+any of its TPRO traps.
+
+The dyld walls from #15-#18 (walker 0x2b5d0, __dyld_apis store 0x4f2fc,
+Allocator 0x7bf44, __DATA_CONST 0x7960) did NOT reproduce here from a clean
+afc7b33 root.
+
+## 3. Real wall: libdispatch "Missing Kevent WORKQ support"  [VERIFIED]
+
+  EXC_TRIAGE exc=1 code0=0x1 code1=0x4000001e esr=0x92000006
+  OS_REASON ns=2 code=0xb
+PC unslid 0x1bd93f264 (libdispatch +0x39264) `ldr w8,[x0]`, x0=0x4000001e.
+The caller (libdispatch +0x13fd8) did `bl 0x1bd93f188` = DISPATCH_CLIENT_CRASH
+stub: msg "BUG IN LIBDISPATCH: Missing Kevent WORKQ support", code=w0, then
+`brk #1`. --nop-brk1 NOPed that brk, so execution fell through several
+crash stubs into the next function and faulted on the crash code as a pointer.
+The SIGSEGV is a masked deliberate crash, not a memory-mapping bug.
+
+0x4000001e is the mask that patch_fullroot_pthread_features.py forces. It
+has no WORKQ_FEATURE_KEVENT (0x40) / WORKLOOP (0x80).
+
+Kernel side:
+  bsdthread_register -> pthread_functions (0xfffffe000756a800, version 1)
+  -> +0xe0 = 0xfffffe000756abfc, returns 0x2d (ENOTSUP) for launchd.
+That table is the historical aux_text.S stand-in that is still built into
+qemu/Image (round 0014). Every workq/bsdthread entry is ENOTSUP or ret.
+There is no pthread.kext in this kernel (only the xnu side:
+_bsdthread_register, _workq_open, _bsdthread_ctl, _pthread_kext_register).
+
+## Next blocker  [NOT DONE]
+Implement pthread.kext's provider for xnu-12377 in the kernel:
+bsdthread_register2 (store threadstart/wqthread/pthsize/offsets and return
+real PTHREAD_FEATURE_* incl. WORKQ_KEVENT|WORKLOOP), bsdthread_create/
+terminate, workq_create_threadstack / workq_setup_thread /
+workq_markfree_threadstack, thread_selfid, psynch (or at least the ulock
+path). Then drop the userspace forced mask (#13). Also run without
+--nop-brk1, or with fewer nops: it turns every assert into a fall-through.

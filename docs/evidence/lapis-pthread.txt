@@ -1,0 +1,97 @@
+lapis_pthread: in-kernel pthread provider (replaces stub pthread_functions)
+==========================================================================
+Base: afc7b33 (+ bddc3d5 tooling). Kernel: qemu/Image.ipados 64da5772... ->
+patched with tools/patch_kernel_lapis_pthread.py -> sha256
+c34fe6215a46c9587ade6b18774e4ad5349b5ffa65dce09f71c18c1c7e238cd9
+
+What it does
+- xnu/lapis_pthread/lapis_pthread.c: freestanding port of libpthread-539
+  kern/kern_support.c (bsdthread_register, bsdthread_create/terminate,
+  thread_selfid, workq create/destroy/markfree threadstack, workq_setup_thread,
+  workq_handle_stack_events). Uses the kernel's own _pthread_callbacks.
+  Returns PTHREAD_FEATURE_SUPPORTED (0x400001df: incl. KEVENT 0x40,
+  WORKLOOP 0x80), mutex_default_policy = ULOCK. psynch_* -> ENOTSUP
+  (not hit by launchd so far: 0 calls in all runs).
+- Table version 0 (same as pthread.kext) -> xnu calls bsdthread_register.
+- Blob (4988 B) lives in the _copyio_test cave (16888 B, sysctl-only test;
+  its entry now returns ENOTSUP); _pthread_functions (0xfffffe000724c538)
+  -> lapis_pthread_functions (0xfffffe0007993e80) instead of stub
+  0xfffffe000756a800.
+- ABI note: Darwin arm64 packs stack args by natural size and passes all
+  varargs on the stack; GCC does not. mach_vm_map_external's cur/max/inh are
+  passed as (u64)(cur|max<<32), inh; panic() is called without varargs.
+  (First attempt panicked in vm_sanitize_err_compat_cur_and_max_prots.)
+
+Rootfs (copies only; original sha256 819cc92b4ef9463b... untouched)
+- afc7b33 patches, then tools/unpatch_fullroot_pthread_features.py
+  (#13 forced mask removed) and tools/revert_fullroot_nop_brk1.py
+  (6,456,268 `brk #1` restored = --nop-brk1 fully undone).
+
+QEMU 10.0.13, tools/emu_run_gdb.sh + EXTRA=tools/emu_gdb_extra_pthread.py
+
+--- run pth3 (no #13, with --nop-brk1) gdb-events excerpt
+PROC_PREPAREEXIT #1 reason_seen=None
+PROC_PREPAREEXIT #2 reason_seen=None
+LP lp_thread_selfid #1 x0=0xfffffe2999a680c0 x1=0xfffffe166685f248 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+SR_MAP2 enter
+MWL enter
+LP lp_bsdthread_register #1 x0=0xfffffe2999a680c0 x1=0x1f7b288c4 x2=0x1f7b288b8 x3=0x4000 x4=0x16f4ac130 x5=0x38 x6=0xa0 x7=0xfffffe166685f248
+LP lp_workq_create_threadstack #1 x0=0xfffffe2999a680c0 x1=0xfffffe1000142240 x2=0xfffffe6b42467d68 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0xfffffe166685f248
+LP lp_workq_setup_thread #1 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x0 x6=0x1 x7=0x4d4005
+LP lp_thread_selfid #2 x0=0xfffffe2999a680c0 x1=0xfffffe1666860928 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+LP lp_workq_handle_stack_events #1 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x16f536b80 x6=0x1 x7=0x4f4005
+LP lp_workq_setup_thread #2 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_workq_handle_stack_events #2 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x16f536b80 x6=0x1 x7=0x4f4005
+LP lp_workq_setup_thread #3 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x0 x6=0x0 x7=0x1e4008
+LP lp_workq_create_threadstack #2 x0=0xfffffe2999a680c0 x1=0xfffffe1000142240 x2=0xfffffe9d6eda7d68 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0xfffffe1666860928
+LP lp_workq_handle_stack_events #3 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x16f536b80 x6=0x1 x7=0x1e0000
+LP lp_workq_setup_thread #4 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x0 x6=0x1 x7=0x4d4001
+LP lp_workq_setup_thread #5 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_thread_selfid #3 x0=0xfffffe2999a680c0 x1=0xfffffe16669db248 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+LP lp_workq_handle_stack_events #4 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x16f5c2b80 x6=0x1 x7=0x4f4001
+LP lp_workq_handle_stack_events #5 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x16f536b80 x6=0x1 x7=0x4f4005
+LP lp_workq_setup_thread #6 x0=0xfffffe2999a680c0 x1=0xfffffe1666860250 x2=0xfffffe1000142240 x3=0x16f4b0000 x4=0x1e03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_workq_setup_thread #7 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x0 x6=0x0 x7=0x1e4008
+LP lp_workq_setup_thread #8 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_workq_setup_thread #9 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_workq_setup_thread #10 x0=0xfffffe2999a680c0 x1=0xfffffe16669dab70 x2=0xfffffe1000142240 x3=0x16f53c000 x4=0xa03 x5=0x0 x6=0x0 x7=0x4f4005
+LP lp_bsdthread_create #1 x0=0xfffffe2999a680c0 x1=0x1d2e26fd8 x2=0x0 x3=0x16f64f000 x4=0x16f64f000 x5=0x90008ff x6=0xfffffe166685f248 x7=0xfffffe00079949c8
+PROC_PREPAREEXIT #3 reason_seen=None
+LP lp_bsdthread_terminate #1 x0=0xfffffe2999a680c0 x1=0x16ecb4000 x2=0x7f8000 x3=0x103 x4=0x0 x5=0xfffffe166685f248 x6=0xfffffe0007994d60 x7=0x0
+LP lp_workq_create_threadstack #3 x0=0xfffffe2999a680c0 x1=0xfffffe1000142240 x2=0xfffffe9d6eeb7d68 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0xfffffe1666860928
+OS_REASON ns=7 code=0x1
+
+--- run pth5-nobrk (no #13, no --nop-brk1) gdb-events excerpt
+PROC_PREPAREEXIT #1 reason_seen=None
+PROC_PREPAREEXIT #2 reason_seen=None
+LP lp_thread_selfid #1 x0=0xfffffe1b890c7030 x1=0xfffffe2055e94928 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+SR_MAP2 enter
+MWL enter
+LP lp_bsdthread_register #1 x0=0xfffffe1b890c7030 x1=0x1ec23c8c4 x2=0x1ec23c8b8 x3=0x4000 x4=0x16dcc0130 x5=0x38 x6=0xa0 x7=0xfffffe2055e94928
+LP lp_thread_selfid #2 x0=0xfffffe1b890c7030 x1=0xfffffe2055de8928 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+LP lp_thread_selfid #3 x0=0xfffffe1b890c7030 x1=0xfffffe2055ecc928 x2=0xfffffe00079946a4 x3=0x0 x4=0x0 x5=0x0 x6=0x0 x7=0x0
+LP lp_bsdthread_create #1 x0=0xfffffe1b890c7030 x1=0x1c753afd8 x2=0x0 x3=0x16de63000 x4=0x16de63000 x5=0x90008ff x6=0xfffffe2055e94928 x7=0xfffffe00079949c8
+PROC_PREPAREEXIT #3 reason_seen=None
+LP lp_bsdthread_terminate #1 x0=0xfffffe1b890c7030 x1=0x16d4c8000 x2=0x7f8000 x3=0x103 x4=0x0 x5=0xfffffe2055e94928 x6=0xfffffe0007994d60 x7=0x0
+ABORT_WITH_PAYLOAD proc=0xfffffe1b890c7030 name=Cannot access memory at address 0xfffffe1b890c7830 ns=7 code=0x1 flags=0x0
+ABORT_WITH_PAYLOAD reason_string="unable to resolve 'mobile': 114 - The specified username does not exist"
+OS_REASON ns=7 code=0x1
+PROC_PREPAREEXIT #4 reason_seen=1
+STOPPED done=True
+MSGBUF dumped
+
+--- pth5-nobrk msgbuf tail
+[   60.197936]: skip attaching fsw to lo0 using legacy TX model
+[   60.218737]: Reinit'd ND information for interface lo0
+[   60.224576]: Reinit'd ND information for interface lo0
+[   60.319615]: LAPIS lapisfs: vfs_getattr active=100ff0 supported=ff0 errno=0
+
+Result
+- VERIFIED: bsdthread_register succeeds (error 0), libdispatch no longer
+  hits "BUG IN LIBDISPATCH: Missing Kevent WORKQ support"; kevent workqueue
+  threads are created (create_threadstack/setup_thread/handle_stack_events),
+  a pthread is created and terminated, launchd brings up lo0.
+- Next blocker: launchd abort_with_payload(OS_REASON_LIBXPC, 1,
+  "unable to resolve 'mobile': 114 - The specified username does not exist").
+  The lapisfs root has /private/etc as an empty dir (no passwd/group/
+  master.passwd), so getpwnam("mobile") fails.
