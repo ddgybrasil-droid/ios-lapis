@@ -754,19 +754,9 @@ struct lapis_iomfb_wake_ctx {
 	int n;
 };
 
-/*
- * boot167/169: re-nudge after BB raw-open. Property-change alone did not
- * yield IOCONN; also try power/graphics-style IOMessages that FB clients
- * register interest for (IOMessage.h / IOGraphicsTypes.h ranges).
+/* boot167/170: re-nudge after BB raw-open. IOLog has no usable %x (Apple
+ * stack varargs) — use fixed strings. Immediates only (no rodata dependency).
  */
-static const unsigned int lapis_iomfb_wake_msgs[] = {
-	LAPIS_IOMSG_PROPERTY_CHANGE, /* 0xe0000110 */
-	0xe0000120u, /* kIOMessageDeviceWillPowerOn */
-	0xe0000140u, /* kIOMessageServiceIsResumed */
-	0xe0000401u, /* IOGraphics-ish notify */
-};
-
-/* boot167: re-nudge IOMFB property-change after BB raw-open + analyticsd. */
 static void lapis_iomfb_deferred_wake(void *p0, void *p1)
 {
 	struct lapis_iomfb_wake_ctx *ctx = p0;
@@ -777,11 +767,24 @@ static void lapis_iomfb_deferred_wake(void *p0, void *p1)
 		return;
 	if (ctx->n == 0)
 		IOSleep(500);
-	msg = lapis_iomfb_wake_msgs[
-		ctx->n % (sizeof(lapis_iomfb_wake_msgs) /
-			  sizeof(lapis_iomfb_wake_msgs[0]))];
+	/* Rotate property / power-on / resume / gfx-ish notifies. */
+	if (ctx->n == 0)
+		msg = LAPIS_IOMSG_PROPERTY_CHANGE;
+	else if (ctx->n == 1)
+		msg = 0xe0000120u;
+	else if (ctx->n == 2)
+		msg = 0xe0000140u;
+	else
+		msg = 0xe0000401u;
 	IOService_messageClients(ctx->service, msg, 0, 0);
-	IOLog("LAPIS iomfb: deferred wake msg=0x%x\n", msg);
+	if (ctx->n == 0)
+		IOLog("LAPIS iomfb: deferred wake property-change\n");
+	else if (ctx->n == 1)
+		IOLog("LAPIS iomfb: deferred wake power-on\n");
+	else if (ctx->n == 2)
+		IOLog("LAPIS iomfb: deferred wake resumed\n");
+	else
+		IOLog("LAPIS iomfb: deferred wake gfx\n");
 	ctx->n++;
 	if (ctx->n < 4 && ctx->tc) {
 		IOSleep(750);

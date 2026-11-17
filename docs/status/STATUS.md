@@ -1051,4 +1051,8 @@ Image.pth74.
 
 ## Chunk 118 (boot169: restore frontboard force + richer FB wake msgs + SPIN reset)
 
-| boot169 | Image.pth99 | frontboard 0x9f again; wake msgs power/resume/gfx; reset spin1 at post_iomfb | qemu11 43G lva=off | **ГИПОТЕЗА**: explicit frontboard deny + alternate IOMessages → interest handlers run GetDisplaySize/IOCONN; post-IOMFB SPIN_HDR identifies wait. | out/logs/boot169 |
+| boot169 | Image.pth99 | frontboard 0x9f again; wake msgs power/resume/gfx; reset spin1 at post_iomfb | qemu11 43G lva=off | **ПРОВЕРЕНО**: frontboard FORCED; CLEARED ok; SPIN reset → `POST_IOMFB_SPIN`×4 remote `0x4803` HDR opt=`0x40231`. IOMFB open+WINDOW; still **0** IOMFB IOCONN/canvas/sel8. `locationd.registration` **x0=0 x7*=None** (null port) just before open — likely feeds MACH_SEND_NOTIFY wait. Wake msgs ran (IOLog `%x` garbled; values are in-blob). | out/logs/boot169 |
+
+## Chunk 119 (boot170: force locationd null-port deny)
+
+| boot170 | Image.pth100 | force BB locationd.registration 0x9f; fixed wake log strings | qemu11 43G lva=off | **ГИПОТЕЗА**: explicit locationd deny stops null-endpoint wait → BB proceeds to IOMFB IOCONN/sel8/CA. | out/logs/boot170 |
