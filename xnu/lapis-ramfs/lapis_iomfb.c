@@ -923,18 +923,47 @@ int lapis_client_memory_for_type(void *self, unsigned int type,
 	if (options)
 		*options = 0;
 
-	/* type 0: HID EventService queue (also fine for other type0 probes). */
-	if (type == 0) {
-		q = lapis_hid_queue_for(self);
-		if (q) {
-			md = IOSharedDataQueue_getMemoryDescriptor(q);
-			OSObject_release(q);
+	/*
+	 * type 0: HID EventService queue only when this UC is HID.
+	 * boot164: IOMFB UCs used to get a HID queue on type0 — wrong for
+	 * framebuffer map probes; serve a panel-sized RGBA shared buffer.
+	 */
+	{
+		void *cls = IORegistryEntry_copyProperty(self, "IOClass");
+		const char *cn = cls ? OSString_getCStringNoCopy(cls) : 0;
+		int is_hid = 0;
+
+		if (cn) {
+			/* IOHIDEventServiceUserClient */
+			is_hid = (cn[0] == 'I' && cn[2] == 'H' && cn[3] == 'I');
 		}
-		if (md) {
-			OSObject_retain(md);
-			*memory = md;
-			IOLog("LAPIS iomfb: cmap hidq ok\n");
-			return 0;
+		if (cls)
+			OSObject_release(cls);
+		if (type == 0 && is_hid) {
+			q = lapis_hid_queue_for(self);
+			if (q) {
+				md = IOSharedDataQueue_getMemoryDescriptor(q);
+				OSObject_release(q);
+			}
+			if (md) {
+				OSObject_retain(md);
+				*memory = md;
+				IOLog("LAPIS iomfb: cmap hidq ok\n");
+				return 0;
+			}
+		}
+		if (!is_hid) {
+			/* 2420×1668×4 ≈ 0xf7f080 — use 16MB shared aperture. */
+			md = IOBufferMemoryDescriptor_withOptions(LAPIS_IOMEM_KUS,
+								  0x1000000, 1);
+			if (!md)
+				md = IOBufferMemoryDescriptor_withCapacity(
+					0x1000000, 3, 0);
+			if (md) {
+				*memory = md;
+				IOLog("LAPIS iomfb: cmap iomfb fb\n");
+				return 0;
+			}
 		}
 	}
 

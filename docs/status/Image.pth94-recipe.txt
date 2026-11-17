@@ -1,0 +1,9 @@
+Image.pth94 = Image.pth93 + SPIN uframes + IOMFB fb cmap + GMD hook
+  boot163: msgclients ok; IOMFB open; 0 post-open IOCONN; backlight unmatched.
+  - GDB: MACHMSG2_SPIN dumps userspace frames (pc/lr)
+  - GDB: DSC hook IOMobileFramebufferGetMainDisplay
+  - IOMFB UC clientMemory → 16MB RGBA shared fb (not HID queue)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth94

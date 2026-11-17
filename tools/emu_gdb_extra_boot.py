@@ -465,7 +465,9 @@ DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0
           'abort_with_reason':0x23226a5f0,
           # SpringBoard _SBStaticInitializer right after SecTaskGetCodeSignStatus (w0=status)
           'SBStatic_status':0x224040bf8,
-          'SBStatic_cold':0x2241f6e00}
+          'SBStatic_cold':0x2241f6e00,
+          # boot164: IOMobileFramebufferGetMainDisplay (DSC .44 cave entry)
+          'IOMFB_GetMainDisplay':0x2288047a8}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -598,6 +600,9 @@ def _ufn(n):
             except Exception:
                 pass
             P('SBSTATIC_COLD proc=%s (platformBinary assert path)'%pn)
+        elif n=='IOMFB_GetMainDisplay':
+            P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
+            RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False
@@ -929,6 +934,12 @@ def on_mach_msg2():
             if _mm2['spin1'] <= 8:
                 P('MACHMSG2_SPIN proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
                     pn0, remote, local, r('x30'), _mm2['spin1']))
+                # boot164: dump userspace PC/frames for the post-IOMFB wait.
+                if _mm2['spin1'] <= 3:
+                    try:
+                        _uframes('MACHMSG2_SPIN_U', 'n=%d' % _mm2['spin1'])
+                    except Exception as e:
+                        P('SPIN_U err=%r' % e)
             return False
         _mm2['n'] += 1
         if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):

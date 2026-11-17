@@ -1027,4 +1027,8 @@ Image.pth74.
 
 ## Chunk 112 (boot163: post-IOMFB real RB + AppleBacklightDisplay)
 
-| boot163 | Image.pth93 | stop RB/frontboard force after IOMFB open; AppleBacklightDisplay stub | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open msgid 11602 needs real RB; backlight stub + real RB → IOMFB/CA IOCONN. | out/logs/boot163 |
+| boot163 | Image.pth93 | stop RB/frontboard force after IOMFB open; AppleBacklightDisplay stub | qemu11 43G lva=off | **ПРОВЕРЕНО**: `msgclients property-change` on IOMFB NUC; backlight/wrangler metaclasses published (**0** BB IOKMATCH). IOMFB open+WINDOW hold. Post-open BB mach richer (msgid **1026**/1018, analyticsd) but still **0** IOMFB IOCONN/canvas/sel8. No post-IOMFB RB re-lookup (force gate unused). SB→chrono+RB + msgid 1026 flood. | out/logs/boot163 |
+
+## Chunk 113 (boot164: SPIN userspace frames + IOMFB fb map + GetMainDisplay hook)
+
+| boot164 | Image.pth94 | MACHMSG2_SPIN uframes; IOMFB cmap RGBA fb; DSC GetMainDisplay log | qemu11 43G lva=off | **ГИПОТЕЗА**: SPIN PC names wait; IOMFB map not HID queue; GetMainDisplay call sites visible → next CA stub. | out/logs/boot164 |
