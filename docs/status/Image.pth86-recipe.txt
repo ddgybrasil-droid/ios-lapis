@@ -1,0 +1,8 @@
+Image.pth86 = Image.pth85 + enqueue log polarity + GDB frontboard force
+  boot155: enqueue Boolean true logged as enqfail; BB still CPU-burns after
+  IOMFB open waiting on frontboard.systemappservices (SB). Force that XPC
+  to 0x9f (same as RB/ACCHW) and keep MACHMSG2 logging for BB uncapped.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth86

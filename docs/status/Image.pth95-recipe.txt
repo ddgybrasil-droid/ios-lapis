@@ -1,0 +1,11 @@
+Image.pth95 = Image.pth94 kernel + DSC GMD size seed + CLEARED/set + post-IOMFB uframes
+  boot164: SPIN_U pre-IOMFB (xpc/libsystem); GMD only FDR; 0 cmap iomfb fb;
+  post-open still 0 IOCONN; CLEARED MemoryError.
+  - GDB: CLEARED via set {unsigned int} fallback
+  - GDB: POST_IOMFB_U frames on first BB mach after IOMFB open
+  - DSC GetMainDisplay cave: store 2420×1668 at obj+0x30..0x3c after Open
+
+Build:
+  cp /tmp/Image.pth94 /tmp/Image.pth95   # kernel unchanged
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

@@ -1,0 +1,10 @@
+Image.pth114 = Image.pth113 kernel + identity IOSOPEN wrap
+  boot183: FAR=0 at GMD str x21,[x19] after open+sel8 (x19 out* clobbered).
+  - DSC: wrap = blr real open only (no nested sel8); NOP-pad old cave
+  - DSC: restore Open-wrap movz w1,#5 (UCAL)
+  - keep kernel sel8 scalar 2420×1668 for BB's own GetDisplaySize
+
+Build:
+  cp /tmp/Image.pth113 /tmp/Image.pth114
+  python3 tools/patch_dsc_iosopen_sel8.py --image /tmp/fullroot-mnt2.img --write --force
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

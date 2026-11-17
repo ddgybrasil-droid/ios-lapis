@@ -1,0 +1,8 @@
+Image.pth101 = Image.pth100 + analyticsd/gestalt deny + IOSurface wake
+  boot170: locationd FORCED; still POST_IOMFB_SPIN 0x4903; 0 IOMFB IOCONN.
+  - GDB: also force analyticsd + mobilegestalt.xpc → 0x9f for BB
+  - On IOMFB NUC: messageClients IOSurfaceRoot + seed surface props
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth101

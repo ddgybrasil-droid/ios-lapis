@@ -1,0 +1,8 @@
+Image.pth113 = Image.pth112 + lapis_iomfb.c sel8 scalar WxH
+  boot182: BB IOCONN sel=8 sout=2 x0=0 then FAR=0 (scalar was 1,0).
+  - lapis_external_method: selector 8 → scalar_out[0]=2420, [1]=1668
+  - keep DSC plain-ret IOSOPEN→sel8 wrap
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth112 /tmp/Image.pth113

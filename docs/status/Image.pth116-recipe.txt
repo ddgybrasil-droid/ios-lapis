@@ -1,0 +1,8 @@
+Image.pth116 = Image.pth115 + IOSurface deferred wake + GDB analyticsd force
+  boot185: analyticsd x0=1 null → quiet; 0 SURFACE.
+  - lapis_iomfb: deferred wake also messageClients IOSurfaceRoot
+  - GDB: always-force analyticsd; GMD_BODY hook @0x22880511c
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth115 /tmp/Image.pth116

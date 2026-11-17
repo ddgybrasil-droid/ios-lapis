@@ -94,6 +94,23 @@ extern void OSObject_retain(void *) __asm__("_ZNK8OSObject6retainEv");
 extern void OSObject_release(void *) __asm__("_ZNK8OSObject7releaseEv");
 extern void *IOBufferMemoryDescriptor_withCapacity(unsigned long, unsigned int, unsigned char)
 	__asm__("_ZN24IOBufferMemoryDescriptor12withCapacityEmjb");
+extern void *IOBufferMemoryDescriptor_withOptions(unsigned int, unsigned long, unsigned long)
+	__asm__("_ZN24IOBufferMemoryDescriptor11withOptionsEjmm");
+/* HID EventServicePlugin maps an IODataQueue via clientMemoryForType(0).
+ * Plain withCapacity buffers hit vm_map_remap_extract("kernel_object"). */
+extern void *IOSharedDataQueue_withCapacity(unsigned int)
+	__asm__("_ZN17IOSharedDataQueue12withCapacityEj");
+extern void *IOSharedDataQueue_getMemoryDescriptor(void *)
+	__asm__("_ZN17IOSharedDataQueue19getMemoryDescriptorEv");
+extern int IOSharedDataQueue_enqueue(void *, void *, unsigned int)
+	__asm__("_ZN17IOSharedDataQueue7enqueueEPvj");
+extern void IODataQueue_setNotificationPort(void *, void *)
+	__asm__("_ZN11IODataQueue19setNotificationPortEP8ipc_port");
+/* kIODirectionOutIn|kIOMemoryKernelUserShared — shareable to userspace. */
+#define LAPIS_IOMEM_KUS 0x00000803u
+#define LAPIS_HID_QUEUE_SIZE 0x4000u
+/* boot151 panic: no .bss in ramfs blob (objcopy -j .text). Stash queue on UC. */
+static void *lapis_hid_queue_for(void *owner);
 /* boot105/106: deferred wake after AMN returns so FDR's mach port is listening.
  * NOTE: getNextObject @0x7b11668 is a poison stub (brk #0xbffc); the real
  * drain entry is copyNextObject @0x7b11678 (boot105 panic IOUserClient.cpp:1094). */
@@ -106,6 +123,10 @@ typedef void *lapis_thread_call_t;
 extern lapis_thread_call_t thread_call_allocate(lapis_thread_call_func_t, void *);
 extern int thread_call_enter(lapis_thread_call_t);
 extern void IOSleep(unsigned int milliseconds);
+/* boot161: wake interest notifiers after IOMFB NUC (post-open silence wall). */
+extern int IOService_messageClients(void *, unsigned int, void *, unsigned long)
+	__asm__("_ZN9IOService14messageClientsEjPvm");
+#define LAPIS_IOMSG_PROPERTY_CHANGE 0xe0000110u
 
 /*
  * Trampolines overwritten by patch_kernel_ramfs_replace.py:
@@ -198,6 +219,86 @@ static void set_hid_cfplugin_types(void *obj)
 	IORegistryEntry_setProperty_obj(obj, "IOCFPlugInTypes", dict);
 }
 
+static void dict_set_u32(void *dict, const char *key, unsigned int val)
+{
+	void *n = OSNumber_withNumber(val, 32);
+
+	if (n) {
+		OSDictionary_setObject_cstr(dict, key, n);
+		OSObject_release(n);
+	}
+}
+
+/*
+ * boot152: after HID map/NOTE64 held, BB CFProperty-gets many HID identity
+ * keys (all 0xe00002f0) then opens IOMFB with 0 post-open IOCONN. Seed a
+ * built-in display-integrated digitizer so the display path can bind.
+ */
+static void set_hid_identity_props(void *obj)
+{
+	void *pairs, *pair, *transport, *esp;
+
+	set_u32(obj, "PrimaryUsagePage", 0x0d); /* Digitizer */
+	set_u32(obj, "PrimaryUsage", 0x04);     /* Touch Screen */
+	set_u32(obj, "ReportInterval", 8000);   /* 125 Hz (µs) */
+	set_u32(obj, "BatchInterval", 8000);
+	/* boot153: BB opens IOMFB then burns CPU in digitizer matching; surface
+	 * dims let BKMainDisplayObserver bind HID↔panel (2420×1668). */
+	set_u32(obj, "DigitizerSurfaceWidth", 2420);
+	set_u32(obj, "DigitizerSurfaceHeight", 1668);
+	set_u32(obj, "VendorID", 0x05ac);   /* Apple */
+	set_u32(obj, "ProductID", 0x8102);  /* stub touch */
+	IORegistryEntry_setProperty_bool(obj, "Built-In", 1);
+	IORegistryEntry_setProperty_bool(obj, "DisplayIntegrated", 1);
+	transport = OSString_withCString("Apple");
+	if (transport) {
+		IORegistryEntry_setProperty_obj(obj, "Transport", transport);
+		OSObject_release(transport);
+	}
+	pair = OSDictionary_withCapacity(2);
+	pairs = OSArray_withCapacity(1);
+	if (pair && pairs) {
+		dict_set_u32(pair, "DeviceUsagePage", 0x0d);
+		dict_set_u32(pair, "DeviceUsage", 0x04);
+		OSArray_setObject(pairs, pair);
+		IORegistryEntry_setProperty_obj(obj, "DeviceUsagePairs", pairs);
+	}
+	if (pair)
+		OSObject_release(pair);
+	if (pairs)
+		OSObject_release(pairs);
+	esp = OSDictionary_withCapacity(8);
+	if (esp) {
+		dict_set_u32(esp, "PrimaryUsagePage", 0x0d);
+		dict_set_u32(esp, "PrimaryUsage", 0x04);
+		dict_set_u32(esp, "ReportInterval", 8000);
+		dict_set_u32(esp, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+		dict_set_u32(esp, "DigitizerSurfaceWidth", 2420);
+		dict_set_u32(esp, "DigitizerSurfaceHeight", 1668);
+		IORegistryEntry_setProperty_obj(obj, "HIDEventServiceProperties",
+						esp);
+		OSObject_release(esp);
+	}
+	/*
+	 * boot160: BB CFProperty-gets HIDServiceAccessEntitlement (0xe00002f0)
+	 * and Unregistered after EventServiceProperties — seed so access check
+	 * and registration state do not reject the digitizer before display bind.
+	 */
+	IORegistryEntry_setProperty_cstr(
+		obj, "HIDServiceAccessEntitlement",
+		"com.apple.private.hid.client.event-dispatch");
+	IORegistryEntry_setProperty_bool(obj, "Unregistered", 0);
+	/*
+	 * boot167/168: BB CFProperty-gets these after NOTE64 (were 0xe00002f0).
+	 * Seed so EventServicePlugin / display bind does not reject the service.
+	 */
+	IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+					 "IOHIDEventService");
+	IORegistryEntry_setProperty_bool(obj, "Hidden", 0);
+	IORegistryEntry_setProperty_bool(obj, "ProtectedAccess", 0);
+	IORegistryEntry_setProperty_bool(obj, "SensorPropertySupported", 0);
+}
+
 #define VT_ENTRIES 32
 #define VT_ALLOC   23
 
@@ -233,7 +334,10 @@ static int is_lapis_match_name(const char *name)
 	       streq(name, "AppleCLCD") || streq(name, "AGXAccelerator") ||
 	       streq(name, "IOAccelerator") ||
 	       /* boot110: GetMainDisplay counts FBs via AppleParavirtGPU.DisplayPortCount */
-	       streq(name, "AppleParavirtGPU");
+	       streq(name, "AppleParavirtGPU") ||
+	       /* boot163: BacklightServices after frontboard → IOMFB */
+	       streq(name, "AppleBacklightDisplay") ||
+	       streq(name, "IODisplayWrangler");
 }
 
 /*
@@ -568,6 +672,7 @@ int lapis_is_io_object_conforms_to(void *obj, const char *name,
 	 * stock IOUserClient tagged LapisUC + IOClass=…UserClient.
 	 */
 	if (streq(name, "IOMobileFramebufferUserClient") ||
+	    streq(name, "IOHIDEventServiceUserClient") ||
 	    streq(name, "IOUserClient")) {
 		void *tag = IORegistryEntry_copyProperty(obj, "LapisUC");
 		if (tag) {
@@ -643,6 +748,58 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 	return ret;
 }
 
+struct lapis_iomfb_wake_ctx {
+	void *service;
+	lapis_thread_call_t tc;
+	int n;
+};
+
+/* boot167/170: re-nudge after BB raw-open. IOLog has no usable %x (Apple
+ * stack varargs) — use fixed strings. Immediates only (no rodata dependency).
+ */
+static void lapis_iomfb_deferred_wake(void *p0, void *p1)
+{
+	struct lapis_iomfb_wake_ctx *ctx = p0;
+	unsigned int msg;
+
+	(void)p1;
+	if (!ctx || !ctx->service)
+		return;
+	if (ctx->n == 0)
+		IOSleep(500);
+	/* Rotate property / power-on / resume / gfx-ish notifies. */
+	if (ctx->n == 0)
+		msg = LAPIS_IOMSG_PROPERTY_CHANGE;
+	else if (ctx->n == 1)
+		msg = 0xe0000120u;
+	else if (ctx->n == 2)
+		msg = 0xe0000140u;
+	else
+		msg = 0xe0000401u;
+	IOService_messageClients(ctx->service, msg, 0, 0);
+	/* boot186: re-nudge IOSurfaceRoot on every deferred tick (CA bind). */
+	{
+		void *surf = lapis_published_stub("IOSurfaceRoot");
+		if (surf) {
+			IOService_messageClients(surf, msg, 0, 0);
+			OSObject_release(surf);
+		}
+	}
+	if (ctx->n == 0)
+		IOLog("LAPIS iomfb: deferred wake property-change\n");
+	else if (ctx->n == 1)
+		IOLog("LAPIS iomfb: deferred wake power-on\n");
+	else if (ctx->n == 2)
+		IOLog("LAPIS iomfb: deferred wake resumed\n");
+	else
+		IOLog("LAPIS iomfb: deferred wake gfx\n");
+	ctx->n++;
+	if (ctx->n < 4 && ctx->tc) {
+		IOSleep(750);
+		thread_call_enter(ctx->tc);
+	}
+}
+
 /*
  * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
  * x0=self, x1=task, x2=security_id, w3=type, x4=properties, x5=out
@@ -686,22 +843,77 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 		return kIOReturnUnsupported;
 	}
 	/*
-	 * boot144/146: BB opens IOMFB type=0 then no method MIG (only mach
-	 * 'w00t'). Seed panel geometry + IOClass so connection-side registry
-	 * probes and class checks see an IOMFB user client, not a blank UC.
+	 * boot144/146/153: tag UC by provider. HID opens used to inherit
+	 * IOMobileFramebufferUserClient IOClass; keep queue only on HID.
 	 */
-	set_u32(client, "IODisplayWidth", 2420);
-	set_u32(client, "IODisplayHeight", 1668);
-	set_u32(client, "IODisplayPixelsWide", 2420);
-	set_u32(client, "IODisplayPixelsHigh", 1668);
-	set_u32(client, "IODisplayFrequency", 120);
-	set_u32(client, "canvas-width", 2420);
-	set_u32(client, "canvas-height", 1668);
-	set_u32(client, "MaxSrcBufferWidth", 2420);
-	set_u32(client, "MaxSrcBufferHeight", 1668);
-	IORegistryEntry_setProperty_bool(client, "IOMFBMainDisplay", 1);
-	IORegistryEntry_setProperty_cstr(client, "IOClass",
-					 "IOMobileFramebufferUserClient");
+	{
+		void *hid = self ? IORegistryEntry_copyProperty(
+					 self, "HIDServiceSupport")
+				 : 0;
+		if (hid) {
+			IORegistryEntry_setProperty_cstr(
+				client, "IOClass",
+				"IOHIDEventServiceUserClient");
+			set_u32(client, "QueueSize", LAPIS_HID_QUEUE_SIZE);
+			{
+				void *q = lapis_hid_queue_for(client);
+				if (q)
+					OSObject_release(q);
+			}
+			OSObject_release(hid);
+		} else {
+			set_u32(client, "IODisplayWidth", 2420);
+			set_u32(client, "IODisplayHeight", 1668);
+			set_u32(client, "IODisplayPixelsWide", 2420);
+			set_u32(client, "IODisplayPixelsHigh", 1668);
+			set_u32(client, "IODisplayFrequency", 120);
+			set_u32(client, "canvas-width", 2420);
+			set_u32(client, "canvas-height", 1668);
+			set_u32(client, "MaxSrcBufferWidth", 2420);
+			set_u32(client, "MaxSrcBufferHeight", 1668);
+			IORegistryEntry_setProperty_bool(client,
+							 "IOMFBMainDisplay", 1);
+			IORegistryEntry_setProperty_cstr(
+				client, "IOClass",
+				"IOMobileFramebufferUserClient");
+			/*
+			 * boot160/161: BB raw-opens IOMFB then never IOCONN —
+			 * nudge property-change clients (CA/display observers)
+			 * the same way a real FB would after mode set.
+			 */
+			if (self) {
+				struct lapis_iomfb_wake_ctx *wctx;
+				void *surf;
+
+				IOService_messageClients(
+					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
+				IOLog("LAPIS iomfb: msgclients property-change\n");
+				/*
+				 * boot171: also nudge IOSurfaceRoot — CA/IOSurface
+				 * bind may wait on surface publish after FB open.
+				 */
+				surf = lapis_published_stub("IOSurfaceRoot");
+				if (surf) {
+					IOService_messageClients(
+						surf, LAPIS_IOMSG_PROPERTY_CHANGE,
+						0, 0);
+					OSObject_release(surf);
+					IOLog("LAPIS iomfb: surface wake\n");
+				}
+				/* boot167: BB opens then never IOCONN — re-wake. */
+				wctx = IOMallocZero(sizeof(*wctx));
+				if (wctx) {
+					wctx->service = self;
+					OSObject_retain(self);
+					wctx->tc = thread_call_allocate(
+						lapis_iomfb_deferred_wake, wctx);
+					wctx->n = 0;
+					if (wctx->tc)
+						thread_call_enter(wctx->tc);
+				}
+			}
+		}
+	}
 	IORegistryEntry_setProperty_bool(client, "LapisUC", 1);
 	*out = client;
 	IOLog("LAPIS iomfb: nuc ok\n");
@@ -716,42 +928,205 @@ int lapis_new_user_client_simple(void *self, void *task, void *sec,
 }
 
 /*
- * boot149: HID CFPlugin opens our UC, calls sel0/sel1, then
- * set_notification_port_64 → stock IOUserClient::registerNotificationPort
- * returns Unsupported (0xe00002c7) → IOSCLOSE. Accept and remember nothing;
- * event delivery can be filled in later.
+ * Return retained IOSharedDataQueue for this UC (property LapisHIDQ).
+ * No static/BSS — ramfs blob is .text only (boot151 PWTKS on g_hid write).
+ */
+static void *lapis_hid_queue_for(void *owner)
+{
+	void *q;
+
+	if (!owner)
+		return 0;
+	q = IORegistryEntry_copyProperty(owner, "LapisHIDQ");
+	if (q)
+		return q;
+	q = IOSharedDataQueue_withCapacity(LAPIS_HID_QUEUE_SIZE);
+	if (!q) {
+		IOLog("LAPIS iomfb: hid queue alloc fail\n");
+		return 0;
+	}
+	IORegistryEntry_setProperty_obj(owner, "LapisHIDQ", q);
+	IOLog("LAPIS iomfb: hid queue ok\n");
+	return q; /* withCapacity retain for caller */
+}
+
+/*
+ * boot149/150: HID CFPlugin opens UC → sel0 → map type0 → sel1 →
+ * set_notification_port_64. Stock registerNotificationPort is Unsupported;
+ * boot150 stubbed it to 0 but map still failed → BRK. Wire the port onto
+ * the shared HID IODataQueue so enqueue can signal userspace.
  * Image B-patches both jj/jy overloads onto this.
  */
+struct lapis_repulse_ctx {
+	void *owner;
+	lapis_thread_call_t tc;
+	int n;
+};
+
+static void lapis_fill_digitizer_pulse(unsigned char *pulse)
+{
+	int i;
+	unsigned int *u32;
+	unsigned long long *u64;
+
+	for (i = 0; i < 64; i++)
+		pulse[i] = 0;
+	/*
+	 * IOHIDEventData: size, type, timestamp, options, depth…
+	 * boot161 richer fields were fine; EXC came from 8-byte CLEARED.
+	 * boot167: restore touch/range so EventServicePlugin can classify.
+	 */
+	u32 = (unsigned int *)pulse;
+	u64 = (unsigned long long *)pulse;
+	u32[0] = 64;  /* size */
+	u32[1] = 11;  /* kIOHIDEventTypeDigitizer */
+	u64[1] = 1;   /* timestamp @+8 */
+	u32[4] = 0;   /* options @+16 */
+	u32[5] = 0;   /* depth */
+	u32[8] = 0x3; /* eventMask: touch + position */
+	u32[9] = 1;   /* touching */
+	u32[10] = 0x3;
+	u32[11] = 0;  /* identity */
+	u32[12] = 1210; /* x mid */
+	u32[13] = 834;  /* y mid */
+}
+
+/* boot166/167: post-IOMFB BB sits in msgid 0x10000000 spin — keep feeding HID. */
+static void lapis_hid_repulse(void *p0, void *p1)
+{
+	struct lapis_repulse_ctx *ctx = p0;
+	unsigned char pulse[64];
+	void *q;
+	int enq;
+
+	(void)p1;
+	if (!ctx || !ctx->owner)
+		return;
+	/* Delay first re-pulse so NOTE64 consumer can arm. */
+	if (ctx->n == 0)
+		IOSleep(100);
+	lapis_fill_digitizer_pulse(pulse);
+	q = lapis_hid_queue_for(ctx->owner);
+	if (q) {
+		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
+		OSObject_release(q);
+		IOLog(enq ? "LAPIS iomfb: repulse enq\n"
+			  : "LAPIS iomfb: repulse enqfail\n");
+	}
+	ctx->n++;
+	if (ctx->n < 6 && ctx->tc) {
+		IOSleep(250);
+		thread_call_enter(ctx->tc);
+	}
+}
+
 int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
-	(void)self;
-	(void)port;
+	void *q;
+	struct lapis_repulse_ctx *ctx;
+	/*
+	 * boot157: empty queue → BRK after NOTE64. boot159: 8B zeros hold.
+	 * boot160: len+type=digitizer held (no BRK). boot161: richer touch
+	 * fields + 8-byte CLEARED → BB EXC before IOMFB; keep boot160 pulse.
+	 * boot166: schedule delayed re-pulses (post-IOMFB xpc/pthread wait).
+	 */
+	unsigned char pulse[64];
+	int enq;
+
 	(void)type;
 	(void)ref;
+	lapis_fill_digitizer_pulse(pulse);
+	q = lapis_hid_queue_for(self);
+	if (q) {
+		if (port)
+			IODataQueue_setNotificationPort(q, port);
+		/* Boolean true(1)=success */
+		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
+		OSObject_release(q);
+		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
+			  : "LAPIS iomfb: regnote ok enqfail\n");
+		ctx = IOMallocZero(sizeof(*ctx));
+		if (ctx) {
+			ctx->owner = self;
+			OSObject_retain(self);
+			ctx->tc = thread_call_allocate(lapis_hid_repulse, ctx);
+			ctx->n = 0;
+			if (ctx->tc)
+				thread_call_enter(ctx->tc);
+		}
+		return 0;
+	}
 	IOLog("LAPIS iomfb: regnote ok\n");
 	return 0;
 }
 
 /*
- * boot94: after IOCoreSurfaceRoot open, clients need clientMemoryForType
- * (shared surface root mapping). Stock IOUserClient returns Unsupported.
+ * boot94/151/152: clientMemoryForType. HID type0 must be an IOSharedDataQueue
+ * mapping (IODataQueueMemory); plain withCapacity hits
+ * vm_map_remap_extract rejecting kernel_object (boot150 IOMAPMEM 0xe00002c2).
  * Image B-patches IOUserClient::clientMemoryForType onto this.
  */
 int lapis_client_memory_for_type(void *self, unsigned int type,
 				 unsigned int *options, void **memory)
 {
-	void *md;
+	void *md = 0;
+	void *q;
 
-	(void)self;
-	(void)type;
 	if (!memory)
 		return kIOReturnBadArgument;
 	*memory = 0;
 	if (options)
 		*options = 0;
-	/* 64 KiB RW buffer — enough for IOSurfaceRoot header probes. */
-	md = IOBufferMemoryDescriptor_withCapacity(0x10000, 3, 0);
+
+	/*
+	 * type 0: HID EventService queue only when this UC is HID.
+	 * boot164: IOMFB UCs used to get a HID queue on type0 — wrong for
+	 * framebuffer map probes; serve a panel-sized RGBA shared buffer.
+	 */
+	{
+		void *cls = IORegistryEntry_copyProperty(self, "IOClass");
+		const char *cn = cls ? OSString_getCStringNoCopy(cls) : 0;
+		int is_hid = 0;
+
+		if (cn) {
+			/* IOHIDEventServiceUserClient */
+			is_hid = (cn[0] == 'I' && cn[2] == 'H' && cn[3] == 'I');
+		}
+		if (cls)
+			OSObject_release(cls);
+		if (type == 0 && is_hid) {
+			q = lapis_hid_queue_for(self);
+			if (q) {
+				md = IOSharedDataQueue_getMemoryDescriptor(q);
+				OSObject_release(q);
+			}
+			if (md) {
+				OSObject_retain(md);
+				*memory = md;
+				IOLog("LAPIS iomfb: cmap hidq ok\n");
+				return 0;
+			}
+		}
+		if (!is_hid) {
+			/* 2420×1668×4 ≈ 0xf7f080 — use 16MB shared aperture. */
+			md = IOBufferMemoryDescriptor_withOptions(LAPIS_IOMEM_KUS,
+								  0x1000000, 1);
+			if (!md)
+				md = IOBufferMemoryDescriptor_withCapacity(
+					0x1000000, 3, 0);
+			if (md) {
+				*memory = md;
+				IOLog("LAPIS iomfb: cmap iomfb fb\n");
+				return 0;
+			}
+		}
+	}
+
+	/* Fallback: KernelUserShared buffer (IOSurface / generic). */
+	md = IOBufferMemoryDescriptor_withOptions(LAPIS_IOMEM_KUS, 0x10000, 1);
+	if (!md)
+		md = IOBufferMemoryDescriptor_withCapacity(0x10000, 3, 0);
 	if (!md) {
 		IOLog("LAPIS iomfb: cmap no mem\n");
 		return kIOReturnNoMemory;
@@ -799,13 +1174,20 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 		for (i = 0; i < n; i++)
 			scalar_out[i] = 0;
 		/*
-		 * Prefer "yes" for single-scalar probes, except IOSurface
-		 * connect (sel=32): boot98+ held connect with method kr=0
-		 * but scalar[0]=1 may be read as a non-success status /
-		 * bogus id by some clients. Leave 0 for sel 32.
+		 * boot182: BB GetDisplaySize is IOConnectCallMethod sel=8 with
+		 * sout=2 (scalars), not structure. Returning scalar[0]=1 made
+		 * BB FAR=0 right after IOCONN_M_RET. Width/height as u64.
 		 */
-		if (n >= 1 && selector != 32)
+		if (selector == 8 && n >= 2) {
+			scalar_out[0] = 2420;
+			scalar_out[1] = 1668;
+		} else if (n >= 1 && selector != 32) {
+			/*
+			 * Prefer "yes" for single-scalar probes, except IOSurface
+			 * connect (sel=32): leave 0.
+			 */
 			scalar_out[0] = 1;
+		}
 	}
 	*(uint32_t *)((char *)args + 80) = n;
 	p = *(unsigned char **)((char *)args + 88);
@@ -937,7 +1319,13 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "VendorID", 0x5ac);
 		set_u32(obj, "ProductID", 1);
 		set_u32(obj, "LocationID", 1);
+		/*
+		 * boot150: EventServicePlugin CFProperty-gets QueueSize before
+		 * IOConnectMapMemory type0; missing → 0xe00002f0 then map BRK.
+		 */
+		set_u32(obj, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 		set_hid_cfplugin_types(obj);
+		set_hid_identity_props(obj);
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {
@@ -975,6 +1363,13 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		 */
 		IORegistryEntry_setProperty_bool(obj, "external", 0);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOMobileFramebuffer");
+		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+						 "IOMobileFramebuffer");
+		/* boot153: BB walks device_type/compatible before IOMFB open. */
+		IORegistryEntry_setProperty_cstr(obj, "device_type",
+						 "display-subsystem");
+		IORegistryEntry_setProperty_cstr(obj, "compatible",
+						 "IOMobileFramebuffer");
 		{
 			void *plug = OSDictionary_withCapacity(0);
 			if (plug)
@@ -993,6 +1388,21 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 	    m->name[5] == 'P') {
 		set_u32(obj, "DisplayPortCount", 1);
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "AppleParavirtGPU");
+		IORegistryEntry_setProperty_cstr(obj, "device_type",
+						 "display-subsystem");
+		IORegistryEntry_setProperty_cstr(obj, "compatible",
+						 "paravirtualizedgraphics,gpu");
+	}
+	/* boot171: CA/IOSurface bind after IOMFB open — seed surface service. */
+	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'S' &&
+	    m->name[3] == 'u') {
+		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOSurfaceRoot");
+		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+						 "IOSurfaceRoot");
+		set_u32(obj, "IOSurfaceAddressBits", 64);
+		set_u32(obj, "IOSurfaceMaxBytesPerPixel", 16);
+		set_u32(obj, "IOSurfaceMaxWidth", 2420);
+		set_u32(obj, "IOSurfaceMaxHeight", 1668);
 	}
 
 	/* GPU / Metal clients probe these on matched accelerator nodes. */
@@ -1046,7 +1456,7 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 void lapis_iomfb_register(void)
 {
 	struct lapis_mc iomfb, surface, coresurf, hid, aks, gpu, gpudev, clcd, agx,
-		accel, pgpu;
+		accel, pgpu, bl, wrangler;
 
 	if (register_mc(&iomfb, "IOMobileFramebuffer") == 0)
 		IOLog("LAPIS iomfb: metaclass IOMobileFramebuffer ok\n");
@@ -1077,6 +1487,11 @@ void lapis_iomfb_register(void)
 	/* GetMainDisplay getParavirtDisplayCount (boot110). */
 	if (register_mc(&pgpu, "AppleParavirtGPU") == 0)
 		IOLog("LAPIS iomfb: metaclass AppleParavirtGPU ok\n");
+	/* boot163: BB loads BacklightServices before CA/IOMFB discovery. */
+	if (register_mc(&bl, "AppleBacklightDisplay") == 0)
+		IOLog("LAPIS iomfb: metaclass AppleBacklightDisplay ok\n");
+	if (register_mc(&wrangler, "IODisplayWrangler") == 0)
+		IOLog("LAPIS iomfb: metaclass IODisplayWrangler ok\n");
 
 	publish_one(&iomfb, 0);
 	publish_one(&surface, 0);
@@ -1089,6 +1504,8 @@ void lapis_iomfb_register(void)
 	publish_one(&agx, 0);
 	publish_one(&accel, 0);
 	publish_one(&pgpu, 0);
+	publish_one(&bl, 0);
+	publish_one(&wrangler, 0);
 
 	/* Self-test: which matching path can see our IOGPU stub? */
 	{

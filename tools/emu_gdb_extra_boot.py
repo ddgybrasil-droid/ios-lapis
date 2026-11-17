@@ -27,15 +27,62 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
+            # boot187: after GMD body, dump *out and size fields @+0x30/+0x34.
+            if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
+                try:
+                    op = int(t.split('out=')[1].split()[0], 16)
+                    obj = m64(op) if op else 0
+                    extra += ' *out=%#x' % obj
+                    if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
+                        w = m32(obj + 0x30) & 0xffffffff
+                        h = m32(obj + 0x34) & 0xffffffff
+                        extra += ' size=%dx%d' % (w, h)
+                except Exception as e:
+                    extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
                 # check-in and never reached HIDServiceSupport/IOMFB. RB force is
                 # required to skip that hang; post-open silence is a separate wall.
                 # Out-port ptrs are embedded in the RetBP tag (out4=/out6=/out7=).
-                force_bb = ("proc=backboardd" in t and (
-                        "name='com.apple.runningboard'" in t or
-                        "name='com.apple.ACCHWComponentAuthService'" in t))
+                # boot155/156: BB waits on frontboard.systemappservices (SB) after
+                # IOMFB open with 0 post-open IOCONN and burns CPU. Force 0x9f like
+                # RB so display/CA init can proceed without SB frontboard publish.
+                # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
+                # spins — allow real RB/frontboard once post_iomfb so display
+                # assertions can check in; keep ACCHW forced always.
+                # boot168–171: null-port XPC success → MACH_SEND_NOTIFY SPIN.
+                # boot171: gestalt/locationd forced pre-open, but analyticsd was
+                # looked up *after* IOMFB open (post_iomfb gate skipped it) and
+                # returned x0=0/null — boot172: always force analyticsd for BB.
+                # boot185: real analyticsd → x0=1 + null ports then quiet.
+                # boot186: always force analyticsd again.
+                _force_names = [
+                    "name='com.apple.ACCHWComponentAuthService'",
+                    "name='com.apple.locationd.registration'",
+                    "name='com.apple.analyticsd'",
+                ]
+                if not _mm2.get('post_iomfb'):
+                    _force_names += [
+                        "name='com.apple.runningboard'",
+                        "name='com.apple.frontboard.systemappservices'",
+                        "name='com.apple.mobilegestalt.xpc'",
+                    ]
+                # boot177: BB early XPC logged as proc=? (pname miss) so
+                # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
+                # boot178: treat proc=? like backboardd for force-name list.
+                # boot186: SB got real RB with null ports after BB GMD ok —
+                # boot187: force RB (and frontboard) for SpringBoard too.
+                force_bb = (("proc=backboardd" in t or "proc=?" in t) and
+                            any(n in t for n in _force_names))
+                _sb_force = [
+                    "name='com.apple.runningboard'",
+                    "name='com.apple.frontboard.systemappservices'",
+                    "name='com.apple.analyticsd'",
+                ]
+                force_sb = ("proc=SpringBoard" in t and
+                            any(n in t for n in _sb_force))
+                force_bb = force_bb or force_sb
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -55,25 +102,64 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
+                    # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
+                    # NULLPORT for proc=backboardd (not bare proc=? — that hit
+                    # wirelessinsightsd in boot179).
+                    if (not force_bb and 'proc=backboardd' in t
+                            and 'cfprefsd' not in t
+                            and (x0 & 0xffffffff) == 0):
+                        nullish = True
+                        for ptr in (x4, x6, x7):
+                            if not ptr:
+                                continue
+                            try:
+                                v = m64(ptr)
+                                if v and v < 0x10000:
+                                    nullish = False
+                                    break
+                                if v and 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000:
+                                    nullish = False
+                                    break
+                            except Exception:
+                                pass
+                        if nullish:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                force_bb = True
+                                extra += ' FORCED_NULLPORT_0x9f'
+                            except Exception as e:
+                                extra += ' nullforce_err=%r' % e
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
                         if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
                             try:
                                 if force_bb:
-                                    gdb.selected_inferior().write_memory(
-                                        ptr, b'\x00\x00\x00\x00')
+                                    # boot161: 8-byte CLEARED smashed stack. boot164:
+                                    # write_memory often MemoryError — fall back to
+                                    # gdb set {unsigned int}.
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            ptr, b'\x00\x00\x00\x00')
+                                    except Exception:
+                                        gdb.execute(
+                                            'set {unsigned int}%#x = 0' % ptr,
+                                            to_string=True)
                                     extra += ' %s*=CLEARED' % label
                                 else:
                                     v = m64(ptr)
-                                    extra += ' %s*=%#x' % (label, v)
-                                    if v and v < 0x10000:
-                                        extra += '(port?)'
-                            except Exception:
+                                    if v is None:
+                                        extra += ' %s*=None' % label
+                                    else:
+                                        extra += ' %s*=%#x' % (label, v)
+                                        if v and v < 0x10000:
+                                            extra += '(port?)'
+                            except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))
                                 except Exception:
-                                    pass
+                                    extra += ' %s*=err:%r' % (label, e)
                 except Exception as e:
                     extra += ' xl_err=%r' % e
             P('RET %s x0=%#x%s' % (t, x0, extra))
@@ -349,6 +435,19 @@ def _iok(tag,ma,cnt):
     interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount','HIDServiceSupport') for x in s)
     if k not in _iok_seen or ui:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
+    # boot176: arm post_iomfb on BB IOMobileFramebuffer match (not Nth open).
+    # boot182: also arm for proc=? (boot181 GMD/IOMFB open logged as ? and
+    # skipped MATCH → no WINDOW).
+    if (any('IOMobileFramebuffer' in x for x in s)
+            and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
+        _mm2['bb_iomfb_match'] = 1
+        P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
+    # boot185: watch CA/IOSurface bind after GMD.
+    if (any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD') for x in s)
+            and ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                 or pn0 in ('', '?'))):
+        P('BB_SURFACE_MATCH tag=%s proc=%s keys=%s' % (
+            tag, pn0 or '?', ','.join(s[:6])))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
     if interesting or tag=='service' or ui:
@@ -449,7 +548,11 @@ DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0
           'abort_with_reason':0x23226a5f0,
           # SpringBoard _SBStaticInitializer right after SecTaskGetCodeSignStatus (w0=status)
           'SBStatic_status':0x224040bf8,
-          'SBStatic_cold':0x2241f6e00}
+          'SBStatic_cold':0x2241f6e00,
+          # boot164: IOMobileFramebufferGetMainDisplay (DSC .44 cave entry)
+          'IOMFB_GetMainDisplay':0x2288047a8,
+          # boot186: GMD body/cave (BB may enter here without the thin stub)
+          'IOMFB_GMD_body':0x22880511c}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -497,10 +600,14 @@ def _ufn(n):
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
             interesting_svc = any(s in (name or '') for s in (
                 'containermanager', 'cfprefs', 'backboard', 'CARender', 'render',
-                'frontboard', 'runningboard', 'display', 'hid'))
-            if ((interesting_svc or
-                 pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
-                and _xl_cnt[k]<=8):
+                'frontboard', 'runningboard', 'display', 'hid', 'analytics',
+                'location', 'chrono', 'ca.', 'Quartz', 'WindowServer'))
+            # boot166: after IOMFB open log every BB XPC name (find the wait).
+            post_bb = (pn == 'backboardd' and _mm2.get('post_iomfb')
+                       and _xl_cnt[k] <= 40)
+            if (((interesting_svc or
+                  pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
+                 and _xl_cnt[k]<=8) or post_bb):
                 # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
                 # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
                 # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
@@ -582,6 +689,14 @@ def _ufn(n):
             except Exception:
                 pass
             P('SBSTATIC_COLD proc=%s (platformBinary assert path)'%pn)
+        elif n=='IOMFB_GetMainDisplay':
+            P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
+            RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
+        elif n=='IOMFB_GMD_body':
+            outp = r('x0')
+            _dsc['gmd_out'] = outp
+            P('GMD_BODY proc=%s out=%#x' % (pn, outp))
+            RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False
@@ -621,6 +736,25 @@ def on_iosopen():
         # kernel (MIG wrapper); log it on return when present.
         outp = r('x7')
         P('IOSOPEN proc=%s type=%d svc=%#x outp=%#x' % (pn, typ, r('x0'), outp))
+        # boot160: 2nd BB open was IOMFB when stable. boot175: respawn made
+        # 2nd open HID — WINDOW fired early. boot176: only after IOMFB match.
+        if 'backboard' in pn0.lower():
+            _iosopen_cnt['bb'] = _iosopen_cnt.get('bb', 0) + 1
+            if (_mm2.get('bb_iomfb_match') and not _mm2.get('post_iomfb')):
+                _mm2['post_iomfb'] = 1
+                _mm2['spin1'] = 0
+                _mm2['post_spin_uf'] = 0
+                _mm2['post_uf'] = 0
+                _mm2['w00t_n'] = 0
+                _mm2['n'] = 300
+                P('MACHMSG2_WINDOW post-IOMFB reopen')
+        # boot173/176: userspace frames on BB IOMFB open.
+        if ('backboard' in pn0.lower() and _mm2.get('post_iomfb')
+                and _mm2.get('bb_iomfb_match')):
+            try:
+                _uframes('IOSOPEN_BB_U', 'type=%d' % typ)
+            except Exception as e:
+                P('IOSOPEN_U err=%r' % e)
         RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
             pn0 or '?', typ, outp))
     except Exception as e:
@@ -799,6 +933,8 @@ def _mk_ioreg(tag):
 BP('_is_io_registry_entry_get_property_bin', _mk_ioreg('bin'), addr=0xfffffe0007b165a8)
 BP('_is_io_registry_entry_get_property_bin_buf', _mk_ioreg('buf'), addr=0xfffffe0007b16098)
 BP('_is_io_registry_entry_get_properties_bin', _mk_ioreg('all'), addr=0xfffffe0007b16084)
+# boot158: get_property/bytes/rec hooks coincided with NOTE64→BRK even with
+# HID pulse restored (kernel==pth86 which survived). Drop them; keep w00t filter.
 
 _iomap_cnt = {'n': 0}
 def on_io_map_mem():
@@ -852,7 +988,7 @@ BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
 # (boot136 treated regs as fields → garbage; 400-cap burned; 0 RETs).
 # Struct: data, options, bits|send<<32, remote|local<<32, voucher|id<<32,
 #         desc|rcv_name<<32, rcv_size|prio<<32, timeout.
-_mm2 = {'n': 0, 'rb': 0}
+_mm2 = {'n': 0, 'rb': 0, 'post_iomfb': 0}
 def _ui_proc(pn0):
     pl = (pn0 or '').lower()
     return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
@@ -892,12 +1028,106 @@ def on_mach_msg2():
             return False
         if not sending and recving and _mm2['n'] > 40:
             return False
+        # boot156: uncapped BB logging drowned the run in w00t/0x40000000
+        # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
+        # Drop those two; keep real IOKit/XPC-sized traffic.
+        # boot179: W00T_FAKE on w00t/0x40000000 after 0x40000388 → BB respawn.
+        # boot180: fake ONLY 0x40000388/384 (the post-open error); log others.
+        if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_n', 0) < 4):
+                _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
+                P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
+                    pn0, msgid, remote, _mm2['w00t_n']))
+                try:
+                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                except Exception as e:
+                    P('W00T_U err=%r' % e)
+            return False
+        if msgid in (0x40000388, 0x40000384):
+            if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
+                _mm2['xpc388_n'] = _mm2.get('xpc388_n', 0) + 1
+                if _mm2['xpc388_n'] <= 6:
+                    P('POST_IOMFB_XPC388 proc=%s msgid=%#x remote=%#x n=%d' % (
+                        pn0, msgid, remote, _mm2['xpc388_n']))
+                    try:
+                        _uframes('POST_IOMFB_XPC388_U',
+                                 'n=%d' % _mm2['xpc388_n'])
+                    except Exception as e:
+                        P('XPC388_U err=%r' % e)
+                if _mm2['xpc388_n'] <= 32:
+                    try:
+                        gdb.execute('set $x0 = 0', to_string=True)
+                        gdb.execute('set $pc = $x30', to_string=True)
+                        if _mm2['xpc388_n'] <= 8:
+                            P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
+                    except Exception as e:
+                        P('XPC388_FAKE err=%r' % e)
+                return False
+        # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
+        # Sample a few with kernel LR so we can attribute the wait; then drop.
+        # boot167: also dump trap msg header words (identify port peer).
+        if msgid == 0x10000000 and 'backboard' in pn0.lower():
+            _mm2['spin1'] = _mm2.get('spin1', 0) + 1
+            if _mm2['spin1'] <= 8:
+                tag = ('POST_IOMFB_SPIN' if _mm2.get('post_iomfb')
+                       else 'MACHMSG2_SPIN')
+                P('%s proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
+                    tag, pn0, remote, local, r('x30'), _mm2['spin1']))
+                if _mm2['spin1'] <= 3:
+                    try:
+                        data = m64(ap)
+                        ws = [0, 0, 0, 0]
+                        if data:
+                            # Userspace buffer — prefer gdb examine over m32.
+                            try:
+                                raw = gdb.execute('x/4wx %#x' % data,
+                                                   to_string=True)
+                                P('%s_HDR data=%#x %s opt=%#x send=%d' % (
+                                    tag, data, ' '.join(
+                                        raw.strip().splitlines()[:2]),
+                                    opt64 & 0xffffffff, send_sz))
+                            except Exception:
+                                for i in range(4):
+                                    ws[i] = m32(data + 4 * i) or 0
+                                P('%s_HDR data=%#x w=%#x,%#x,%#x,%#x opt=%#x send=%d' % (
+                                    tag, data, ws[0], ws[1], ws[2], ws[3],
+                                    opt64 & 0xffffffff, send_sz))
+                        else:
+                            P('%s_HDR data=0 opt=%#x send=%d' % (
+                                tag, opt64 & 0xffffffff, send_sz))
+                    except Exception as e:
+                        P('SPIN_HDR err=%r' % e)
+                # boot164/166: userspace frames; prefer post-IOMFB samples.
+                if _mm2['spin1'] <= 3 or (_mm2.get('post_iomfb')
+                                          and _mm2.get('post_spin_uf', 0) < 3):
+                    if _mm2.get('post_iomfb'):
+                        _mm2['post_spin_uf'] = _mm2.get('post_spin_uf', 0) + 1
+                    try:
+                        _uframes(
+                            'POST_IOMFB_SPIN_U' if _mm2.get('post_iomfb')
+                            else 'MACHMSG2_SPIN_U',
+                            'n=%d' % _mm2['spin1'])
+                    except Exception as e:
+                        P('SPIN_U err=%r' % e)
+            return False
         _mm2['n'] += 1
-        if _mm2['n'] > 300:
+        if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
+            return False
+        if _mm2.get('post_iomfb') and _mm2['n'] > 550:
             return False
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
+        # boot165: first few BB msgs after IOMFB open — userspace frames.
+        if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                and _mm2.get('post_uf', 0) < 3):
+            _mm2['post_uf'] = _mm2.get('post_uf', 0) + 1
+            try:
+                _uframes('POST_IOMFB_U', 'msgid=%d n=%d' % (
+                    msgid, _mm2['post_uf']))
+            except Exception as e:
+                P('POST_IOMFB_U err=%r' % e)
         if sending and recving:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))

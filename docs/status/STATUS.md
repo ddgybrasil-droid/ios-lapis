@@ -975,4 +975,152 @@ Image.pth74.
 
 ## Chunk 99 (boot150: registerNotificationPort success)
 
-| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ГИПОТЕЗА**: NOTE64 x0=0; HID conn stays open; IOMFB IOCONN follows. | out/logs/boot150 |
+| boot150 | Image.pth80 | lapis_register_notification_port → jj/jy B-patch | qemu11 43G lva=off | **ПРОВЕРЕНО**: NOTE64 **x0=0** (`regnote ok`). Then still **IOSCLOSE**. Root: after sel0, `QueueSize` **0xe00002f0**; `IOMAPMEM type0` → cmap ok but `vm_map_remap_extract` **"rejecting attempt to extract from kernel_object"** → **0xe00002c2**; later EXC/BRK `elr=0x1fe08dd44` FAR=`0x2079f4010`, BB SIGKILL. | out/logs/boot150 |
+
+## Chunk 100 (boot151: HID QueueSize + IOSharedDataQueue map)
+
+| boot151 | Image.pth81 | QueueSize=0x4000; clientMemory→IOSharedDataQueue; regnote→setNotificationPort | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **PWTKS** `Unexpected fault in kernel static region` pc=`lapis_hid_queue+0x20` FAR=`g_hid_shared_queue` — ramfs blob is `.text`-only (RX); static BSS write faulted during publish. Never reached HID. | out/logs/boot151 |
+
+## Chunk 101 (boot152: stash HID queue on UC property, no BSS)
+
+| boot152 | Image.pth82 | LapisHIDQ via copyProperty/setProperty; QueueSize; SharedDataQueue map | qemu11 43G lva=off | **ПРОВЕРЕНО**: no PWTKS. QueueSize **x0=0**; **IOMAPMEM cmap hidq x0=0**; NOTE64 **x0=0**; **no IOSCLOSE / no BB BRK**. HID props (DeviceUsagePairs/Transport/…) still **0xe00002f0**. Then ParavirtGPU→DisplayPortCount→**IOMFB IOSOPEN+nuc** with **0** post-open IOCONN. BB→frontboard XPC. SB at cfprefs only so far. | out/logs/boot152 |
+
+## Chunk 102 (boot153: HID digitizer identity + UC class split)
+
+| boot153 | Image.pth83 | DeviceUsagePairs/DisplayIntegrated/…; HID vs IOMFB IOClass on NUC | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID identity props **x0=0**; map/NOTE64 hold; **no IOSCLOSE**. IOMFB **IOSOPEN+nuc** still **0** post-open IOCONN. BB→frontboard; SB→cfprefs→chrono→RB. BB **CPU burn** >50%/180s after open (digitizer sentinel / display bind). device_type often miss. | out/logs/boot153 |
+
+## Chunk 103 (boot154: digitizer surface dims + device_type)
+
+| boot154 | Image.pth84 | DigitizerSurfaceWidth/Height; device_type/compatible on IOMFB+ParavirtGPU | qemu11 43G lva=off | **ПРОВЕРЕНО**: DigitizerSurface **never queried**. device_type still miss on walk. HID+IOMFB open hold; **0** post-open IOCONN. BB **CPU burn** + cfprefsd burn remain. SB→chrono+RB; BB→frontboard. | out/logs/boot154 |
+
+## Chunk 104 (boot155: HID queue pulse enqueue after NOTE64)
+
+| boot155 | Image.pth85 | IOSharedDataQueue::enqueue 8B pulse after setNotificationPort | qemu11 43G lva=off | **ПРОВЕРЕНО**: log said `enqfail` but Boolean **true=success** (polarity bug). Still BB **CPU burn**; IOMFB open **0** IOCONN; BB→frontboard wait; SB→chrono+RB. Pulse alone insufficient. | out/logs/boot155 |
+
+## Chunk 105 (boot156: force BB frontboard XPC 0x9f)
+
+| boot156 | Image.pth86 | enqueue log polarity fix; BB frontboard.systemappservices→0x9f; MACHMSG2 BB uncapped | qemu11 43G lva=off | **ПРОВЕРЕНО**: FORCED frontboard **0x9f**; `regnote ok enq`. IOMFB open still **0** IOCONN. Post-open = **w00t/0x40000000** mach spin (2200+); uncapped MACHMSG2 GDB traps likely worsen burn. No canvas. | out/logs/boot156 |
+
+## Chunk 106 (boot157: drop w00t flood + full IOREGPROP hooks)
+
+| boot157 | Image.pth87 | no HID pulse; filter w00t MACHMSG2; hook get_property/bytes/rec | qemu11 43G lva=off | **ПРОВЕРЕНО**: w00t flood gone. **REGRESSION**: BB **BRK** `elr=0x1f0a1dd44` immediately after NOTE64 (no pulse) → respawn; never reached IOMFB. Pulse required. No canvas plain/bytes. | out/logs/boot157 |
+
+## Chunk 107 (boot158: restore HID pulse + keep w00t filter)
+
+| boot158 | Image.pth88 | restore enqueue pulse; keep w00t filter + IOREGPROP hooks | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote ok enq` but BB still **BRK** `elr=…dd44` after NOTE64 (kernel==pth86). New get_property* GDB hooks implicated. No IOMFB. | out/logs/boot158 |
+
+## Chunk 108 (boot159: drop get_property* GDB hooks)
+
+| boot159 | Image.pth89 | same kernel as pth88; remove plain/bytes/rec IOREGPROP BPs | qemu11 43G lva=off | **ПРОВЕРЕНО**: BRK gone (get_property* BPs were the cause). `regnote ok enq`; frontboard **FORCED 0x9f**; IOMFB **IOSOPEN+nuc**; still **0** post-open IOCONN/canvas. SB→chrono+RB. | out/logs/boot159 |
+
+## Chunk 109 (boot160: digitizer-shaped HID pulse + MACHMSG2 post-IOMFB window)
+
+| boot160 | Image.pth90 | 64B digitizer IOHIDEvent pulse; VendorID/ProductID; MACHMSG2 reopen | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote ok enq`×3; NOTE64/map/QueueSize/VendorID **x0=0**; frontboard **FORCED 0x9f**; Paravirt→DisplayPortCount→**IOMFB IOSOPEN+nuc**; `MACHMSG2_WINDOW` fired. **0** post-open IOMFB IOCONN/canvas/sel8 (HID IOCONN only). BB→msgid `0x10000000` spin + CPU burn; SB→chrono+RB. DigitizerSurface never queried; `HIDServiceAccessEntitlement`/`Unregistered` **0xe00002f0**; device_type miss on DT walk (non-blocking). | out/logs/boot160 |
+
+## Chunk 110 (boot161: HID entitlement + IOMFB messageClients + spin probe)
+
+| boot161 | Image.pth91 | HIDServiceAccessEntitlement; Unregistered=0; richer digitizer; IOMFB messageClients; BB spin LR | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID entitlement/`Unregistered` now **x0=0** (was 0xe00002f0). Then **REGRESSION**: after frontboard **FORCED+8-byte CLEARED**, BB **EXC_BAD_ACCESS** FAR=`0x1536050` elr=`0x1885525e4` → exit — **never** reached Paravirt/IOMFB (0 DisplayPortCount / 0 MACHMSG2_WINDOW). Richer digitizer alone not proven; CLEARED width smash is the smoking gun. | out/logs/boot161 |
+
+## Chunk 111 (boot162: restore 4-byte CLEARED + boot160 pulse; keep entitlement/messageClients)
+
+| boot162 | Image.pth92 | 4-byte CLEARED; boot160 digitizer pulse; keep HID entitlement + IOMFB messageClients | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB **alive** past frontboard 4-byte CLEARED (no EXC). HID entitlement/`Unregistered` **x0=0**; Paravirt→DisplayPortCount→**IOMFB IOSOPEN+nuc**; `MACHMSG2_WINDOW` ok. Still **0** post-open IOMFB IOCONN/canvas/sel8. Post-open: one mach msgid **11602**→`0x1903` then `MACHMSG2_SPIN` lr=`mach_syscall+0x190`. SB→chrono+RB. | out/logs/boot162 |
+
+## Chunk 112 (boot163: post-IOMFB real RB + AppleBacklightDisplay)
+
+| boot163 | Image.pth93 | stop RB/frontboard force after IOMFB open; AppleBacklightDisplay stub | qemu11 43G lva=off | **ПРОВЕРЕНО**: `msgclients property-change` on IOMFB NUC; backlight/wrangler metaclasses published (**0** BB IOKMATCH). IOMFB open+WINDOW hold. Post-open BB mach richer (msgid **1026**/1018, analyticsd) but still **0** IOMFB IOCONN/canvas/sel8. No post-IOMFB RB re-lookup (force gate unused). SB→chrono+RB + msgid 1026 flood. | out/logs/boot163 |
+
+## Chunk 113 (boot164: SPIN userspace frames + IOMFB fb map + GetMainDisplay hook)
+
+| boot164 | Image.pth94 | MACHMSG2_SPIN uframes; IOMFB cmap RGBA fb; DSC GetMainDisplay log | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SPIN_U` pc unslid≈`0x232236cd4` (libsystem near abort_with_reason) via xpc/`0x197f2*` — **pre-IOMFB** (CM_SYSPATH). `GMD_ENTER` **only FDR** (x0=0), never BB. `cmap iomfb fb` **0** (hidq only). IOMFB open+msgclients+WINDOW; still **0** post-open IOCONN/canvas. Post-open BB: analyticsd + msgid 1026/1018 then quiet. CLEARED all MemoryError. | out/logs/boot164 |
+
+## Chunk 114 (boot165: post-IOMFB uframes + CLEARED via set + cave size fields)
+
+| boot165 | Image.pth95 | post-IOMFB BB uframes; CLEARED set{int}; GMD cave store 2420×1668 | qemu11 43G lva=off | **ПРОВЕРЕНО**: CLEARED restored (ACCHW/RB/frontboard). GMD only FDR x0=0; FDR exit=1. IOMFB open+msgclients; **0** post-open IOCONN. `POST_IOMFB_U` unused (BB only sends filtered msgid `0x10000000`). Post-open `SPIN_U` n=2/3: same stack libsystem_kernel→dispatch→**xpc**→**pthread** (`0x1e261d3b0`) — XPC/cond wait, not IOKit. | out/logs/boot165 |
+
+## Chunk 115 (boot166: HID re-pulse + post-IOMFB BB XPC log)
+
+| boot166 | Image.pth96 | delayed HID enqueue pulses; log all BB XPC after IOMFB; SPIN tag post_iomfb | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote`×3 + `repulse enq`×12 ok. CLEARED ok. IOMFB open+msgclients+WINDOW. `POST_IOMFB_U` msgid **1026/1018** (analyticsd). Post-open BB XPC: only analyticsd RET — **no new named wait**. Still **0** IOMFB IOCONN/canvas/sel8 (HID IOCONN only). `POST_IOMFB_SPIN` msgid `0x10000000`→remote `0x7c03` (xpc/pthread). GMD FDR-only. HID re-pulse alone does not unlock display path. | out/logs/boot166 |
+
+## Chunk 116 (boot167: richer digitizer + deferred IOMFB wake + SPIN hdr)
+
+| boot167 | Image.pth97 | boot161-style digitizer fields; deferred IOMFB messageClients; SPIN msg hdr dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: richer `regnote`/`repulse` + `deferred wake msgclients` ok; CLEARED ok; IOMFB open+WINDOW. Still **0** IOMFB IOCONN/canvas/sel8. `SPIN_HDR` send=2 data=0 opt=`0x31`/`0x40231` (**MACH_SEND_NOTIFY**+timeout) → remote `0x7c03` — service/notify wait, not IOKit. Post-open mach: XPC `0x40000388`/`1026`. Missing props: `IOClassNameOverride`/`Hidden`/`ProtectedAccess`/`SensorPropertySupported` **0xe00002f0**. | out/logs/boot167 |
+
+## Chunk 117 (boot168: real frontboard + seed missing HID/IOMFB props)
+
+| boot168 | Image.pth98 | drop frontboard 0x9f force; seed IOClassNameOverride/Hidden/… | qemu11 43G lva=off | **ПРОВЕРЕНО**: seeded props **x0=0** (was 0xe00002f0). Frontboard **real x0=0 but x7*=None** (null endpoint — worse than 0x9f). Still reached HID→IOMFB open+WINDOW. Still **0** IOMFB IOCONN/canvas/sel8. Pre-IOMFB SPIN_HDR now readable (`msgh_bits=0x080809b8` size=1 opt=`0x231`). No post-IOMFB SPIN samples (spin cap burned pre-open). | out/logs/boot168 |
+
+## Chunk 118 (boot169: restore frontboard force + richer FB wake msgs + SPIN reset)
+
+| boot169 | Image.pth99 | frontboard 0x9f again; wake msgs power/resume/gfx; reset spin1 at post_iomfb | qemu11 43G lva=off | **ПРОВЕРЕНО**: frontboard FORCED; CLEARED ok; SPIN reset → `POST_IOMFB_SPIN`×4 remote `0x4803` HDR opt=`0x40231`. IOMFB open+WINDOW; still **0** IOMFB IOCONN/canvas/sel8. `locationd.registration` **x0=0 x7*=None** (null port) just before open — likely feeds MACH_SEND_NOTIFY wait. Wake msgs ran (IOLog `%x` garbled; values are in-blob). | out/logs/boot169 |
+
+## Chunk 119 (boot170: force locationd null-port deny)
+
+| boot170 | Image.pth100 | force BB locationd.registration 0x9f; fixed wake log strings | qemu11 43G lva=off | **ПРОВЕРЕНО**: locationd **FORCED** (+ACCHW/RB/frontboard CLEARED). Wake fixed strings ok. IOMFB open+WINDOW; still **0** IOMFB IOCONN/canvas/sel8. `POST_IOMFB_SPIN`→`0x4903` persists — locationd deny insufficient. analyticsd still real port pre-open. | out/logs/boot170 |
+
+## Chunk 120 (boot171: deny analyticsd/gestalt + IOSurface wake)
+
+| boot171 | Image.pth101 | force analyticsd+mobilegestalt 0x9f; surface wake+props on IOMFB NUC | qemu11 43G lva=off | **ПРОВЕРЕНО**: gestalt/locationd/frontboard FORCED; **surface wake** ok; IOMFB open+WINDOW; still **0** IOMFB IOCONN. analyticsd looked up **after** post_iomfb → force gate skipped → **x0=0/null port**; `POST_IOMFB_SPIN`→`0x5903` remains. | out/logs/boot171 |
+
+## Chunk 121 (boot172: always-force analyticsd + post-IOMFB null-port deny)
+
+| boot172 | Image.pth102 | analyticsd always 0x9f for BB; FORCED_NULLPORT for post-IOMFB null XPC | qemu11 43G lva=off | **ПРОВЕРЕНО**: analyticsd **FORCED** post-open; **POST_IOMFB_SPIN=0** (unblocked). Still **0** IOMFB IOCONN/canvas/sel8. BB CPU burn → launchd respawn; SB msgid 11602 flood. Null-port deny unused. | out/logs/boot172 |
+
+## Chunk 122 (boot173: DSC IOSOPEN→sel8 wrap + Open-wrap sel8)
+
+| boot173 | Image.pth103 | wrap IOServiceOpen stub → sel8 GetDisplaySize; Open-wrap w1=#8; W00T sample | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open x0=0 then **BB EXC** FAR=0 (wrap ABI); **0** IOEXTMETHOD sel8. W00T samples post-crash/respawn. Wrap **reverted**. | out/logs/boot173 |
+
+## Chunk 123 (boot174: revert wrap; fake post-IOMFB W00T success)
+
+| boot174 | Image.pth104 | restore IOSOPEN stub; GDB W00T_FAKE x0=0/pc=lr after IOMFB open | qemu11 43G lva=off | **ПРОВЕРЕНО**: wrap reverted (no BB EXC). **Never reached IOMFB** — BB `cfprefsd.daemon` **x0=0/null** then msgid 11602 flood; W00T_FAKE unused. | out/logs/boot174 |
+
+## Chunk 124 (boot175: pre-IOMFB BB null-port deny)
+
+| boot175 | Image.pth105 | FORCED_NULLPORT for BB anytime (incl. cfprefs); keep W00T_FAKE | qemu11 43G lva=off | **ПРОВЕРЕНО**: cfprefs NULLPORT → early BB **BRK EXC**/respawn; WINDOW fired on **HID** open (bb≥2 bug); IOMFB open later; locationd real port→W00T; still **0** sel8/canvas. | out/logs/boot175 |
+
+## Chunk 125 (boot176: IOMFB-match WINDOW; skip cfprefs NULLPORT; always locationd)
+
+| boot176 | Image.pth106 | post_iomfb only after BB IOMobileFramebuffer match; no cfprefs NULLPORT; always force locationd | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW ok; no BB EXC; locationd FORCED; IOMFB open; user cfprefs port ok. Post-open msgid **0x40000388**→0x80b **x0=0x10004004** then quiet — **0** IOMFB IOCONN/sel8. | out/logs/boot176 |
+
+## Chunk 126 (boot177: fake post-IOMFB XPC 0x40000388 + system cfprefs NULLPORT)
+
+| boot177 | Image.pth107 | W00T_FAKE includes 0x40000388/384; NULLPORT cfprefs.system only | qemu11 43G lva=off | **ПРОВЕРЕНО**: never reached IOMFB — BB XPC as **proc=?** so ACCHW/RB **not forced**; real RB port → hang; later speculative respawn. | out/logs/boot177 |
+
+## Chunk 127 (boot178: force XPC names for proc=?)
+
+| boot178 | Image.pth108 | treat proc=? as BB for force-name + NULLPORT lists | qemu11 43G lva=off | **ПРОВЕРЕНО**: forces ok (proc=backboardd); cfprefs.system NULLPORT → **BRK**/respawn; MATCH→WINDOW→IOMFB open then **quiet** (0 W00T/sel8). | out/logs/boot178 |
+
+## Chunk 128 (boot179: skip all cfprefs NULLPORT; keep 0x40000388 fake)
+
+| boot179 | Image.pth109 | no cfprefs NULLPORT (boot176); proc=? forces; W00T_FAKE 0x40000388 | qemu11 43G lva=off | **ПРОВЕРЕНО**: clean MATCH→WINDOW; XPC388+w00t FAKE fired; then analytics + **BB respawn**; still **0** sel8/canvas. cfprefs both null (left alone). | out/logs/boot179 |
+
+## Chunk 129 (boot180: fake only 0x40000388; real analyticsd post-open)
+
+| boot180 | Image.pth110 | XPC388_FAKE only; stop w00t fake; analyticsd real after IOMFB; NULLPORT BB-only | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW→IOMFB open then **quiet** (0 XPC388); analyticsd forced pre-match; speculative BB spawn; still **0** sel8. | out/logs/boot180 |
+
+## Chunk 130 (boot181: fixed IOSOPEN→sel8 wrap ABI)
+
+| boot181 | Image.pth111 | DSC wrap inputCnt=0+outCnt=2; Open-wrap sel8; always analyticsd; XPC388_FAKE | qemu11 43G lva=off | **ПРОВЕРЕНО**: **sel=8 x0=0** on GMD/IOMFB open (proc=?); no BB_IOMFB_MATCH; BB HID NOTE64 then **BRK** (pacibsp/retab?). Never BB IOMFB WINDOW. | out/logs/boot181 |
+
+## Chunk 131 (boot182: plain-ret wrap + MATCH for proc=?)
+
+| boot182 | Image.pth112 | wrap without pacibsp/retab; BB_IOMFB_MATCH for proc=?; keep sel8 ABI | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+**BB sel=8 x0=0** (sout=2!); MATCH→WINDOW→open; then BB **FAR=0** (scalar[0]=1 not WxH). | out/logs/boot182 |
+
+## Chunk 132 (boot183: sel8 scalar outs = 2420×1668)
+
+| boot183 | Image.pth113 | lapis_external_method sel8 → scalar_out[0]=2420,[1]=1668 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB/FDR still **FAR=0** after sel8; crash is `str x21,[x19]` in GMD (out* null) — WxH hardcoded in userspace; nested wrap sel8 likely clobbers x19. | out/logs/boot183 |
+
+## Chunk 133 (boot184: identity IOSOPEN wrap; restore Open sel5)
+
+| boot184 | Image.pth114 | wrap = open-only (no nested sel8); Open-wrap w1=#5 UCAL; keep scalar WxH | qemu11 43G lva=off | **ПРОВЕРЕНО**: **no FAR=0**; FDR **GMD_RET x0=0**; BB MATCH→IOMFB open; XPC388_FAKE; then analytics force → quiet; **0** sel8 (GMD seeds WxH). | out/logs/boot184 |
+
+## Chunk 134 (boot185: revert IOSOPEN stub; real analyticsd post-open)
+
+| boot185 | Image.pth115 | restore stub ADRP/ADD/BR; analyticsd real after IOMFB; SURFACE_MATCH log | qemu11 43G lva=off | **ПРОВЕРЕНО**: no FAR=0; GMD via xpcproxy x0=0; BB open+XPC388; analyticsd **x0=1 null ports** → quiet; **0** SURFACE/sel8. | out/logs/boot185 |
+
+## Chunk 135 (boot186: force analyticsd; IOSurface deferred wake; GMD_BODY log)
+
+| boot186 | Image.pth116 | always-force analyticsd; deferred wake nudges IOSurfaceRoot; GMD_BODY hook | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB GMD_BODY_RET x0=0**; FDR GMD ok; no FAR=0; still **0** SURFACE/sel8; SB got **null RB** port; BB later msgid 3228. | out/logs/boot186 |
+
+## Chunk 136 (boot187: force SB runningboard; dump GMD *out)
+
+| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past null RB + confirm GMD object WxH → CA/IOSurface. | out/logs/boot187 |

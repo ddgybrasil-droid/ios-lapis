@@ -1,0 +1,9 @@
+Image.pth102 = Image.pth101 kernel + GDB always-force analyticsd
+  boot171: analyticsd AFTER post_iomfb escaped force → null port; SPIN remains.
+  - GDB: always force com.apple.analyticsd for BB (not gated on post_iomfb)
+  - GDB: post-IOMFB BB XPC success with no port → FORCED_NULLPORT_0x9f
+  - Kernel blob unchanged from pth101 (copy Image)
+
+Build:
+  cp /tmp/Image.pth101 /tmp/Image.pth102
+  # or: python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth102

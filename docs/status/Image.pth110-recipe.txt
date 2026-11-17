@@ -1,0 +1,8 @@
+Image.pth110 = Image.pth109 kernel + GDB XPC388-only fake + real analyticsd post-open
+  boot179: 0x40000388 fake ok but w00t/0x40000000 fake → BB respawn; 0 sel8.
+  - GDB: fake ONLY msgid 0x40000388/384 post-IOMFB (log w00t, don't fake)
+  - GDB: analyticsd forced only pre-IOMFB (real after open)
+  - GDB: NULLPORT only for proc=backboardd (not proc=?)
+
+Build:
+  cp /tmp/Image.pth109 /tmp/Image.pth110

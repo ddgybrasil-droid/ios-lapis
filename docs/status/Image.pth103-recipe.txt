@@ -1,0 +1,13 @@
+Image.pth103 = Image.pth102 kernel + DSC IOSOPEN→sel8 wrap
+  boot172: analyticsd FORCED; SPIN gone; still 0 IOMFB IOCONN; BB CPU burn.
+  - DSC: tools/patch_dsc_iosopen_sel8.py
+      .45 IOSOPEN stub @0x22c6ce800 → b wrap @0x228831528
+      wrap: real Open (ADRP+BLR) then IOConnectCallMethod sel=8 if type==0
+      .44 Open-wrap @0x22882c5ac movz w1,#5 → #8
+  - dsc_cd_rehash.py on .44+.45
+  - GDB: IOSOPEN_BB_U frames; POST_IOMFB_W00T sample
+
+Build:
+  cp /tmp/Image.pth102 /tmp/Image.pth103
+  python3 tools/patch_dsc_iosopen_sel8.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

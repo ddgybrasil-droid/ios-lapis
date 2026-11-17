@@ -1,0 +1,8 @@
+Image.pth88 = Image.pth87 + restore HID queue pulse
+  boot157: removing pulse caused BB BRK after NOTE64 (same family as
+  boot150 dd44). Restore 8B enqueue; keep w00t MACHMSG2 filter and
+  extra IOREGPROP hooks from boot157.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth88
