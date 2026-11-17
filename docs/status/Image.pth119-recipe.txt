@@ -1,0 +1,9 @@
+Image.pth119 = Image.pth118 + IOSurface NUC/sel13 deepen
+  boot188: soft HID pulse → BB GMD 2420×1668 + SB system-app-server; 0 SURFACE.
+  - IOSurfaceRoot: IOUserClientClass + AllocSizeMax
+  - NUC tags IOSurfaceRootUserClient; IOMFB open republishes surface
+  - GDB: SURFACE_MATCH any proc; GMD obj+0x40 hex + conn@+0x14
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth118 /tmp/Image.pth119

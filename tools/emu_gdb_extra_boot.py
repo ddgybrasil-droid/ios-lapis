@@ -27,9 +27,9 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
-            # boot187/188: after GMD body, dump *out and size @+0x30/+0x34.
-            # out* is a userspace pointer — m64 (kernel read) returns None; use
-            # uread/read_memory via inferior (same as ustr path).
+            # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
+            # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
+            # out* is userspace — use inferior read_memory, not kernel m64.
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -50,6 +50,20 @@ class _RetSite(gdb.Breakpoint):
                             extra += ' size=%dx%d' % (w, h)
                         except Exception as e2:
                             extra += ' size_err=%r' % e2
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x14, 4))
+                            extra += ' conn=%#x' % int.from_bytes(raw, 'little')
+                        except Exception as e3:
+                            extra += ' conn_err=%r' % e3
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj, 0x40))
+                            words = ' '.join('%08x' % int.from_bytes(
+                                raw[i:i+4], 'little') for i in range(0, 0x40, 4))
+                            extra += ' obj40=[%s]' % words
+                        except Exception as e4:
+                            extra += ' obj40_err=%r' % e4
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):
@@ -455,11 +469,10 @@ def _iok(tag,ma,cnt):
             and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
         _mm2['bb_iomfb_match'] = 1
         P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
-    # boot185: watch CA/IOSurface bind after GMD.
-    if (any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD') for x in s)
-            and ('backboard' in pn0.lower() or 'SpringBoard' in pn0
-                 or pn0 in ('', '?'))):
-        P('BB_SURFACE_MATCH tag=%s proc=%s keys=%s' % (
+    # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
+    if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
+           for x in s):
+        P('SURFACE_MATCH tag=%s proc=%s keys=%s' % (
             tag, pn0 or '?', ','.join(s[:6])))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.

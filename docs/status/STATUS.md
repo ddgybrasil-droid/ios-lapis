@@ -1127,4 +1127,8 @@ Image.pth74.
 
 ## Chunk 137 (boot188: soft HID NOTE64 pulse; fix GMD *out uread)
 
-| boot188 | Image.pth118 | NOTE64→8B zeros; rich pulse after 2s; uread GMD *out; keep SB RB force | qemu11 43G lva=off | **ГИПОТЕЗА**: survive NOTE64 → BB GMD again → CA/IOSurface with SB RB forced. | out/logs/boot188 |
+| boot188 | Image.pth118 | NOTE64→8B zeros; rich pulse after 2s; uread GMD *out; keep SB RB force | qemu11 43G lva=off | **ПРОВЕРЕНО**: soft pulse → **no BB BRK**; **BB GMD_BODY_RET *out size=2420×1668**; MATCH→WINDOW→IOSOPEN; SB RB **FORCED**; SB got **system-app-server** port. Still **0 SURFACE/sel8/sel13**; post-GMD HID flood + XPC `0x10004004`. | out/logs/boot188 |
+
+## Chunk 138 (boot189: deepen IOSurface NUC/sel13 after GMD)
+
+| boot189 | Image.pth119 | IOSurfaceRootUserClient NUC; republish+link on IOMFB open; SURFACE_MATCH any; GMD obj40 dump | qemu11 43G lva=off | **ГИПОТЕЗА**: after GMD WxH, CA opens IOSurfaceRoot → sel13 limits → bind. | out/logs/boot189 |

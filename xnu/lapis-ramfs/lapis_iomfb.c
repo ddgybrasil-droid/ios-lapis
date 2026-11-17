@@ -777,10 +777,13 @@ static void lapis_iomfb_deferred_wake(void *p0, void *p1)
 	else
 		msg = 0xe0000401u;
 	IOService_messageClients(ctx->service, msg, 0, 0);
-	/* boot186: re-nudge IOSurfaceRoot on every deferred tick (CA bind). */
+	/* boot186/189: re-nudge + republish IOSurfaceRoot each deferred tick. */
 	{
 		void *surf = lapis_published_stub("IOSurfaceRoot");
 		if (surf) {
+			unsigned int *st = (unsigned int *)((char *)surf + 0x48);
+			*st = (*st & ~1u) | 0x1e;
+			IOService_publishResource("IOSurfaceRoot", surf);
 			IOService_messageClients(surf, msg, 0, 0);
 			OSObject_release(surf);
 		}
@@ -862,6 +865,29 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 			}
 			OSObject_release(hid);
 		} else {
+			void *surf_cls = self ? IORegistryEntry_copyProperty(
+						       self, "IOClass")
+					     : 0;
+			const char *scn = surf_cls
+						 ? OSString_getCStringNoCopy(surf_cls)
+						 : 0;
+			int is_surface = scn && scn[0] == 'I' && scn[1] == 'O' &&
+					 scn[2] == 'S' && scn[3] == 'u';
+			if (surf_cls)
+				OSObject_release(surf_cls);
+			if (is_surface) {
+				/*
+				 * boot189: IOSurfaceRoot NUC — tag UC so sel13
+				 * limits path is clearly attributed; CA
+				 * ____ioSurfaceConnectInternal needs this.
+				 */
+				IORegistryEntry_setProperty_cstr(
+					client, "IOClass",
+					"IOSurfaceRootUserClient");
+				set_u32(client, "IOSurfaceMaxWidth", 2420);
+				set_u32(client, "IOSurfaceMaxHeight", 1668);
+				IOLog("LAPIS iomfb: surface nuc\n");
+			} else {
 			set_u32(client, "IODisplayWidth", 2420);
 			set_u32(client, "IODisplayHeight", 1668);
 			set_u32(client, "IODisplayPixelsWide", 2420);
@@ -889,11 +915,19 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 				IOLog("LAPIS iomfb: msgclients property-change\n");
 				/*
-				 * boot171: also nudge IOSurfaceRoot — CA/IOSurface
-				 * bind may wait on surface publish after FB open.
+				 * boot171/189: nudge + re-publish IOSurfaceRoot
+				 * after FB open so CA can match/open sel13.
 				 */
 				surf = lapis_published_stub("IOSurfaceRoot");
 				if (surf) {
+					unsigned int *st;
+					IORegistryEntry_setProperty_obj(
+						self, "IOSurfaceRoot", surf);
+					IOService_publishResource(
+						"IOSurfaceRoot", surf);
+					st = (unsigned int *)((char *)surf +
+							      0x48);
+					*st = (*st & ~1u) | 0x1e;
 					IOService_messageClients(
 						surf, LAPIS_IOMSG_PROPERTY_CHANGE,
 						0, 0);
@@ -911,6 +945,7 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 					if (wctx->tc)
 						thread_call_enter(wctx->tc);
 				}
+			}
 			}
 		}
 	}
@@ -1401,16 +1436,19 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		IORegistryEntry_setProperty_cstr(obj, "compatible",
 						 "paravirtualizedgraphics,gpu");
 	}
-	/* boot171: CA/IOSurface bind after IOMFB open — seed surface service. */
+	/* boot171/189: CA/IOSurface bind after IOMFB open — seed surface service. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'S' &&
 	    m->name[3] == 'u') {
 		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOSurfaceRoot");
 		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
 						 "IOSurfaceRoot");
+		IORegistryEntry_setProperty_cstr(obj, "IOUserClientClass",
+						 "IOSurfaceRootUserClient");
 		set_u32(obj, "IOSurfaceAddressBits", 64);
 		set_u32(obj, "IOSurfaceMaxBytesPerPixel", 16);
 		set_u32(obj, "IOSurfaceMaxWidth", 2420);
 		set_u32(obj, "IOSurfaceMaxHeight", 1668);
+		set_u32(obj, "IOSurfaceAllocSizeMax", 0x40000000);
 	}
 
 	/* GPU / Metal clients probe these on matched accelerator nodes. */
