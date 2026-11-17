@@ -1167,8 +1167,8 @@ Image.pth74.
 
 ## Chunk 146 (boot197: GDB force *out at GMD_STR)
 
-| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ГИПОТЕЗА**: forced *out → WxH for BB → isa/SURFACE next. | out/logs/boot197 |
+| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR FORCE ok → *out WxH isa=0. BB FORCE **MemoryError** on stack out=`0x16b64ef10`; still GMD_OUT_NULL (bp-on-str skips native store). | out/logs/boot197 |
 
-## Chunk 147 (boot198: force *out after str, not on str)
+## Chunk 147 (boot198: native str then force/set fallback)
 
-| boot198 | Image.pth128 | same DSC reload; GDB bp on insn *after* str; force if *out still 0 | qemu11 43G lva=off | **ГИПОТЕЗА**: TCG skips insn under bp (boot196–197); after-str bp lets native str run, force as backup → BB WxH → SURFACE. | out/logs/boot198 |
+| boot198 | Image.pth128 | bp AFTER str; if *out=0 try write_memory then `set {u64}`; isa capture/seed on heap obj | qemu11 43G lva=off | **ГИПОТЕЗА**: native str to BB stack out* works without bp-on-str; gdb set helps if needed. | out/logs/boot198 |

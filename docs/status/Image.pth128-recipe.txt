@@ -1,7 +1,8 @@
-Image.pth128 = Image.pth127 (same kernel+DSC) + GDB after-str force
-  boot196–197: bp ON str saw good regs but *out null (TCG may skip bp'd insn).
-  - Arm bp on cave+0x17c (mov x0,x22) AFTER str x21,[x19]
-  - If *out still 0, write_memory; log readback
+Image.pth128 = Image.pth127 (same kernel+DSC) + GDB after-str + set fallback
+  boot197: FDR heap FORCE ok (WxH); BB stack out* write_memory MemoryError;
+           bp-on-str likely skipped native store → GMD_OUT_NULL.
+  - Bp on cave+0x17c AFTER str (native store runs first)
+  - If *out still 0: write_memory, else gdb set {unsigned long long}
   - Timeout 1100s
 
 Build:
