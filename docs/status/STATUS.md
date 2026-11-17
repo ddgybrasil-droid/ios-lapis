@@ -1235,5 +1235,9 @@ Image.pth74.
 
 ## Chunk 163 (boot214: never force analyticsd + 3228 reply)
 
-| boot214 | Image.pth144 | never force/NULLPORT analyticsd; dump 3228 reply; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: real pre-GMD analyticsd + reply dump unlocks/identifies 3228 wall. | out/logs/boot214 |
+| boot214 | Image.pth144 | never force/NULLPORT analyticsd; dump 3228 reply; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ANALYTICS_REAL (x7*=0x100004b03); BB_GMD_OK; then **w00t@0x4b03→SPIN 0x10000000→BB respawn**; 3228=`mach_port_peek` reply id 0xd00 RetCode0. SURFACE sel32. | out/logs/boot214 |
+
+## Chunk 164 (boot215: restore analytics force + peek fail)
+
+| boot215 | Image.pth145 | restore analyticsd 0x9f; after GMD force mach_port_peek RetCode=KERN_FAILURE; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop peek-success busy-loop → BB reaches CA/IOMFB methods. | out/logs/boot215 |
 

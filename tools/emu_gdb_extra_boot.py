@@ -198,9 +198,11 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
-            # boot214: dump 3228 reply buffer (size 52) after RPC returns.
+            # boot214/215: msgid 3228 = mach_port_peek (base 3200+28).
+            # Dump reply; after BB_GMD_OK force KERN_FAILURE (5) so a stuck
+            # peek-success loop cannot burn CPU forever.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
-                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 6):
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 12):
                 try:
                     data = int(_mm2.get('bb_3228_data') or 0)
                     if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
@@ -208,6 +210,17 @@ class _RetSite(gdb.Breakpoint):
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 52, 4))
                         extra += ' reply=[%s]' % words
+                        # RetCode is first u32 after NDR (header 24 + NDR 8).
+                        if _mm2.get('bb_gmd_ok') and _mm2.get('bb_3228', 0) >= 2:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    data + 32, (5).to_bytes(4, 'little'))
+                                extra += ' PEEK_FAIL'
+                            except Exception:
+                                gdb.execute(
+                                    'set {unsigned int}%#x = 5' % (data + 32),
+                                    to_string=True)
+                                extra += ' PEEK_FAIL'
                 except Exception as er:
                     extra += ' reply_err=%r' % er
             if t.startswith('XPC_LOOKUP_RET'):
@@ -231,10 +244,10 @@ class _RetSite(gdb.Breakpoint):
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
+                    # boot214: real analyticsd → w00t@0x4b03 → SPIN 0x10000000
+                    # → BB respawn. Restore force (boot186 path).
+                    "name='com.apple.analyticsd'",
                 ]
-                # boot214: analyticsd is looked up *before* GMD_BODY (boot213),
-                # so post-GMD skip never applies. Stop forcing it entirely and
-                # also skip NULLPORT — observe if BB advances past msgid 3228.
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
@@ -286,9 +299,7 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
-                    # boot214: never NULLPORT-force analyticsd (looked up pre-GMD).
-                    _skip_null = ("name='com.apple.analyticsd'" in t)
-                    if (not force_bb and not _skip_null
+                    if (not force_bb
                             and 'proc=backboardd' in t
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
@@ -314,8 +325,6 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
-                    if (_skip_null and 'proc=backboardd' in t):
-                        extra += ' ANALYTICS_REAL'
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
