@@ -56,7 +56,10 @@ class _RetSite(gdb.Breakpoint):
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
                     ]
-                force_bb = ("proc=backboardd" in t and
+                # boot177: BB early XPC logged as proc=? (pname miss) so
+                # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
+                # boot178: treat proc=? like backboardd for force-name list.
+                force_bb = (("proc=backboardd" in t or "proc=?" in t) and
                             any(n in t for n in _force_names))
                 if force_bb:
                     try:
@@ -81,7 +84,8 @@ class _RetSite(gdb.Breakpoint):
                     # boot177: still deny null cfprefsd.daemon.system for BB.
                     _cfprefs_user = ("name='com.apple.cfprefsd.daemon'" in t
                                      and 'daemon.system' not in t)
-                    if (not force_bb and 'proc=backboardd' in t
+                    if (not force_bb
+                            and ("proc=backboardd" in t or "proc=?" in t)
                             and not _cfprefs_user
                             and (x0 & 0xffffffff) == 0):
                         nullish = True

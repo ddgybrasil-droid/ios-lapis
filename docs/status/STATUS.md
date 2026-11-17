@@ -1083,4 +1083,8 @@ Image.pth74.
 
 ## Chunk 126 (boot177: fake post-IOMFB XPC 0x40000388 + system cfprefs NULLPORT)
 
-| boot177 | Image.pth107 | W00T_FAKE includes 0x40000388/384; NULLPORT cfprefs.system only | qemu11 43G lva=off | **ГИПОТЕЗА**: fake the failing post-open XPC → BB continues to IOMFB IOCONN/sel8. | out/logs/boot177 |
+| boot177 | Image.pth107 | W00T_FAKE includes 0x40000388/384; NULLPORT cfprefs.system only | qemu11 43G lva=off | **ПРОВЕРЕНО**: never reached IOMFB — BB XPC as **proc=?** so ACCHW/RB **not forced**; real RB port → hang; later speculative respawn. | out/logs/boot177 |
+
+## Chunk 127 (boot178: force XPC names for proc=?)
+
+| boot178 | Image.pth108 | treat proc=? as BB for force-name + NULLPORT lists | qemu11 43G lva=off | **ГИПОТЕЗА**: restore RB/ACCHW 0x9f despite pname miss → HID→IOMFB + 0x40000388 fake. | out/logs/boot178 |
