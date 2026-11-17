@@ -1,0 +1,7 @@
+Image.pth151 = Image.pth150 (same kernel+DSC)
+  boot220: FLAG98 seeded; still 0 BB IOMFB IOEXT after GMD.
+  boot221: real frontboard/MG for BB (NULLPORT deny only); SB RB NULLPORT;
+           GMD obj+0x90 dump; T=1800.
+
+Build:
+  cp /tmp/Image.pth150 /tmp/Image.pth151

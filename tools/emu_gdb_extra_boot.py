@@ -185,8 +185,8 @@ class _RetSite(gdb.Breakpoint):
                             _mm2['bb_gmd_ok'] = 1
                             if 'BB_GMD_FORCE' not in extra:
                                 extra += ' BB_GMD_OK'
-                        # boot220: CA may require main/fulfilled flag @+0x98
-                        # (boot116 RE). Seed 1 on successful GMD objects.
+                        # boot220/221: CA may require main/fulfilled flag @+0x98
+                        # (boot116 RE). Seed 1 and read back + dump nearby.
                         if obj and w and h:
                             try:
                                 gdb.selected_inferior().write_memory(
@@ -200,6 +200,14 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' FLAG98=1'
                                 except Exception as e98:
                                     extra += ' flag98_err=%r' % e98
+                            try:
+                                raw98 = _uread(obj + 0x90, 32)
+                                words98 = ' '.join(
+                                    '%08x' % int.from_bytes(raw98[i:i+4], 'little')
+                                    for i in range(0, 32, 4))
+                                extra += ' obj90=[%s]' % words98
+                            except Exception as e90:
+                                extra += ' obj90_err=%r' % e90
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             # boot211/212: BB HID path sees IOHID* CONFORMS → 0; force 1 so
@@ -270,11 +278,13 @@ class _RetSite(gdb.Breakpoint):
                     # force 0x9f like other auth services.
                     "name='com.apple.oscard'",
                 ]
+                # boot221: stop blanket-forcing frontboard/MG pre-IOMFB —
+                # boot220 denied them before GMD and BB never retried; CA may
+                # need a real SB/MG port. Keep RB forced pre-open (hang risk).
+                # NULLPORT below still denies null-endpoint "success".
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
-                        "name='com.apple.frontboard.systemappservices'",
-                        "name='com.apple.mobilegestalt.xpc'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -321,8 +331,13 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
+                    # boot221: also NULLPORT SpringBoard↔runningboard when
+                    # x0=0 but endpoint ptrs are empty (boot220: x7*=None loop).
+                    _null_proc = ('proc=backboardd' in t or
+                                  ('proc=SpringBoard' in t and
+                                   "name='com.apple.runningboard'" in t))
                     if (not force_bb
-                            and 'proc=backboardd' in t
+                            and _null_proc
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True

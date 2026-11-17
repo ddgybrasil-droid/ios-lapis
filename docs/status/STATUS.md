@@ -1259,5 +1259,9 @@ Image.pth74.
 
 ## Chunk 169 (boot220: restore XPC388_FAKE + FLAG98)
 
-| boot220 | Image.pth150 | restore XPC388_FAKE; seed GMD obj+0x98=1; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: fulfilled flag @+0x98 lets CA bind display after GMD. | out/logs/boot220 |
+| boot220 | Image.pth150 | restore XPC388_FAKE; seed GMD obj+0x98=1; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FLAG98=1+BB_GMD_OK+XPC388_FAKE; no W00T; SURFACE sel32; HID NOTE64; still **0** BB IOMFB IOEXT. Frontboard/MG forced pre-GMD, never retried. | out/logs/boot220 |
+
+## Chunk 170 (boot221: real frontboard/MG + SB RB NULLPORT)
+
+| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB/MG port before GMD unlocks CA after FLAG98. | out/logs/boot221 |
 
