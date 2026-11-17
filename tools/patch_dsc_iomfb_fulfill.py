@@ -101,10 +101,11 @@ def build_cave() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame: [sp,#0x8]=iterator out, [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19,
-    # [sp,#0x40]=x29/x30. Keep sp 16-byte aligned.
+    # Frame: [sp,#0x8]=iterator, [sp,#0x10]=x23, [sp,#0x20]=x22/x21,
+    # [sp,#0x30]=x20/x19, [sp,#0x40]=x29/x30.
     emit(0xD503237F)  # pacibsp
     emit(0xD10143FF)  # sub sp, sp, #0x50
+    emit(0xA9017FF7)  # stp x23, xzr, [sp, #0x10]
     emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
     emit(0xA9034FF4)  # stp x20, x19, [sp, #0x30]
     emit(0xA9047BFD)  # stp x29, x30, [sp, #0x40]
@@ -160,8 +161,9 @@ def build_cave() -> list[int]:
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # boot199: exact boot190 full wipe; no stack reload; no cave insn bps.
-    # zero object (16-byte stores) then set Open-critical fields.
+    # boot200: full wipe for BB *out (boot199); stash isa in x23 and restore
+    # AFTER str x21,[x19] — no GDB cave insn bps (those broke stores).
+    emit(0xF94002B7)  # ldr x23, [x21]  (isa)
     emit(0x6F00E400)  # movi v0.2d, #0
     emit(0xAA1503E8)  # mov x8, x21
     emit(0x52801E69)  # movz w9, #0xf3  (0xf30/16)
@@ -224,16 +226,18 @@ def build_cave() -> list[int]:
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
     skip_size = pc
-    emit(0xF9000275)  # str x21, [x19]
+    emit(0xF9000275)  # str x21, [x19]  (*out first)
+    emit(0xF90002B7)  # str x23, [x21]  (restore isa)
     emit(0xAA1603E0)
     emit(enc_bl(pc, REL))
     emit(0xAA1403E0)
     epi = pc
-    emit(0xA9447BFD)
-    emit(0xA9434FF4)
-    emit(0xA94257F6)
-    emit(0x910143FF)
-    emit(0xD65F03C0)
+    emit(0xA9447BFD)  # ldp x29, x30, [sp, #0x40]
+    emit(0xA9434FF4)  # ldp x20, x19, [sp, #0x30]
+    emit(0xA94257F6)  # ldp x22, x21, [sp, #0x20]
+    emit(0xA9417FF7)  # ldp x23, xzr, [sp, #0x10]
+    emit(0x910143FF)  # add sp, sp, #0x50
+    emit(0xD65F03C0)  # ret
     fail = pc
     emit(0x52805800)
     emit(0x72BC0000)

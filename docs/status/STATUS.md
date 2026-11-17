@@ -1175,5 +1175,9 @@ Image.pth74.
 
 ## Chunk 148 (boot199: boot190 cave, zero cave insn bps)
 
-| boot199 | Image.pth129 | DSC exact boot190 408B; GMD_BODY log only (no str/after-str bps) | qemu11 43G lva=off | **ГИПОТЕЗА**: without cave insn bps native str sticks (boot190 BB WxH) → then isa/SURFACE. | out/logs/boot199 |
+| boot199 | Image.pth129 | DSC exact boot190 408B; GMD_BODY log only (no str/after-str bps) | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+**BB GMD *out WxH** isa=0 (restored). Still **0 SURFACE/sel13**. | out/logs/boot199 |
+
+## Chunk 149 (boot200: restore isa after *out, no insn bps)
+
+| boot200 | Image.pth130 | DSC: isa→x23; wipe; str *out then str isa; no cave insn bps | qemu11 43G lva=off | **ГИПОТЕЗА**: WxH + isa≠0 → CA msgSend → SURFACE/sel13. | out/logs/boot200 |
 
