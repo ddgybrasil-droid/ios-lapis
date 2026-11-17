@@ -1279,5 +1279,9 @@ Image.pth74.
 
 ## Chunk 174 (boot225: cave sel5 + sel8 GetDisplaySize)
 
-| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetDisplaySize after UCAL advances CA past first bind. | out/logs/boot225 |
+| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: in-cave sel8 grew cave → clobbered DSC → **initproc panic** (launchd ns=2/0xa). Reverted; restored post-cave from clean. | out/logs/boot225 |
+
+## Chunk 175 (boot226: restore sel5-only cave)
+
+| boot226 | Image.pth156 | sel5-only cave (boot224); scrub post-cave; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore stable BB IOMFB sel=5; sel8 via WRAP_CAVE next. | out/logs/boot226 |
 

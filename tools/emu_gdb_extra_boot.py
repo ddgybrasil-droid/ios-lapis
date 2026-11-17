@@ -1080,6 +1080,11 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
+            # boot224/226: cave Open post-path UCAL / GetDisplaySize
+            if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
+                tag += ' IOMFB_UCAL'
+            if sel == 8 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
+                tag += ' IOMFB_GETSIZE'
             RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)
