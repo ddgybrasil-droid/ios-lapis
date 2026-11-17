@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Wrap IOServiceOpen stub so type=0 opens also probe GetDisplaySize (sel 8).
 
-boot172: BB raw-opens IOMFB and never runs IOMobileFramebufferOpen's
-post-path (canvas + sel8). Wrapping the shared IOServiceOpen stub to call
-IOConnectCallMethod(sel=8) after a successful type=0 open makes the size
-probe happen for BB without requiring Open(). Side-effect on other type=0
-opens is ignored by callers (kr still from Open).
+boot173: APPLIED — BB EXC (FAR=0, ESR translation) immediately after IOMFB
+IOSOPEN_RET; sel8 never reached kernel. REVERTED for boot174. Do not
+--write unless the wrap ABI is fixed (stack/PAC/IOCM args).
 
 Sites (unslid):
   IOSOPEN stub @0x22c6ce800 in .45 → br wrap cave
@@ -249,7 +247,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--image", type=Path, required=True)
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="required for --write (boot173 EXC'd BB)")
     args = ap.parse_args()
+    if args.write and not args.force:
+        raise SystemExit("refusing --write without --force (boot173 EXC)")
     patch_image(args.image, write=args.write)
 
 

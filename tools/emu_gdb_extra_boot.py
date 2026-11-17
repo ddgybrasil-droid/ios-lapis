@@ -984,16 +984,27 @@ def on_mach_msg2():
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
         # boot173: post-IOMFB BB CPU burn with no SPIN — sample w00t/0x40000000.
+        # boot174: IOSOPEN→sel8 wrap EXC'd BB; instead fake-success these
+        # post-open XPC/dispatch waits so BB can reach IOMFB IOCONN/CA.
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
-            if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
-                    and _mm2.get('w00t_n', 0) < 6):
+            if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
                 _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
-                P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
-                    pn0, msgid, remote, _mm2['w00t_n']))
-                try:
-                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
-                except Exception as e:
-                    P('W00T_U err=%r' % e)
+                if _mm2['w00t_n'] <= 6:
+                    P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
+                        pn0, msgid, remote, _mm2['w00t_n']))
+                    try:
+                        _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                    except Exception as e:
+                        P('W00T_U err=%r' % e)
+                if _mm2['w00t_n'] <= 64:
+                    try:
+                        gdb.execute('set $x0 = 0', to_string=True)
+                        gdb.execute('set $pc = $x30', to_string=True)
+                        if _mm2['w00t_n'] <= 8:
+                            P('POST_IOMFB_W00T_FAKE n=%d msgid=%#x' % (
+                                _mm2['w00t_n'], msgid))
+                    except Exception as e:
+                        P('W00T_FAKE err=%r' % e)
             return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.

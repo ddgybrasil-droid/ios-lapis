@@ -1067,4 +1067,8 @@ Image.pth74.
 
 ## Chunk 122 (boot173: DSC IOSOPEN→sel8 wrap + Open-wrap sel8)
 
-| boot173 | Image.pth103 | wrap IOServiceOpen stub → sel8 GetDisplaySize; Open-wrap w1=#8; W00T sample | qemu11 43G lva=off | **ГИПОТЕЗА**: BB raw-open never ran Open post-path — force sel8 after type=0 open → IOCONN/CA. | out/logs/boot173 |
+| boot173 | Image.pth103 | wrap IOServiceOpen stub → sel8 GetDisplaySize; Open-wrap w1=#8; W00T sample | qemu11 43G lva=off | **ПРОВЕРЕНО**: IOMFB open x0=0 then **BB EXC** FAR=0 (wrap ABI); **0** IOEXTMETHOD sel8. W00T samples post-crash/respawn. Wrap **reverted**. | out/logs/boot173 |
+
+## Chunk 123 (boot174: revert wrap; fake post-IOMFB W00T success)
+
+| boot174 | Image.pth104 | restore IOSOPEN stub; GDB W00T_FAKE x0=0/pc=lr after IOMFB open | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open w00t/0x40000000 XPC waits burn BB — fake success → IOMFB IOCONN/CA. | out/logs/boot174 |
