@@ -351,7 +351,8 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
     else:
         print(f"{CAVE:#x}: open cave already present")
 
-    # boot227: sel=8 GetDisplaySize helper in WRAP_SEL8 (x21=obj, conn@+0x14).
+    # boot227/228: sel=8 helper. boot227 reused cave SP and CallMethod
+    # smashed saved x21/x30 → no GMD_BODY_RET. Allocate a private frame.
     wrap: list[int] = []
     wpc = WRAP_SEL8
 
@@ -360,6 +361,7 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
         wrap.append(insn)
         wpc += 4
 
+    wemit(0xD10083FF)  # sub sp, sp, #0x20
     wemit(0xB94016A0)  # ldr w0, [x21, #0x14]
     wemit(0x52800101)  # movz w1, #8
     wemit(0xD2800002)  # movz x2, #0
@@ -371,6 +373,7 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
     wemit(0xB90003E8)  # str w8, [sp]
     wemit(0x910003E7)  # mov x7, sp
     wemit(enc_bl(wpc, CALLMETHOD))
+    wemit(0x910083FF)  # add sp, sp, #0x20
     wemit(0xD65F03C0)  # ret
     wrap_blob = b"".join(struct.pack("<I", w) for w in wrap)
     fo_wrap = WRAP_SEL8 - SUBCACHE_BASE

@@ -1287,5 +1287,9 @@ Image.pth74.
 
 ## Chunk 176 (boot227: sel8 via WRAP_CAVE)
 
-| boot227 | Image.pth157 | cave BL WRAP_SEL8 after sel5 (484B cave); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: WRAP sel8 avoids cave clobber; BB gets sel=5+8. | out/logs/boot227 |
+| boot227 | Image.pth157 | cave BL WRAP_SEL8 after sel5 (484B cave); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB+FDR sel=5+8 x0=0 but **no GMD_BODY_RET** — WRAP reused cave SP, CallMethod smashed frame. | out/logs/boot227 |
+
+## Chunk 177 (boot228: WRAP_SEL8 private stack)
+
+| boot228 | Image.pth158 | WRAP_SEL8 sub sp,#0x20 before CallMethod; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: private frame lets GMD return after sel8 with *out intact. | out/logs/boot228 |
 
