@@ -1,0 +1,11 @@
+Image.pth97 = Image.pth96 + richer digitizer + deferred IOMFB wake
+  boot166: re-pulse ok; post-IOMFB only analyticsd XPC; SPIN 0x10000000→0x7c03;
+           still 0 IOMFB IOCONN/canvas/sel8.
+  - Restore boot161 digitizer touch/range fields (CLEARED is 4-byte safe)
+  - 6× HID re-pulse; delay first 100ms
+  - Deferred IOMFB messageClients (3× after NUC)
+  - GDB: dump 0x10000000 mach msg header words
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth97

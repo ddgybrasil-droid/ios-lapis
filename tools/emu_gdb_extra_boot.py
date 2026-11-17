@@ -939,6 +939,7 @@ def on_mach_msg2():
             return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.
+        # boot167: also dump trap msg header words (identify port peer).
         if msgid == 0x10000000 and 'backboard' in pn0.lower():
             _mm2['spin1'] = _mm2.get('spin1', 0) + 1
             if _mm2['spin1'] <= 8:
@@ -946,6 +947,17 @@ def on_mach_msg2():
                        else 'MACHMSG2_SPIN')
                 P('%s proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
                     tag, pn0, remote, local, r('x30'), _mm2['spin1']))
+                if _mm2['spin1'] <= 3:
+                    try:
+                        data = m64(ap)
+                        if data:
+                            w0 = m32(data); w1 = m32(data + 4)
+                            w2 = m32(data + 8); w3 = m32(data + 12)
+                            P('%s_HDR data=%#x w=%#x,%#x,%#x,%#x opt=%#x send=%d' % (
+                                tag, data, w0 or 0, w1 or 0, w2 or 0, w3 or 0,
+                                opt64 & 0xffffffff, send_sz))
+                    except Exception as e:
+                        P('SPIN_HDR err=%r' % e)
                 # boot164/166: userspace frames; prefer post-IOMFB samples.
                 if _mm2['spin1'] <= 3 or (_mm2.get('post_iomfb')
                                           and _mm2.get('post_spin_uf', 0) < 3):

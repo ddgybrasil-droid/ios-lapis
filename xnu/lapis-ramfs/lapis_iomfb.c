@@ -739,6 +739,32 @@ void *lapis_addMatchingNotification(void *type, void *matching, void *handler,
 	return ret;
 }
 
+struct lapis_iomfb_wake_ctx {
+	void *service;
+	lapis_thread_call_t tc;
+	int n;
+};
+
+/* boot167: re-nudge IOMFB property-change after BB raw-open + analyticsd. */
+static void lapis_iomfb_deferred_wake(void *p0, void *p1)
+{
+	struct lapis_iomfb_wake_ctx *ctx = p0;
+
+	(void)p1;
+	if (!ctx || !ctx->service)
+		return;
+	if (ctx->n == 0)
+		IOSleep(500);
+	IOService_messageClients(ctx->service, LAPIS_IOMSG_PROPERTY_CHANGE,
+				 0, 0);
+	IOLog("LAPIS iomfb: deferred wake msgclients\n");
+	ctx->n++;
+	if (ctx->n < 3 && ctx->tc) {
+		IOSleep(750);
+		thread_call_enter(ctx->tc);
+	}
+}
+
 /*
  * ABI matches IOService::newUserClient(task*, void*, uint32, OSDictionary*, IOUserClient**).
  * x0=self, x1=task, x2=security_id, w3=type, x4=properties, x5=out
@@ -821,9 +847,22 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 			 * the same way a real FB would after mode set.
 			 */
 			if (self) {
+				struct lapis_iomfb_wake_ctx *wctx;
+
 				IOService_messageClients(
 					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 				IOLog("LAPIS iomfb: msgclients property-change\n");
+				/* boot167: BB opens then never IOCONN — re-wake. */
+				wctx = IOMallocZero(sizeof(*wctx));
+				if (wctx) {
+					wctx->service = self;
+					OSObject_retain(self);
+					wctx->tc = thread_call_allocate(
+						lapis_iomfb_deferred_wake, wctx);
+					wctx->n = 0;
+					if (wctx->tc)
+						thread_call_enter(wctx->tc);
+				}
 			}
 		}
 	}
@@ -880,15 +919,31 @@ static void lapis_fill_digitizer_pulse(unsigned char *pulse)
 {
 	int i;
 	unsigned int *u32;
+	unsigned long long *u64;
 
 	for (i = 0; i < 64; i++)
 		pulse[i] = 0;
+	/*
+	 * IOHIDEventData: size, type, timestamp, options, depth…
+	 * boot161 richer fields were fine; EXC came from 8-byte CLEARED.
+	 * boot167: restore touch/range so EventServicePlugin can classify.
+	 */
 	u32 = (unsigned int *)pulse;
-	u32[0] = 64;
-	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
+	u64 = (unsigned long long *)pulse;
+	u32[0] = 64;  /* size */
+	u32[1] = 11;  /* kIOHIDEventTypeDigitizer */
+	u64[1] = 1;   /* timestamp @+8 */
+	u32[4] = 0;   /* options @+16 */
+	u32[5] = 0;   /* depth */
+	u32[8] = 0x3; /* eventMask: touch + position */
+	u32[9] = 1;   /* touching */
+	u32[10] = 0x3;
+	u32[11] = 0;  /* identity */
+	u32[12] = 1210; /* x mid */
+	u32[13] = 834;  /* y mid */
 }
 
-/* boot166: post-IOMFB BB sits in xpc/pthread wait — keep feeding HID. */
+/* boot166/167: post-IOMFB BB sits in msgid 0x10000000 spin — keep feeding HID. */
 static void lapis_hid_repulse(void *p0, void *p1)
 {
 	struct lapis_repulse_ctx *ctx = p0;
@@ -899,6 +954,9 @@ static void lapis_hid_repulse(void *p0, void *p1)
 	(void)p1;
 	if (!ctx || !ctx->owner)
 		return;
+	/* Delay first re-pulse so NOTE64 consumer can arm. */
+	if (ctx->n == 0)
+		IOSleep(100);
 	lapis_fill_digitizer_pulse(pulse);
 	q = lapis_hid_queue_for(ctx->owner);
 	if (q) {
@@ -908,7 +966,7 @@ static void lapis_hid_repulse(void *p0, void *p1)
 			  : "LAPIS iomfb: repulse enqfail\n");
 	}
 	ctx->n++;
-	if (ctx->n < 4 && ctx->tc) {
+	if (ctx->n < 6 && ctx->tc) {
 		IOSleep(250);
 		thread_call_enter(ctx->tc);
 	}

@@ -1039,4 +1039,8 @@ Image.pth74.
 
 ## Chunk 115 (boot166: HID re-pulse + post-IOMFB BB XPC log)
 
-| boot166 | Image.pth96 | delayed HID enqueue pulses; log all BB XPC after IOMFB; SPIN tag post_iomfb | qemu11 43G lva=off | **ГИПОТЕЗА**: digitizer/XPC wait unblocks → IOMFB/CA IOCONN or named XPC to force. | out/logs/boot166 |
+| boot166 | Image.pth96 | delayed HID enqueue pulses; log all BB XPC after IOMFB; SPIN tag post_iomfb | qemu11 43G lva=off | **ПРОВЕРЕНО**: `regnote`×3 + `repulse enq`×12 ok. CLEARED ok. IOMFB open+msgclients+WINDOW. `POST_IOMFB_U` msgid **1026/1018** (analyticsd). Post-open BB XPC: only analyticsd RET — **no new named wait**. Still **0** IOMFB IOCONN/canvas/sel8 (HID IOCONN only). `POST_IOMFB_SPIN` msgid `0x10000000`→remote `0x7c03` (xpc/pthread). GMD FDR-only. HID re-pulse alone does not unlock display path. | out/logs/boot166 |
+
+## Chunk 116 (boot167: richer digitizer + deferred IOMFB wake + SPIN hdr)
+
+| boot167 | Image.pth97 | boot161-style digitizer fields; deferred IOMFB messageClients; SPIN msg hdr dump | qemu11 43G lva=off | **ГИПОТЕЗА**: classified touch event + delayed FB property-change → BB IOCONN/sel8; SPIN_HDR names the `0x7c03` peer. | out/logs/boot167 |
