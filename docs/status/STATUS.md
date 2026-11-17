@@ -1035,4 +1035,8 @@ Image.pth74.
 
 ## Chunk 114 (boot165: post-IOMFB uframes + CLEARED via set + cave size fields)
 
-| boot165 | Image.pth95 | post-IOMFB BB uframes; CLEARED set{int}; GMD cave store 2420×1668 | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open wait PC named; port CLEARED restored; GMD object sized → CA/sel8 path. | out/logs/boot165 |
+| boot165 | Image.pth95 | post-IOMFB BB uframes; CLEARED set{int}; GMD cave store 2420×1668 | qemu11 43G lva=off | **ПРОВЕРЕНО**: CLEARED restored (ACCHW/RB/frontboard). GMD only FDR x0=0; FDR exit=1. IOMFB open+msgclients; **0** post-open IOCONN. `POST_IOMFB_U` unused (BB only sends filtered msgid `0x10000000`). Post-open `SPIN_U` n=2/3: same stack libsystem_kernel→dispatch→**xpc**→**pthread** (`0x1e261d3b0`) — XPC/cond wait, not IOKit. | out/logs/boot165 |
+
+## Chunk 115 (boot166: HID re-pulse + post-IOMFB BB XPC log)
+
+| boot166 | Image.pth96 | delayed HID enqueue pulses; log all BB XPC after IOMFB; SPIN tag post_iomfb | qemu11 43G lva=off | **ГИПОТЕЗА**: digitizer/XPC wait unblocks → IOMFB/CA IOCONN or named XPC to force. | out/logs/boot166 |

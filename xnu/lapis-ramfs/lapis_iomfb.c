@@ -870,26 +870,67 @@ static void *lapis_hid_queue_for(void *owner)
  * the shared HID IODataQueue so enqueue can signal userspace.
  * Image B-patches both jj/jy overloads onto this.
  */
+struct lapis_repulse_ctx {
+	void *owner;
+	lapis_thread_call_t tc;
+	int n;
+};
+
+static void lapis_fill_digitizer_pulse(unsigned char *pulse)
+{
+	int i;
+	unsigned int *u32;
+
+	for (i = 0; i < 64; i++)
+		pulse[i] = 0;
+	u32 = (unsigned int *)pulse;
+	u32[0] = 64;
+	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
+}
+
+/* boot166: post-IOMFB BB sits in xpc/pthread wait — keep feeding HID. */
+static void lapis_hid_repulse(void *p0, void *p1)
+{
+	struct lapis_repulse_ctx *ctx = p0;
+	unsigned char pulse[64];
+	void *q;
+	int enq;
+
+	(void)p1;
+	if (!ctx || !ctx->owner)
+		return;
+	lapis_fill_digitizer_pulse(pulse);
+	q = lapis_hid_queue_for(ctx->owner);
+	if (q) {
+		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
+		OSObject_release(q);
+		IOLog(enq ? "LAPIS iomfb: repulse enq\n"
+			  : "LAPIS iomfb: repulse enqfail\n");
+	}
+	ctx->n++;
+	if (ctx->n < 4 && ctx->tc) {
+		IOSleep(250);
+		thread_call_enter(ctx->tc);
+	}
+}
+
 int lapis_register_notification_port(void *self, void *port,
 				     unsigned int type, unsigned long long ref)
 {
 	void *q;
+	struct lapis_repulse_ctx *ctx;
 	/*
 	 * boot157: empty queue → BRK after NOTE64. boot159: 8B zeros hold.
 	 * boot160: len+type=digitizer held (no BRK). boot161: richer touch
 	 * fields + 8-byte CLEARED → BB EXC before IOMFB; keep boot160 pulse.
+	 * boot166: schedule delayed re-pulses (post-IOMFB xpc/pthread wait).
 	 */
 	unsigned char pulse[64];
-	int i, enq;
-	unsigned int *u32;
+	int enq;
 
 	(void)type;
 	(void)ref;
-	for (i = 0; i < 64; i++)
-		pulse[i] = 0;
-	u32 = (unsigned int *)pulse;
-	u32[0] = 64; /* IOHIDEvent length */
-	u32[1] = 11; /* kIOHIDEventTypeDigitizer */
+	lapis_fill_digitizer_pulse(pulse);
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
@@ -899,6 +940,15 @@ int lapis_register_notification_port(void *self, void *port,
 		OSObject_release(q);
 		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
 			  : "LAPIS iomfb: regnote ok enqfail\n");
+		ctx = IOMallocZero(sizeof(*ctx));
+		if (ctx) {
+			ctx->owner = self;
+			OSObject_retain(self);
+			ctx->tc = thread_call_allocate(lapis_hid_repulse, ctx);
+			ctx->n = 0;
+			if (ctx->tc)
+				thread_call_enter(ctx->tc);
+		}
 		return 0;
 	}
 	IOLog("LAPIS iomfb: regnote ok\n");

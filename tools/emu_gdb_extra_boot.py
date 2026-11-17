@@ -521,10 +521,14 @@ def _ufn(n):
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
             interesting_svc = any(s in (name or '') for s in (
                 'containermanager', 'cfprefs', 'backboard', 'CARender', 'render',
-                'frontboard', 'runningboard', 'display', 'hid'))
-            if ((interesting_svc or
-                 pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
-                and _xl_cnt[k]<=8):
+                'frontboard', 'runningboard', 'display', 'hid', 'analytics',
+                'location', 'chrono', 'ca.', 'Quartz', 'WindowServer'))
+            # boot166: after IOMFB open log every BB XPC name (find the wait).
+            post_bb = (pn == 'backboardd' and _mm2.get('post_iomfb')
+                       and _xl_cnt[k] <= 40)
+            if (((interesting_svc or
+                  pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
+                 and _xl_cnt[k]<=8) or post_bb):
                 # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
                 # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
                 # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
@@ -938,12 +942,20 @@ def on_mach_msg2():
         if msgid == 0x10000000 and 'backboard' in pn0.lower():
             _mm2['spin1'] = _mm2.get('spin1', 0) + 1
             if _mm2['spin1'] <= 8:
-                P('MACHMSG2_SPIN proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
-                    pn0, remote, local, r('x30'), _mm2['spin1']))
-                # boot164: dump userspace PC/frames for the post-IOMFB wait.
-                if _mm2['spin1'] <= 3:
+                tag = ('POST_IOMFB_SPIN' if _mm2.get('post_iomfb')
+                       else 'MACHMSG2_SPIN')
+                P('%s proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
+                    tag, pn0, remote, local, r('x30'), _mm2['spin1']))
+                # boot164/166: userspace frames; prefer post-IOMFB samples.
+                if _mm2['spin1'] <= 3 or (_mm2.get('post_iomfb')
+                                          and _mm2.get('post_spin_uf', 0) < 3):
+                    if _mm2.get('post_iomfb'):
+                        _mm2['post_spin_uf'] = _mm2.get('post_spin_uf', 0) + 1
                     try:
-                        _uframes('MACHMSG2_SPIN_U', 'n=%d' % _mm2['spin1'])
+                        _uframes(
+                            'POST_IOMFB_SPIN_U' if _mm2.get('post_iomfb')
+                            else 'MACHMSG2_SPIN_U',
+                            'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
             return False
