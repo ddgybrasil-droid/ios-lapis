@@ -1,0 +1,6 @@
+Image.pth147 = Image.pth146 (same kernel+DSC)
+  boot216: 1× PEEK_FAIL; MemoryError on other peeks; no CA unlock.
+  boot217: x/gx peek r/w; keep 3228 logging past machmsg cap; T=1800.
+
+Build:
+  cp /tmp/Image.pth146 /tmp/Image.pth147

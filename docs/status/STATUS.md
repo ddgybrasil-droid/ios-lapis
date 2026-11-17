@@ -1243,5 +1243,9 @@ Image.pth74.
 
 ## Chunk 165 (boot216: PEEK_FAIL retest T=1800)
 
-| boot216 | Image.pth146 | same as boot215; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: longer window reaches GMD + PEEK_FAIL → CA progress. | out/logs/boot216 |
+| boot216 | Image.pth146 | same as boot215; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB_GMD_OK; analytics FORCED; **1× PEEK_FAIL** (others MemoryError); SURFACE sel32; still **0 BB IOMFB IOEXT** / no CA unlock. | out/logs/boot216 |
+
+## Chunk 166 (boot217: reliable PEEK_FAIL via x/gx)
+
+| boot217 | Image.pth147 | x/gx peek r/w; exempt 3228 from machmsg cap; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: every post-GMD peek → PEEK_FAIL clears busy-loop toward CA. | out/logs/boot217 |
 

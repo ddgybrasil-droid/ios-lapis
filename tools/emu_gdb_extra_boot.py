@@ -198,29 +198,44 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
-            # boot214/215: msgid 3228 = mach_port_peek (base 3200+28).
-            # Dump reply; after BB_GMD_OK force KERN_FAILURE (5) so a stuck
-            # peek-success loop cannot burn CPU forever.
+            # boot214–217: msgid 3228 = mach_port_peek (base 3200+28).
+            # boot216: read_memory often MemoryError — use x/gx like GMD.
+            # After BB_GMD_OK force KERN_FAILURE (5) on every peek we can patch.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
-                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 12):
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 24):
                 try:
                     data = int(_mm2.get('bb_3228_data') or 0)
                     if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
-                        raw = bytes(gdb.selected_inferior().read_memory(data, 52))
+                        def _peek_uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
+                        raw = _peek_uread(data, 52)
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 52, 4))
                         extra += ' reply=[%s]' % words
                         # RetCode is first u32 after NDR (header 24 + NDR 8).
-                        if _mm2.get('bb_gmd_ok') and _mm2.get('bb_3228', 0) >= 2:
+                        if _mm2.get('bb_gmd_ok'):
                             try:
                                 gdb.selected_inferior().write_memory(
                                     data + 32, (5).to_bytes(4, 'little'))
-                                extra += ' PEEK_FAIL'
                             except Exception:
                                 gdb.execute(
                                     'set {unsigned int}%#x = 5' % (data + 32),
                                     to_string=True)
-                                extra += ' PEEK_FAIL'
+                            extra += ' PEEK_FAIL'
                 except Exception as er:
                     extra += ' reply_err=%r' % er
             if t.startswith('XPC_LOOKUP_RET'):
@@ -1332,20 +1347,33 @@ def on_mach_msg2():
                         P('SPIN_U err=%r' % e)
             return False
         _mm2['n'] += 1
-        if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
-            return False
-        if _mm2.get('post_iomfb') and _mm2['n'] > 550:
-            return False
-        if msgid == 3228 and 'backboard' in pn0.lower():
+        # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
+        is_bb_peek = (msgid == 3228 and 'backboard' in pn0.lower())
+        if not is_bb_peek:
+            if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
+                return False
+            if _mm2.get('post_iomfb') and _mm2['n'] > 550:
+                return False
+        if is_bb_peek:
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
             data = m64(ap + 0)
             _mm2['bb_3228_data'] = data
-            if _mm2['bb_3228'] <= 8:
+            if _mm2['bb_3228'] <= 16:
                 hdr = ''
                 try:
-                    # mach_msg2_trap_args.data = userspace msg buffer
                     if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
-                        raw = bytes(gdb.selected_inferior().read_memory(data, 48))
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                data, 48))
+                        except Exception:
+                            raw = bytearray()
+                            for off in range(0, 48, 8):
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (data + off), to_string=True)
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            raw = bytes(raw[:48])
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 48, 4))
                         hdr = ' hdr=[%s]' % words
