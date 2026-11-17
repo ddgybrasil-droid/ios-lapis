@@ -1,0 +1,10 @@
+Image.pth99 = Image.pth98 + restore frontboard force + richer IOMFB wake
+  boot168: prop seeds ok; frontboard x0=0/null port; IOMFB open; 0 IOCONN;
+           spin samples burned before post_iomfb.
+  - Restore frontboard FORCED 0x9f (null real endpoint is worse)
+  - Deferred wake rotates property/power/resume/gfx IOMessages
+  - Reset spin1/post_uf at post_iomfb for SPIN_HDR after open
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth99

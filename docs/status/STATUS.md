@@ -1047,4 +1047,8 @@ Image.pth74.
 
 ## Chunk 117 (boot168: real frontboard + seed missing HID/IOMFB props)
 
-| boot168 | Image.pth98 | drop frontboard 0x9f force; seed IOClassNameOverride/Hidden/… | qemu11 43G lva=off | **ГИПОТЕЗА**: real frontboard (SB) unblocks MACH_SEND_NOTIFY wait → CA/IOMFB IOCONN; missing prop seeds clear HID reject path. | out/logs/boot168 |
+| boot168 | Image.pth98 | drop frontboard 0x9f force; seed IOClassNameOverride/Hidden/… | qemu11 43G lva=off | **ПРОВЕРЕНО**: seeded props **x0=0** (was 0xe00002f0). Frontboard **real x0=0 but x7*=None** (null endpoint — worse than 0x9f). Still reached HID→IOMFB open+WINDOW. Still **0** IOMFB IOCONN/canvas/sel8. Pre-IOMFB SPIN_HDR now readable (`msgh_bits=0x080809b8` size=1 opt=`0x231`). No post-IOMFB SPIN samples (spin cap burned pre-open). | out/logs/boot168 |
+
+## Chunk 118 (boot169: restore frontboard force + richer FB wake msgs + SPIN reset)
+
+| boot169 | Image.pth99 | frontboard 0x9f again; wake msgs power/resume/gfx; reset spin1 at post_iomfb | qemu11 43G lva=off | **ГИПОТЕЗА**: explicit frontboard deny + alternate IOMessages → interest handlers run GetDisplaySize/IOCONN; post-IOMFB SPIN_HDR identifies wait. | out/logs/boot169 |

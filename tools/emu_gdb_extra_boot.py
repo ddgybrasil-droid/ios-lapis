@@ -39,13 +39,14 @@ class _RetSite(gdb.Breakpoint):
                 # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
                 # spins — allow real RB/frontboard once post_iomfb so display
                 # assertions can check in; keep ACCHW forced always.
-                # boot168: SPIN_HDR is MACH_SEND_NOTIFY/send=2 (service wait), not
-                # IOKit. Forced frontboard 0x9f may skip SB/CA publish BB needs
-                # after IOMFB — keep ACCHW+RB force only; let frontboard be real.
+                # boot168: real frontboard returned x0=0 with x7*=None (null
+                # endpoint) — worse than 0x9f; BB still 0 IOMFB IOCONN. boot169:
+                # restore frontboard force with ACCHW+RB (explicit deny).
                 _force_names = ["name='com.apple.ACCHWComponentAuthService'"]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
+                        "name='com.apple.frontboard.systemappservices'",
                     ]
                 force_bb = ("proc=backboardd" in t and
                             any(n in t for n in _force_names))
@@ -659,6 +660,11 @@ def on_iosopen():
             _iosopen_cnt['bb'] = _iosopen_cnt.get('bb', 0) + 1
             if _iosopen_cnt['bb'] >= 2 and not _mm2.get('post_iomfb'):
                 _mm2['post_iomfb'] = 1
+                # boot169: pre-IOMFB SPIN samples burn the cap — reset so
+                # post-open 0x10000000 waits get SPIN_HDR/frames.
+                _mm2['spin1'] = 0
+                _mm2['post_spin_uf'] = 0
+                _mm2['post_uf'] = 0
                 _mm2['n'] = 300
                 P('MACHMSG2_WINDOW post-IOMFB reopen')
         RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
