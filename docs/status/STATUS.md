@@ -1195,5 +1195,9 @@ Image.pth74.
 
 ## Chunk 153 (boot204: zero obj+0x8 beside preserved isa)
 
-| boot204 | Image.pth134 | wipe+0x10 + str xzr,[obj,#8]; *out gdb x/gx fallback | qemu11 43G lva=off | **ГИПОТЕЗА**: clean ivar0 + isa → CA msgSend → SURFACE. | out/logs/boot204 |
+| boot204 | Image.pth134 | wipe+0x10 + str xzr,[obj,#8]; *out gdb x/gx fallback | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR/BB *out non-null via x/gx (parser took ADDR first); obj40/isa dump MemoryError → **no ISA_CAPTURED/SB_RB_REAL**; 0 SURFACE. | out/logs/boot204 |
+
+## Chunk 154 (boot205: fix GMD dump x/gx value+obj)
+
+| boot205 | Image.pth135 | same DSC; parse *out VALUE; x/gx obj40/isa | qemu11 43G lva=off | **ГИПОТЕЗА**: ISA_CAPTURED + SB_RB_REAL + clean +0x8 → SURFACE. | out/logs/boot205 |
 

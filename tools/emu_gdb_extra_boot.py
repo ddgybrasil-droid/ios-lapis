@@ -46,10 +46,12 @@ class _RetSite(gdb.Breakpoint):
                             try:
                                 xs = gdb.execute('x/gx %#x' % op, to_string=True)
                                 extra += ' *out_x=%r' % xs.strip()[:80]
-                                for tok in xs.replace(':', ' ').split():
-                                    if tok.startswith('0x') and len(tok) > 5:
-                                        obj = int(tok, 16)
-                                        break
+                                # gdb prints "ADDR:\tVALUE" — take the last 0x
+                                # token (VALUE), not the address.
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                if toks:
+                                    obj = int(toks[-1], 16)
                             except Exception as e1:
                                 extra += ' *out_x_err=%r' % e1
                     extra += ' *out=%#x' % (obj or 0)
@@ -66,23 +68,38 @@ class _RetSite(gdb.Breakpoint):
                         except Exception as er:
                             extra += ' regs_err=%r' % er
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
+                        def _uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                # boot204/205: GDB often MemoryError on heap
+                                # under the wrong thread — x/gx still works.
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x30, 8))
+                            raw = _uread(obj + 0x30, 8)
                             w = int.from_bytes(raw[0:4], 'little')
                             h = int.from_bytes(raw[4:8], 'little')
                             extra += ' size=%dx%d' % (w, h)
                         except Exception as e2:
                             extra += ' size_err=%r' % e2
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x14, 4))
+                            raw = _uread(obj + 0x14, 8)[:4]
                             extra += ' conn=%#x' % int.from_bytes(raw, 'little')
                         except Exception as e3:
                             extra += ' conn_err=%r' % e3
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj, 0x40))
+                            raw = _uread(obj, 0x40)
                             words = ' '.join('%08x' % int.from_bytes(
                                 raw[i:i+4], 'little') for i in range(0, 0x40, 4))
                             extra += ' obj40=[%s]' % words
@@ -106,11 +123,9 @@ class _RetSite(gdb.Breakpoint):
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x838, 4))
+                            raw = _uread(obj + 0x838, 8)[:4]
                             extra += ' f838=%#x' % int.from_bytes(raw, 'little')
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0xc08, 4))
+                            raw = _uread(obj + 0xc08, 8)[:4]
                             extra += ' fc08=%#x' % int.from_bytes(raw, 'little')
                         except Exception as e5:
                             extra += ' flag_err=%r' % e5

@@ -1,0 +1,6 @@
+Image.pth135 = Image.pth134 (same kernel+DSC zero +0x8)
+  boot204: *out x/gx worked but parser/obj dump failed → no isa seed.
+  boot205: take VALUE from x/gx; dump obj via x/gx for isa/WxH/+0x8.
+
+Build:
+  cp /tmp/Image.pth134 /tmp/Image.pth135
