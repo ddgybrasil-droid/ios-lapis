@@ -101,11 +101,11 @@ def build_cave() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame: [sp,#0x8]=iterator, [sp,#0x10]=x23, [sp,#0x20]=x22/x21,
-    # [sp,#0x30]=x20/x19, [sp,#0x40]=x29/x30.
+    # Frame: [sp,#0x8]=iterator out, [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19,
+    # [sp,#0x40]=x29/x30. Keep sp 16-byte aligned. (boot202: no x23 — that
+    # path nulled *out in boot201 even without cave insn breakpoints.)
     emit(0xD503237F)  # pacibsp
     emit(0xD10143FF)  # sub sp, sp, #0x50
-    emit(0xA9017FF7)  # stp x23, xzr, [sp, #0x10]
     emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
     emit(0xA9034FF4)  # stp x20, x19, [sp, #0x30]
     emit(0xA9047BFD)  # stp x29, x30, [sp, #0x40]
@@ -161,12 +161,11 @@ def build_cave() -> list[int]:
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # boot200: full wipe for BB *out (boot199); stash isa in x23 and restore
-    # AFTER str x21,[x19] — no GDB cave insn bps (those broke stores).
-    emit(0xF94002B7)  # ldr x23, [x21]  (isa)
+    # boot202: wipe from +0x10 so typed_malloc isa at [x21] survives (boot199
+    # full wipe → WxH but isa=0; boot201 x23 stash/restore → *out NULL).
     emit(0x6F00E400)  # movi v0.2d, #0
-    emit(0xAA1503E8)  # mov x8, x21
-    emit(0x52801E69)  # movz w9, #0xf3  (0xf30/16)
+    emit(0x910042A8)  # add x8, x21, #0x10
+    emit(0x52801E49)  # movz w9, #0xf2  ((0xf30-0x10)/16)
     zloop = pc
     emit(0x3C810500)  # str q0, [x8], #16
     emit(0x71000529)  # subs w9, w9, #1
@@ -226,8 +225,7 @@ def build_cave() -> list[int]:
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
     skip_size = pc
-    emit(0xF9000275)  # str x21, [x19]  (*out first)
-    emit(0xF90002B7)  # str x23, [x21]  (restore isa)
+    emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)
     emit(enc_bl(pc, REL))
     emit(0xAA1403E0)
@@ -235,7 +233,6 @@ def build_cave() -> list[int]:
     emit(0xA9447BFD)  # ldp x29, x30, [sp, #0x40]
     emit(0xA9434FF4)  # ldp x20, x19, [sp, #0x30]
     emit(0xA94257F6)  # ldp x22, x21, [sp, #0x20]
-    emit(0xA9417FF7)  # ldp x23, xzr, [sp, #0x10]
     emit(0x910143FF)  # add sp, sp, #0x50
     emit(0xD65F03C0)  # ret
     fail = pc

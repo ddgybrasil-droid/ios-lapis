@@ -1,0 +1,7 @@
+Image.pth132 = Image.pth131 kernel + DSC wipe-from-+0x10 (preserve isa)
+  boot201: x23 isa stash/restore → GMD_OUT_NULL (regress vs boot199 WxH).
+  boot202: no x23; skip first 16B of object wipe so typed_malloc isa remains.
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth131 /tmp/Image.pth132

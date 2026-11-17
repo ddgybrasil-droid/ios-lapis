@@ -1183,5 +1183,9 @@ Image.pth74.
 
 ## Chunk 150 (boot201: retest isa restore, same cave)
 
-| boot201 | Image.pth130 | same DSC/kernel as boot200; expect GMD past panic | qemu11 43G lva=off | **ГИПОТЕЗА**: reach BB GMD *out WxH with isa≠0 → SURFACE. | out/logs/boot201 |
+| boot201 | Image.pth131 | same DSC/kernel as boot200; expect GMD past panic | qemu11 43G lva=off | **ПРОВЕРЕНО**: past panic; FDR+BB GMD Open ok but **GMD_OUT_NULL** (x23 isa path regresses *out vs boot199). 0 SURFACE. | out/logs/boot201 |
+
+## Chunk 151 (boot202: preserve isa by skipping wipe of [obj,#0])
+
+| boot202 | Image.pth132 | boot199 frame; wipe from +0x10; no x23 | qemu11 43G lva=off | **ГИПОТЕЗА**: WxH like boot199 + isa≠0 → SURFACE/sel13. | out/logs/boot202 |
 

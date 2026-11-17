@@ -38,8 +38,9 @@ class _RetSite(gdb.Breakpoint):
                         try:
                             raw = bytes(gdb.selected_inferior().read_memory(op, 8))
                             obj = int.from_bytes(raw, 'little')
-                        except Exception:
+                        except Exception as e0:
                             obj = 0
+                            extra += ' *out_read_err=%r' % e0
                     extra += ' *out=%#x' % (obj or 0)
                     if not obj:
                         extra += ' GMD_OUT_NULL'
