@@ -1159,4 +1159,8 @@ Image.pth74.
 
 ## Chunk 144 (boot195: revert cave to boot190 + reg dump)
 
-| boot195 | Image.pth125 | DSC exact boot190 wipe (408B); GDB dump x19–x23 on GMD_OUT_NULL | qemu11 43G lva=off | **ГИПОТЕЗА**: restore BB *out WxH; regs show whether x19/x21 die on Open when null recurs. Next: isa-only via GDB or 8B preserve. | out/logs/boot195 |
+| boot195 | Image.pth125 | DSC exact boot190 wipe (408B); GDB dump x19–x23 on GMD_OUT_NULL | qemu11 43G lva=off | **ПРОВЕРЕНО**: early `proc=?` GMD **WxH isa=0** ok; BB Open+surface wake then **GMD_OUT_NULL**; RetBP regs `x21=0x30b1bcba` (caller) — Open likely clobbers cave x19/x21 before `str`. | out/logs/boot195 |
+
+## Chunk 145 (boot196: reload out*/obj from stack before str)
+
+| boot196 | Image.pth126 | DSC: stash out*@[sp,#0] obj@[sp,#0x18]; reload before str; GMD_STR bp | qemu11 43G lva=off | **ГИПОТЕЗА**: BB *out WxH survives Open clobber → then isa/SURFACE. | out/logs/boot196 |

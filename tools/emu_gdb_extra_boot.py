@@ -763,6 +763,22 @@ def _ufn(n):
             P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
                 pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
+            # boot196: one-shot bp on final `str x21,[x19]` (cave+0x178 with
+            # reload insns; boot190 was +0x168) to log regs at publish time.
+            if _dsc.get('slide') is not None:
+                str_va = 0x22880511c + 0x178 + _dsc['slide']
+                try:
+                    def _on_gmd_str(pn=pn, outp=outp):
+                        def fn():
+                            x19, x21 = r('x19'), r('x21')
+                            P('GMD_STR proc=%s out=%#x x19=%#x x21=%#x' % (
+                                pn, outp, x19, x21))
+                            _dsc['gmd_str'] = (pn, outp, x19, x21)
+                            return False
+                        return fn
+                    BP('gmd_str_%s_%#x' % (pn, outp), _on_gmd_str(), str_va)
+                except Exception as e:
+                    P('GMD_STR_BP_ERR %r' % e)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False
