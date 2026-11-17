@@ -1179,5 +1179,9 @@ Image.pth74.
 
 ## Chunk 149 (boot200: restore isa after *out, no insn bps)
 
-| boot200 | Image.pth130 | DSC: isa→x23; wipe; str *out then str isa; no cave insn bps | qemu11 43G lva=off | **ГИПОТЕЗА**: WxH + isa≠0 → CA msgSend → SURFACE/sel13. | out/logs/boot200 |
+| boot200 | Image.pth130 | DSC: isa→x23; wipe; str *out then str isa; no cave insn bps | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **PANIC** `vnode_put iocount<1` before any GMD_ENTER (SB/BB up, IOMFB match). Inconclusive for isa. | out/logs/boot200 |
+
+## Chunk 150 (boot201: retest isa restore, same cave)
+
+| boot201 | Image.pth130 | same DSC/kernel as boot200; expect GMD past panic | qemu11 43G lva=off | **ГИПОТЕЗА**: reach BB GMD *out WxH with isa≠0 → SURFACE. | out/logs/boot201 |
 

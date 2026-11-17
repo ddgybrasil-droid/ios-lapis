@@ -1,0 +1,7 @@
+Image.pth131 = Image.pth130 (same kernel+DSC isa restore)
+  boot200: vnode_put panic before GMD — inconclusive.
+  boot201: retest same cave for BB *out WxH + isa≠0 → SURFACE.
+
+Build:
+  cp /tmp/Image.pth130 /tmp/Image.pth131
+  # DSC already written on fullroot-mnt2.img from boot200
