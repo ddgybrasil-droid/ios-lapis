@@ -1166,13 +1166,20 @@ int lapis_external_method(void *self, unsigned int selector, void *args,
 		for (i = 0; i < n; i++)
 			scalar_out[i] = 0;
 		/*
-		 * Prefer "yes" for single-scalar probes, except IOSurface
-		 * connect (sel=32): boot98+ held connect with method kr=0
-		 * but scalar[0]=1 may be read as a non-success status /
-		 * bogus id by some clients. Leave 0 for sel 32.
+		 * boot182: BB GetDisplaySize is IOConnectCallMethod sel=8 with
+		 * sout=2 (scalars), not structure. Returning scalar[0]=1 made
+		 * BB FAR=0 right after IOCONN_M_RET. Width/height as u64.
 		 */
-		if (n >= 1 && selector != 32)
+		if (selector == 8 && n >= 2) {
+			scalar_out[0] = 2420;
+			scalar_out[1] = 1668;
+		} else if (n >= 1 && selector != 32) {
+			/*
+			 * Prefer "yes" for single-scalar probes, except IOSurface
+			 * connect (sel=32): leave 0.
+			 */
 			scalar_out[0] = 1;
+		}
 	}
 	*(uint32_t *)((char *)args + 80) = n;
 	p = *(unsigned char **)((char *)args + 88);

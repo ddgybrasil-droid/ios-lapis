@@ -1103,4 +1103,8 @@ Image.pth74.
 
 ## Chunk 131 (boot182: plain-ret wrap + MATCH for proc=?)
 
-| boot182 | Image.pth112 | wrap without pacibsp/retab; BB_IOMFB_MATCH for proc=?; keep sel8 ABI | qemu11 43G lva=off | **ГИПОТЕЗА**: plain ret stops BRK; MATCH arms WINDOW; BB survives to CA after sel8. | out/logs/boot182 |
+| boot182 | Image.pth112 | wrap without pacibsp/retab; BB_IOMFB_MATCH for proc=?; keep sel8 ABI | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+**BB sel=8 x0=0** (sout=2!); MATCH→WINDOW→open; then BB **FAR=0** (scalar[0]=1 not WxH). | out/logs/boot182 |
+
+## Chunk 132 (boot183: sel8 scalar outs = 2420×1668)
+
+| boot183 | Image.pth113 | lapis_external_method sel8 → scalar_out[0]=2420,[1]=1668 | qemu11 43G lva=off | **ГИПОТЕЗА**: correct GetDisplaySize scalars → BB past FAR=0 into CA/IOSurface. | out/logs/boot183 |
