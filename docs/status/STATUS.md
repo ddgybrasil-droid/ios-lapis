@@ -1055,4 +1055,8 @@ Image.pth74.
 
 ## Chunk 119 (boot170: force locationd null-port deny)
 
-| boot170 | Image.pth100 | force BB locationd.registration 0x9f; fixed wake log strings | qemu11 43G lva=off | **ГИПОТЕЗА**: explicit locationd deny stops null-endpoint wait → BB proceeds to IOMFB IOCONN/sel8/CA. | out/logs/boot170 |
+| boot170 | Image.pth100 | force BB locationd.registration 0x9f; fixed wake log strings | qemu11 43G lva=off | **ПРОВЕРЕНО**: locationd **FORCED** (+ACCHW/RB/frontboard CLEARED). Wake fixed strings ok. IOMFB open+WINDOW; still **0** IOMFB IOCONN/canvas/sel8. `POST_IOMFB_SPIN`→`0x4903` persists — locationd deny insufficient. analyticsd still real port pre-open. | out/logs/boot170 |
+
+## Chunk 120 (boot171: deny analyticsd/gestalt + IOSurface wake)
+
+| boot171 | Image.pth101 | force analyticsd+mobilegestalt 0x9f; surface wake+props on IOMFB NUC | qemu11 43G lva=off | **ГИПОТЕЗА**: drop analytics wait + nudge IOSurfaceRoot → CA/IOMFB IOCONN/sel8. | out/logs/boot171 |

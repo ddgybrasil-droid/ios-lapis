@@ -39,16 +39,17 @@ class _RetSite(gdb.Breakpoint):
                 # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
                 # spins — allow real RB/frontboard once post_iomfb so display
                 # assertions can check in; keep ACCHW forced always.
-                # boot168: real frontboard returned x0=0 with x7*=None (null
-                # endpoint) — worse than 0x9f. boot169: restore frontboard force.
-                # boot170: locationd.registration also x0=0/null port just before
-                # IOMFB open → post-open MACH_SEND_NOTIFY SPIN; force 0x9f too.
+                # boot168–170: null-port XPC success → MACH_SEND_NOTIFY SPIN.
+                # boot171: also deny analyticsd + mobilegestalt for BB (analytics
+                # port returns but post-open still SPIN; gestalt often null).
                 _force_names = ["name='com.apple.ACCHWComponentAuthService'"]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.locationd.registration'",
+                        "name='com.apple.analyticsd'",
+                        "name='com.apple.mobilegestalt.xpc'",
                     ]
                 force_bb = ("proc=backboardd" in t and
                             any(n in t for n in _force_names))

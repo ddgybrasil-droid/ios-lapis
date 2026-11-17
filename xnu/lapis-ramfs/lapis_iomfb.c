@@ -875,10 +875,23 @@ int lapis_new_user_client(void *self, void *task, void *sec,
 			 */
 			if (self) {
 				struct lapis_iomfb_wake_ctx *wctx;
+				void *surf;
 
 				IOService_messageClients(
 					self, LAPIS_IOMSG_PROPERTY_CHANGE, 0, 0);
 				IOLog("LAPIS iomfb: msgclients property-change\n");
+				/*
+				 * boot171: also nudge IOSurfaceRoot — CA/IOSurface
+				 * bind may wait on surface publish after FB open.
+				 */
+				surf = lapis_published_stub("IOSurfaceRoot");
+				if (surf) {
+					IOService_messageClients(
+						surf, LAPIS_IOMSG_PROPERTY_CHANGE,
+						0, 0);
+					OSObject_release(surf);
+					IOLog("LAPIS iomfb: surface wake\n");
+				}
 				/* boot167: BB opens then never IOCONN — re-wake. */
 				wctx = IOMallocZero(sizeof(*wctx));
 				if (wctx) {
@@ -1364,6 +1377,17 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 						 "display-subsystem");
 		IORegistryEntry_setProperty_cstr(obj, "compatible",
 						 "paravirtualizedgraphics,gpu");
+	}
+	/* boot171: CA/IOSurface bind after IOMFB open — seed surface service. */
+	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'S' &&
+	    m->name[3] == 'u') {
+		IORegistryEntry_setProperty_cstr(obj, "IOClass", "IOSurfaceRoot");
+		IORegistryEntry_setProperty_cstr(obj, "IOClassNameOverride",
+						 "IOSurfaceRoot");
+		set_u32(obj, "IOSurfaceAddressBits", 64);
+		set_u32(obj, "IOSurfaceMaxBytesPerPixel", 16);
+		set_u32(obj, "IOSurfaceMaxWidth", 2420);
+		set_u32(obj, "IOSurfaceMaxHeight", 1668);
 	}
 
 	/* GPU / Metal clients probe these on matched accelerator nodes. */
