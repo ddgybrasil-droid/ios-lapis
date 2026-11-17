@@ -1283,5 +1283,9 @@ Image.pth74.
 
 ## Chunk 175 (boot226: restore sel5-only cave)
 
-| boot226 | Image.pth156 | sel5-only cave (boot224); scrub post-cave; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore stable BB IOMFB sel=5; sel8 via WRAP_CAVE next. | out/logs/boot226 |
+| boot226 | Image.pth156 | sel5-only cave (boot224); scrub post-cave; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: launchd OK; **BB IOMFB_UCAL sel=5 x0=0** + BB_GMD_OK+XPC388_FAKE restored. | out/logs/boot226 |
+
+## Chunk 176 (boot227: sel8 via WRAP_CAVE)
+
+| boot227 | Image.pth157 | cave BL WRAP_SEL8 after sel5 (484B cave); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: WRAP sel8 avoids cave clobber; BB gets sel=5+8. | out/logs/boot227 |
 
