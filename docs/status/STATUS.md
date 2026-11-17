@@ -1139,4 +1139,8 @@ Image.pth74.
 
 ## Chunk 140 (boot191: GMD cave preserve isa/refcount)
 
-| boot191 | Image.pth121 | DSC cave zero skips +0x00..+0x0f; GMD isa/f838/fc08 dump | qemu11 43G lva=off | **ГИПОТЕЗА**: non-null isa → CA proceeds to IOSurfaceRoot/sel13. | out/logs/boot191 |
+| boot191 | Image.pth121 | DSC cave zero skips +0x00..+0x0f; GMD isa/f838/fc08 dump | qemu11 43G lva=off | **ПРОВЕРЕНО**: cave rewrite → FDR `cs_invalid_page` on GMD; first BB mostly `proc=?` never NOTE64/GMD; BB respawn too late for T=900. **No BB GMD/isa sample.** | out/logs/boot191 |
+
+## Chunk 141 (boot192: retest isa-preserve cave, longer timeout)
+
+| boot192 | Image.pth122 | same DSC isa-preserve; T=1100; catch BB GMD isa + SURFACE | qemu11 43G lva=off | **ГИПОТЕЗА**: settled cave page + more time → BB GMD with isa≠0 → SURFACE. | out/logs/boot192 |
