@@ -1059,4 +1059,8 @@ Image.pth74.
 
 ## Chunk 120 (boot171: deny analyticsd/gestalt + IOSurface wake)
 
-| boot171 | Image.pth101 | force analyticsd+mobilegestalt 0x9f; surface wake+props on IOMFB NUC | qemu11 43G lva=off | **ГИПОТЕЗА**: drop analytics wait + nudge IOSurfaceRoot → CA/IOMFB IOCONN/sel8. | out/logs/boot171 |
+| boot171 | Image.pth101 | force analyticsd+mobilegestalt 0x9f; surface wake+props on IOMFB NUC | qemu11 43G lva=off | **ПРОВЕРЕНО**: gestalt/locationd/frontboard FORCED; **surface wake** ok; IOMFB open+WINDOW; still **0** IOMFB IOCONN. analyticsd looked up **after** post_iomfb → force gate skipped → **x0=0/null port**; `POST_IOMFB_SPIN`→`0x5903` remains. | out/logs/boot171 |
+
+## Chunk 121 (boot172: always-force analyticsd + post-IOMFB null-port deny)
+
+| boot172 | Image.pth102 | analyticsd always 0x9f for BB; FORCED_NULLPORT for post-IOMFB null XPC | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open analyticsd null-port was the SPIN peer → deny unblocks IOMFB IOCONN/sel8/CA. | out/logs/boot172 |

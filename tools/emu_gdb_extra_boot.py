@@ -39,16 +39,19 @@ class _RetSite(gdb.Breakpoint):
                 # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
                 # spins — allow real RB/frontboard once post_iomfb so display
                 # assertions can check in; keep ACCHW forced always.
-                # boot168–170: null-port XPC success → MACH_SEND_NOTIFY SPIN.
-                # boot171: also deny analyticsd + mobilegestalt for BB (analytics
-                # port returns but post-open still SPIN; gestalt often null).
-                _force_names = ["name='com.apple.ACCHWComponentAuthService'"]
+                # boot168–171: null-port XPC success → MACH_SEND_NOTIFY SPIN.
+                # boot171: gestalt/locationd forced pre-open, but analyticsd was
+                # looked up *after* IOMFB open (post_iomfb gate skipped it) and
+                # returned x0=0/null — boot172: always force analyticsd for BB.
+                _force_names = [
+                    "name='com.apple.ACCHWComponentAuthService'",
+                    "name='com.apple.analyticsd'",
+                ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.locationd.registration'",
-                        "name='com.apple.analyticsd'",
                         "name='com.apple.mobilegestalt.xpc'",
                     ]
                 force_bb = ("proc=backboardd" in t and
@@ -72,6 +75,33 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
+                    # boot172: post-IOMFB BB XPC that "succeeds" with no port →
+                    # force deny (same MACH_SEND_NOTIFY class as analyticsd).
+                    if (not force_bb and _mm2.get('post_iomfb')
+                            and 'proc=backboardd' in t
+                            and (x0 & 0xffffffff) == 0):
+                        nullish = True
+                        for ptr in (x4, x6, x7):
+                            if not ptr:
+                                continue
+                            try:
+                                v = m64(ptr)
+                                if v and v < 0x10000:
+                                    nullish = False
+                                    break
+                                if v and 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000:
+                                    nullish = False
+                                    break
+                            except Exception:
+                                pass
+                        if nullish:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                force_bb = True
+                                extra += ' FORCED_NULLPORT_0x9f'
+                            except Exception as e:
+                                extra += ' nullforce_err=%r' % e
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
