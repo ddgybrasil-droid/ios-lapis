@@ -43,15 +43,17 @@ class _RetSite(gdb.Breakpoint):
                 # boot171: gestalt/locationd forced pre-open, but analyticsd was
                 # looked up *after* IOMFB open (post_iomfb gate skipped it) and
                 # returned x0=0/null — boot172: always force analyticsd for BB.
+                # boot176: always force locationd too (post-open W00T peer
+                # was locationd port 0x5403 after force gate skipped it).
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.analyticsd'",
+                    "name='com.apple.locationd.registration'",
                 ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
-                        "name='com.apple.locationd.registration'",
                         "name='com.apple.mobilegestalt.xpc'",
                     ]
                 force_bb = ("proc=backboardd" in t and
@@ -75,10 +77,11 @@ class _RetSite(gdb.Breakpoint):
                     if not (x4 or x6 or x7):
                         # Fallback for older tags.
                         sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
-                    # boot172: post-IOMFB null-port XPC → deny.
-                    # boot174: BB stalled on cfprefsd.daemon x0=0/null *before*
-                    # HID/IOMFB — boot175: null-port deny for BB at any time.
+                    # boot175: null-port deny for BB. boot176: skip cfprefs —
+                    # forcing it caused BRK EXC before IOMFB; null stalls but
+                    # real system port often arrives on retry/respawn.
                     if (not force_bb and 'proc=backboardd' in t
+                            and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
                         for ptr in (x4, x6, x7):
@@ -407,6 +410,11 @@ def _iok(tag,ma,cnt):
     interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount','HIDServiceSupport') for x in s)
     if k not in _iok_seen or ui:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
+    # boot176: arm post_iomfb on BB IOMobileFramebuffer match (not Nth open).
+    if ('backboard' in pn0.lower()
+            and any('IOMobileFramebuffer' in x for x in s)):
+        _mm2['bb_iomfb_match'] = 1
+        P('BB_IOMFB_MATCH tag=%s' % tag)
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
     if interesting or tag=='service' or ui:
@@ -688,21 +696,21 @@ def on_iosopen():
         # kernel (MIG wrapper); log it on return when present.
         outp = r('x7')
         P('IOSOPEN proc=%s type=%d svc=%#x outp=%#x' % (pn, typ, r('x0'), outp))
-        # boot160: 2nd BB open is IOMFB (1st=HID) — reopen MACHMSG2 window.
+        # boot160: 2nd BB open was IOMFB when stable. boot175: respawn made
+        # 2nd open HID — WINDOW fired early. boot176: only after IOMFB match.
         if 'backboard' in pn0.lower():
             _iosopen_cnt['bb'] = _iosopen_cnt.get('bb', 0) + 1
-            if _iosopen_cnt['bb'] >= 2 and not _mm2.get('post_iomfb'):
+            if (_mm2.get('bb_iomfb_match') and not _mm2.get('post_iomfb')):
                 _mm2['post_iomfb'] = 1
-                # boot169: pre-IOMFB SPIN samples burn the cap — reset so
-                # post-open 0x10000000 waits get SPIN_HDR/frames.
                 _mm2['spin1'] = 0
                 _mm2['post_spin_uf'] = 0
                 _mm2['post_uf'] = 0
+                _mm2['w00t_n'] = 0
                 _mm2['n'] = 300
                 P('MACHMSG2_WINDOW post-IOMFB reopen')
-        # boot173: capture userspace frames on BB IOMFB open (2nd).
-        if ('backboard' in pn0.lower() and _iosopen_cnt.get('bb', 0) >= 2
-                and _mm2.get('post_iomfb')):
+        # boot173/176: userspace frames on BB IOMFB open.
+        if ('backboard' in pn0.lower() and _mm2.get('post_iomfb')
+                and _mm2.get('bb_iomfb_match')):
             try:
                 _uframes('IOSOPEN_BB_U', 'type=%d' % typ)
             except Exception as e:

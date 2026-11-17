@@ -1075,4 +1075,8 @@ Image.pth74.
 
 ## Chunk 124 (boot175: pre-IOMFB BB null-port deny)
 
-| boot175 | Image.pth105 | FORCED_NULLPORT for BB anytime (incl. cfprefs); keep W00T_FAKE | qemu11 43G lva=off | **ГИПОТЕЗА**: deny null cfprefs → restore HID→IOMFB open → W00T_FAKE can fire → IOCONN. | out/logs/boot175 |
+| boot175 | Image.pth105 | FORCED_NULLPORT for BB anytime (incl. cfprefs); keep W00T_FAKE | qemu11 43G lva=off | **ПРОВЕРЕНО**: cfprefs NULLPORT → early BB **BRK EXC**/respawn; WINDOW fired on **HID** open (bb≥2 bug); IOMFB open later; locationd real port→W00T; still **0** sel8/canvas. | out/logs/boot175 |
+
+## Chunk 125 (boot176: IOMFB-match WINDOW; skip cfprefs NULLPORT; always locationd)
+
+| boot176 | Image.pth106 | post_iomfb only after BB IOMobileFramebuffer match; no cfprefs NULLPORT; always force locationd | qemu11 43G lva=off | **ГИПОТЕЗА**: correct post-open gate + deny locationd W00T peer → IOMFB IOCONN/sel8. | out/logs/boot176 |
