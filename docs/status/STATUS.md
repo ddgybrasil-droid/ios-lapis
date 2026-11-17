@@ -1191,5 +1191,9 @@ Image.pth74.
 
 ## Chunk 152 (boot203: real SB runningboard after GMD isa)
 
-| boot203 | Image.pth133 | same DSC; stop forcing SB RB once gmd_isa_seed set | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB↔RB after typed isa → SURFACE/sel13. | out/logs/boot203 |
+| boot203 | Image.pth133 | same DSC; stop forcing SB RB once gmd_isa_seed set | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR WxH+isa; BB *out MemoryError (Open+nuc ok); **SB_RB_REAL** port 0x3d03; RB active; still **0 SURFACE**. | out/logs/boot203 |
+
+## Chunk 153 (boot204: zero obj+0x8 beside preserved isa)
+
+| boot204 | Image.pth134 | wipe+0x10 + str xzr,[obj,#8]; *out gdb x/gx fallback | qemu11 43G lva=off | **ГИПОТЕЗА**: clean ivar0 + isa → CA msgSend → SURFACE. | out/logs/boot204 |
 

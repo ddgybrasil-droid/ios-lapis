@@ -161,8 +161,9 @@ def build_cave() -> list[int]:
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # boot202: wipe from +0x10 so typed_malloc isa at [x21] survives (boot199
-    # full wipe → WxH but isa=0; boot201 x23 stash/restore → *out NULL).
+    # boot202: wipe from +0x10 so typed_malloc isa at [x21] survives.
+    # boot204: also zero +0x08 (first ivar) — leftover typed_malloc qword
+    # beside isa may break objc once isa is live (boot203: 0 SURFACE).
     emit(0x6F00E400)  # movi v0.2d, #0
     emit(0x910042A8)  # add x8, x21, #0x10
     emit(0x52801E49)  # movz w9, #0xf2  ((0xf30-0x10)/16)
@@ -171,6 +172,7 @@ def build_cave() -> list[int]:
     emit(0x71000529)  # subs w9, w9, #1
     bne_z = len(code)
     emit(0)  # b.ne zloop
+    emit(0xF90006BF)  # str xzr, [x21, #0x8]
     emit(0xB90012B6)  # str w22, [x21, #0x10]  (service)
     emit(0x52800028)  # movz w8, #1
     emit(0xB90C0AA8)  # str w8, [x21, #0xc08]

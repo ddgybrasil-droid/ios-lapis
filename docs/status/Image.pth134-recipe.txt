@@ -1,0 +1,7 @@
+Image.pth134 = Image.pth133 kernel + DSC zero obj+0x8 after isa-preserve wipe
+  boot203: SB_RB_REAL ok; 0 SURFACE; obj+0x8 leftover from typed_malloc.
+  boot204: str xzr,[x21,#8] after wipe; GMD *out x/gx fallback.
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth133 /tmp/Image.pth134

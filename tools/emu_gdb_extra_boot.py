@@ -41,6 +41,17 @@ class _RetSite(gdb.Breakpoint):
                         except Exception as e0:
                             obj = 0
                             extra += ' *out_read_err=%r' % e0
+                            # boot204: stack *out sometimes MemoryError under
+                            # the wrong thread — fall back to gdb x/gx.
+                            try:
+                                xs = gdb.execute('x/gx %#x' % op, to_string=True)
+                                extra += ' *out_x=%r' % xs.strip()[:80]
+                                for tok in xs.replace(':', ' ').split():
+                                    if tok.startswith('0x') and len(tok) > 5:
+                                        obj = int(tok, 16)
+                                        break
+                            except Exception as e1:
+                                extra += ' *out_x_err=%r' % e1
                     extra += ' *out=%#x' % (obj or 0)
                     if not obj:
                         extra += ' GMD_OUT_NULL'
