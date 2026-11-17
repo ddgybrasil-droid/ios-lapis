@@ -1299,5 +1299,9 @@ Image.pth74.
 
 ## Chunk 179 (boot230: WRAP CallMethod stack ABI)
 
-| boot230 | Image.pth160 | WRAP: zero arg9/arg10; scalars@+0x10; cnt@+0x20; save x21+x30; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB sel=8 hits IOEXTMETHOD + IOMFB_GETSIZE x0=0; keep GMD_BODY_RET. | out/logs/boot230 |
+| boot230 | Image.pth160 | WRAP: zero arg9/arg10; scalars@+0x10; cnt@+0x20; save x21+x30; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB sel=8 IOMFB_GETSIZE x0=0** + IOEXT; GMD_BODY_RET+BB_GMD_OK+FLAG98; XPC388_FAKE then **W00T**; SURFACE sel32; no further BB IOMFB sels after cave. | out/logs/boot230 |
+
+## Chunk 180 (boot231: XPC388 return mach error)
+
+| boot231 | Image.pth161 | XPC388 short-circuit x0=0x10004004 (boot176 real); keep WRAP ABI; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: no W00T after GETSIZE; BB continues past post-GMD XPC; more IOMFB/CA. | out/logs/boot231 |
 
