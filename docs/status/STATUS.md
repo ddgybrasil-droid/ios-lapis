@@ -1219,5 +1219,9 @@ Image.pth74.
 
 ## Chunk 159 (boot210: BB/SB IOSurfaceRoot after GMD)
 
-| boot210 | Image.pth140 | after BB GMD: log IOSurfaceRoot MATCH from BB/SB; nudge surface wake; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: UI needs IOSurfaceRoot (not only RB IOCoreSurface). | out/logs/boot210 |
+| boot210 | Image.pth140 | after BB GMD: log IOSurfaceRoot MATCH from BB/SB; nudge surface wake; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR WxH+isa; **BB GMD empty** (size/isa/flags 0, ISA_SEEDED only); SB_RB_REAL; SURFACE IOCore→sel13→32; **0 BB/SB IOSurfaceRoot**; HID CONFORMS=0. | out/logs/boot210 |
+
+## Chunk 160 (boot211: BB_GMD_FORCE + HID conforms)
+
+| boot211 | Image.pth141 | GDB force BB empty GMD WxH/isa/flags; force IOHIDEventService CONFORMS=1; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: empty BB GMD + HID conforms=0 blocks CA/UI. | out/logs/boot211 |
 

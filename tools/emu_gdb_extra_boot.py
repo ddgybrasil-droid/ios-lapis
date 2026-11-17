@@ -103,6 +103,7 @@ class _RetSite(gdb.Breakpoint):
                                         raise RuntimeError('x/gx empty')
                                     out += int(toks[-1], 16).to_bytes(8, 'little')
                                 return bytes(out[:n])
+                        w = h = 0
                         try:
                             raw = _uread(obj + 0x30, 8)
                             w = int.from_bytes(raw[0:4], 'little')
@@ -115,6 +116,7 @@ class _RetSite(gdb.Breakpoint):
                             extra += ' conn=%#x' % int.from_bytes(raw, 'little')
                         except Exception as e3:
                             extra += ' conn_err=%r' % e3
+                        isa = 0
                         try:
                             raw = _uread(obj, 0x40)
                             words = ' '.join('%08x' % int.from_bytes(
@@ -131,26 +133,70 @@ class _RetSite(gdb.Breakpoint):
                                     try:
                                         gdb.selected_inferior().write_memory(
                                             obj, seed.to_bytes(8, 'little'))
+                                        isa = seed
                                         extra += ' ISA_SEEDED=%#x' % seed
                                     except Exception as e6:
                                         extra += ' isa_seed_err=%r' % e6
                             else:
                                 _dsc['gmd_isa_seed'] = isa
                                 extra += ' ISA_CAPTURED'
-                                if 'backboardd' in t:
-                                    _mm2['bb_gmd_ok'] = 1
-                                    extra += ' BB_GMD_OK'
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
+                        f838 = fc08 = 0
                         try:
                             raw = _uread(obj + 0x838, 8)[:4]
-                            extra += ' f838=%#x' % int.from_bytes(raw, 'little')
+                            f838 = int.from_bytes(raw, 'little')
+                            extra += ' f838=%#x' % f838
                             raw = _uread(obj + 0xc08, 8)[:4]
-                            extra += ' fc08=%#x' % int.from_bytes(raw, 'little')
+                            fc08 = int.from_bytes(raw, 'little')
+                            extra += ' fc08=%#x' % fc08
                         except Exception as e5:
                             extra += ' flag_err=%r' % e5
+                        # boot211: BB GMD sometimes returns a zeroed *out page
+                        # (size/isa/flags all 0) despite Open kr=0. Force FDR-
+                        # proven panel fields so CA can proceed.
+                        if ('backboardd' in t and obj
+                                and (w == 0 or h == 0 or not isa
+                                     or f838 == 0 or fc08 == 0)):
+                            try:
+                                seed = int(_dsc.get('gmd_isa_seed', 0) or isa or 0)
+                                if seed and not isa:
+                                    gdb.selected_inferior().write_memory(
+                                        obj, seed.to_bytes(8, 'little'))
+                                    isa = seed
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x30, (2420).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x34, (1668).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x38, (2420).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x3c, (1668).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x838, (1).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0xc08, (1).to_bytes(4, 'little'))
+                                _mm2['bb_gmd_ok'] = 1
+                                extra += ' BB_GMD_FORCE size=2420x1668'
+                                w, h = 2420, 1668
+                            except Exception as e7:
+                                extra += ' bb_gmd_force_err=%r' % e7
+                        if 'backboardd' in t and w and h and isa:
+                            _mm2['bb_gmd_ok'] = 1
+                            if 'BB_GMD_FORCE' not in extra:
+                                extra += ' BB_GMD_OK'
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
+            # boot211: BB HID path sees IOHIDEventService CONFORMS → 0; force 1
+            # so digitizer/event service matching can proceed toward UI.
+            if (t.startswith('CONFORMS_RET') and 'IOHIDEventService' in t
+                    and 'backboardd' in t and (x0 & 0xffffffff) == 0):
+                try:
+                    gdb.execute('set $x0 = 1', to_string=True)
+                    x0 = 1
+                    extra += ' HID_CONFORMS_FORCE'
+                except Exception as eh:
+                    extra += ' hid_conforms_err=%r' % eh
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
