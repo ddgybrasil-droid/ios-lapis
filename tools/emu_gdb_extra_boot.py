@@ -43,18 +43,18 @@ class _RetSite(gdb.Breakpoint):
                 # boot171: gestalt/locationd forced pre-open, but analyticsd was
                 # looked up *after* IOMFB open (post_iomfb gate skipped it) and
                 # returned x0=0/null — boot172: always force analyticsd for BB.
-                # boot181: restore always-force analyticsd (boot179 reached
-                # XPC388; boot180 skipped post-open traffic without it).
+                # boot185: GMD stable without wrap; after IOMFB allow real
+                # analyticsd (boot184 went quiet after FORCED analytics).
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
-                    "name='com.apple.analyticsd'",
                 ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
+                        "name='com.apple.analyticsd'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -420,6 +420,12 @@ def _iok(tag,ma,cnt):
             and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
         _mm2['bb_iomfb_match'] = 1
         P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
+    # boot185: watch CA/IOSurface bind after GMD.
+    if (any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD') for x in s)
+            and ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                 or pn0 in ('', '?'))):
+        P('BB_SURFACE_MATCH tag=%s proc=%s keys=%s' % (
+            tag, pn0 or '?', ','.join(s[:6])))
     # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
     # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
     if interesting or tag=='service' or ui:

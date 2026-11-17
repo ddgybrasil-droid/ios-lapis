@@ -1111,4 +1111,8 @@ Image.pth74.
 
 ## Chunk 133 (boot184: identity IOSOPEN wrap; restore Open sel5)
 
-| boot184 | Image.pth114 | wrap = open-only (no nested sel8); Open-wrap w1=#5 UCAL; keep scalar WxH | qemu11 43G lva=off | **ГИПОТЕЗА**: stop x19 clobber → GMD `*out=obj` ok → BB past FAR=0 into CA. | out/logs/boot184 |
+| boot184 | Image.pth114 | wrap = open-only (no nested sel8); Open-wrap w1=#5 UCAL; keep scalar WxH | qemu11 43G lva=off | **ПРОВЕРЕНО**: **no FAR=0**; FDR **GMD_RET x0=0**; BB MATCH→IOMFB open; XPC388_FAKE; then analytics force → quiet; **0** sel8 (GMD seeds WxH). | out/logs/boot184 |
+
+## Chunk 134 (boot185: revert IOSOPEN stub; real analyticsd post-open)
+
+| boot185 | Image.pth115 | restore stub ADRP/ADD/BR; analyticsd real after IOMFB; SURFACE_MATCH log | qemu11 43G lva=off | **ГИПОТЕЗА**: clean stub + real analytics → CA/IOSurface after GMD. | out/logs/boot185 |
