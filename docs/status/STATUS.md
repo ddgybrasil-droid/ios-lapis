@@ -1231,5 +1231,9 @@ Image.pth74.
 
 ## Chunk 162 (boot213: analytics real nullport + 3228 hdr)
 
-| boot213 | Image.pth143 | skip analyticsd NULLPORT after BB_GMD_OK; dump BB_MSG3228 hdr; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: real analytics null-port (not 0x9f) + 3228 hdr reveals next UI wall. | out/logs/boot213 |
+| boot213 | Image.pth143 | skip analyticsd NULLPORT after BB_GMD_OK; dump BB_MSG3228 hdr; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: analytics forced **pre-GMD** (skip never hit); 3228 hdr=`bits=0x1513 size=36 remote=0x203 id=0xc9c body=1,port`; SURFACE sel32; CPU burn. | out/logs/boot213 |
+
+## Chunk 163 (boot214: never force analyticsd + 3228 reply)
+
+| boot214 | Image.pth144 | never force/NULLPORT analyticsd; dump 3228 reply; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: real pre-GMD analyticsd + reply dump unlocks/identifies 3228 wall. | out/logs/boot214 |
 

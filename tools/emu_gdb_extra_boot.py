@@ -198,6 +198,18 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
+            # boot214: dump 3228 reply buffer (size 52) after RPC returns.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 6):
+                try:
+                    data = int(_mm2.get('bb_3228_data') or 0)
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        raw = bytes(gdb.selected_inferior().read_memory(data, 52))
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 52, 4))
+                        extra += ' reply=[%s]' % words
+                except Exception as er:
+                    extra += ' reply_err=%r' % er
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
@@ -220,11 +232,9 @@ class _RetSite(gdb.Breakpoint):
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
                 ]
-                # boot212: after BB_GMD_OK, allow real analyticsd — forced 0x9f
-                # still leaves BB spinning on msgid 3228; test whether a real
-                # analytics port unblocks post-GMD CA/display work.
-                if not _mm2.get('bb_gmd_ok'):
-                    _force_names.append("name='com.apple.analyticsd'")
+                # boot214: analyticsd is looked up *before* GMD_BODY (boot213),
+                # so post-GMD skip never applies. Stop forcing it entirely and
+                # also skip NULLPORT — observe if BB advances past msgid 3228.
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
@@ -276,11 +286,8 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
-                    # boot213: after BB_GMD_OK, do NOT nullport-force analyticsd
-                    # (boot212 still FORCED_NULLPORT and 3228 spin continued).
-                    _skip_null = (
-                        _mm2.get('bb_gmd_ok')
-                        and "name='com.apple.analyticsd'" in t)
+                    # boot214: never NULLPORT-force analyticsd (looked up pre-GMD).
+                    _skip_null = ("name='com.apple.analyticsd'" in t)
                     if (not force_bb and not _skip_null
                             and 'proc=backboardd' in t
                             and 'cfprefsd' not in t
@@ -307,9 +314,8 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
-                    if (_skip_null and 'proc=backboardd' in t
-                            and "name='com.apple.analyticsd'" in t):
-                        extra += ' ANALYTICS_REAL_POST_GMD'
+                    if (_skip_null and 'proc=backboardd' in t):
+                        extra += ' ANALYTICS_REAL'
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
@@ -1323,11 +1329,12 @@ def on_mach_msg2():
             return False
         if msgid == 3228 and 'backboard' in pn0.lower():
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
+            data = m64(ap + 0)
+            _mm2['bb_3228_data'] = data
             if _mm2['bb_3228'] <= 8:
                 hdr = ''
                 try:
                     # mach_msg2_trap_args.data = userspace msg buffer
-                    data = m64(ap + 0)
                     if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
                         raw = bytes(gdb.selected_inferior().read_memory(data, 48))
                         words = ' '.join('%08x' % int.from_bytes(

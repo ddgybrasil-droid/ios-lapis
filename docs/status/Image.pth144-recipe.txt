@@ -1,0 +1,6 @@
+Image.pth144 = Image.pth143 (same kernel+DSC)
+  boot213: analytics forced pre-GMD; 3228 hdr bits=0x1513 id=0xc9c body=1,port.
+  boot214: never force analyticsd; dump 3228 reply buffer.
+
+Build:
+  cp /tmp/Image.pth143 /tmp/Image.pth144
