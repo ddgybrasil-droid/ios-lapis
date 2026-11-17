@@ -30,21 +30,7 @@ class _RetSite(gdb.Breakpoint):
             # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
             # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
             # out* is userspace — use inferior read_memory, not kernel m64.
-            if (t.startswith('IOEXTMETHOD_RET') and 'sel=32' in t
-                    and 'SURFACE_CONNECT' in t and 'soutp=0x' in t):
-                # boot209: experiment — ____ioSurfaceConnectInternal may
-                # treat scalar0==0 as failure even when kr==0; force 1.
-                try:
-                    sp = int(t.split('soutp=')[1].split()[0], 16)
-                    try:
-                        gdb.selected_inferior().write_memory(
-                            sp, (1).to_bytes(8, 'little'))
-                    except Exception:
-                        gdb.execute('set {unsigned long}%#x = 1' % sp,
-                                    to_string=True)
-                    extra += ' SEL32_SCALAR1'
-                except Exception as e9:
-                    extra += ' sel32_scalar_err=%r' % e9
+            # boot209: SEL32_SCALAR1 did not unlock POST_SEL32 — leave scalar0.
             if t.startswith('IOEXTMETHOD_RET') and 'sel=13' in t and 'stoutp=0x' in t:
                 try:
                     sp = int(t.split('stoutp=')[1].split()[0], 16)
@@ -151,6 +137,9 @@ class _RetSite(gdb.Breakpoint):
                             else:
                                 _dsc['gmd_isa_seed'] = isa
                                 extra += ' ISA_CAPTURED'
+                                if 'backboardd' in t:
+                                    _mm2['bb_gmd_ok'] = 1
+                                    extra += ' BB_GMD_OK'
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
                         try:

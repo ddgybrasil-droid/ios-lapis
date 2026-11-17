@@ -1215,5 +1215,9 @@ Image.pth74.
 
 ## Chunk 158 (boot209: sel32 scalar_out[0]=1)
 
-| boot209 | Image.pth139 | GDB force sel32 scalar1 on SURFACE_CONNECT; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: scalar1 → more IOEXT/IOCMEM after connect. | out/logs/boot209 |
+| boot209 | Image.pth139 | GDB force sel32 scalar1 on SURFACE_CONNECT; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SEL32_SCALAR1 applied; still **0 POST_SEL32/IOCMEM**. Scalar1 not the wall. | out/logs/boot209 |
+
+## Chunk 159 (boot210: BB/SB IOSurfaceRoot after GMD)
+
+| boot210 | Image.pth140 | after BB GMD: log IOSurfaceRoot MATCH from BB/SB; nudge surface wake; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: UI needs IOSurfaceRoot (not only RB IOCoreSurface). | out/logs/boot210 |
 
