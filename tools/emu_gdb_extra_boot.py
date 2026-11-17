@@ -30,6 +30,22 @@ class _RetSite(gdb.Breakpoint):
             # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
             # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
             # out* is userspace — use inferior read_memory, not kernel m64.
+            if t.startswith('IOEXTMETHOD_RET') and 'sel=13' in t and 'stoutp=0x' in t:
+                try:
+                    sp = int(t.split('stoutp=')[1].split()[0], 16)
+                    raw = bytes(gdb.selected_inferior().read_memory(sp, 40))
+                    words = ' '.join('%04x' % int.from_bytes(raw[i:i+2], 'little')
+                                    for i in range(0, 40, 2))
+                    gate = int.from_bytes(raw[0x22:0x24], 'little')
+                    extra += ' limits40=[%s] gate+0x22=%d' % (words, gate)
+                except Exception as e7:
+                    # kernel stout may need m64 path
+                    try:
+                        sp = int(t.split('stoutp=')[1].split()[0], 16)
+                        gate = m32(sp + 0x22) & 0xffff
+                        extra += ' limits_gate+0x22=%d' % gate
+                    except Exception as e8:
+                        extra += ' limits_err=%r/%r' % (e7, e8)
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -909,12 +925,15 @@ def on_external_method():
         extra = ''
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
-        # Always keep BB/SB/IOMFB method traffic; cap unrelated noise.
-        if _em_cnt['n'] > 80 and 'backboard' not in pn0.lower() and 'SpringBoard' not in pn0 and 'IOMFB' not in pn0:
+        # Always keep BB/SB/RB/IOMFB method traffic; cap unrelated noise.
+        # boot206: include runningboardd (IOGPU→sel13→32 path).
+        keep = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                or 'IOMFB' in pn0 or 'runningboard' in pn0.lower())
+        if _em_cnt['n'] > 80 and not keep:
             return False
         # Dump IOExternalMethodArguments output fields for RB/surface sels.
-        if args and (sel in (0, 2, 4, 13) or (pn and 'runningboard' in str(pn))
-                     or 'backboard' in pn0.lower()):
+        stout_p = 0
+        if args and (sel in (0, 2, 4, 13, 32) or keep):
             try:
                 sin_c = m32(args + 40); sout_c = m32(args + 80)
                 st_in = m32(args + 56); st_out = m32(args + 96)
@@ -925,8 +944,10 @@ def on_external_method():
             except Exception as e:
                 extra = ' args_err=%s' % e
         P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
-        RetBP(r('x30'), 'IOEXTMETHOD_RET proc=%s sel=%d' % (
-            pn[0] if pn else '?', sel))
+        tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (pn[0] if pn else '?', sel)
+        if sel == 13 and stout_p:
+            tag += ' stoutp=%#x' % stout_p
+        RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)
     return False

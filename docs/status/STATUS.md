@@ -1199,5 +1199,9 @@ Image.pth74.
 
 ## Chunk 154 (boot205: fix GMD dump x/gx value+obj)
 
-| boot205 | Image.pth135 | same DSC; parse *out VALUE; x/gx obj40/isa | qemu11 43G lva=off | **ГИПОТЕЗА**: ISA_CAPTURED + SB_RB_REAL + clean +0x8 → SURFACE. | out/logs/boot205 |
+| boot205 | Image.pth135 | same DSC; parse *out VALUE; x/gx obj40/isa | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR WxH+isa (+0x8==0) ISA_CAPTURED; SB_RB_REAL; **SURFACE_MATCH IOCoreSurfaceRoot**; RB **IOGPU→sel2/0/4→sel13→sel32** (connect held). BB GMD_BODY not seen yet this boot. | out/logs/boot205 |
+
+## Chunk 155 (boot206: post-sel32 IOCMEM/CA deepen)
+
+| boot206 | Image.pth136 | same DSC; log sel13 stout +0x22; IOCMEM after sel32; watch BB GMD | qemu11 43G lva=off | **ГИПОТЕЗА**: limits+0x22=1 already; next wall is CA/BB surface or map. | out/logs/boot206 |
 
