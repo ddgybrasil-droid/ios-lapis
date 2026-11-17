@@ -1211,5 +1211,9 @@ Image.pth74.
 
 ## Chunk 157 (boot208: log RB IOEXT after sel32)
 
-| boot208 | Image.pth138 | POST_SEL32_N log next RB sels after connect; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: see which sel follows connect → map/CA. | out/logs/boot208 |
+| boot208 | Image.pth138 | POST_SEL32_N log next RB sels after connect; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE sel13→32 gate+0x22=1; **0 POST_SEL32** (no further IOEXT); SB `service state: running`. Silent after connect. | out/logs/boot208 |
+
+## Chunk 158 (boot209: sel32 scalar_out[0]=1)
+
+| boot209 | Image.pth139 | GDB force sel32 scalar1 on SURFACE_CONNECT; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: scalar1 → more IOEXT/IOCMEM after connect. | out/logs/boot209 |
 
