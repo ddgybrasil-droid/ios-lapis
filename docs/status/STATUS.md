@@ -1203,5 +1203,9 @@ Image.pth74.
 
 ## Chunk 155 (boot206: post-sel32 IOCMEM/CA deepen)
 
-| boot206 | Image.pth136 | sel13 limits dump; keep RB IOEXT; post-sel32 IOCMEM watch | qemu11 43G lva=off | **ГИПОТЕЗА**: confirm gate+0x22; map after sel32; avoid BB EXC before GMD. | out/logs/boot206 |
+| boot206 | Image.pth136 | sel13 limits dump; keep RB IOEXT; post-sel32 IOCMEM watch | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+BB WxH+isa early (**no** pre-GMD EXC); SB_RB_REAL; **0 SURFACE** — T=1100 STOPPED before RB IOGPU (RB IOEXT RetBP flood suspected). | out/logs/boot206 |
+
+## Chunk 156 (boot207: fewer RB RetBPs + longer T)
+
+| boot207 | Image.pth137 | RetBP only sels 0/2/4/13/32; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: reach SURFACE sel13→32 again + limits dump + IOCMEM. | out/logs/boot207 |
 

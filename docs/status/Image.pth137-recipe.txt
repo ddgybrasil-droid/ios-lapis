@@ -1,0 +1,6 @@
+Image.pth137 = Image.pth136 (same kernel+DSC)
+  boot206: BB GMD early ok; SB_RB_REAL; timed out before SURFACE (RB RetBP flood).
+  boot207: RetBP only GPU/surface sels; T=1400.
+
+Build:
+  cp /tmp/Image.pth136 /tmp/Image.pth137

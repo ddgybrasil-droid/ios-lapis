@@ -944,10 +944,14 @@ def on_external_method():
             except Exception as e:
                 extra = ' args_err=%s' % e
         P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
-        tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (pn[0] if pn else '?', sel)
-        if sel == 13 and stout_p:
-            tag += ' stoutp=%#x' % stout_p
-        RetBP(r('x30'), tag)
+        # boot207: RetBP only interesting sels — boot206 RetBP'd every RB
+        # method and timed out before SURFACE sel13.
+        if sel in (0, 2, 4, 13, 32) or 'backboard' in pn0.lower():
+            tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (
+                pn[0] if pn else '?', sel)
+            if sel == 13 and stout_p:
+                tag += ' stoutp=%#x' % stout_p
+            RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)
     return False
