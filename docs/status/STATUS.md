@@ -1263,5 +1263,9 @@ Image.pth74.
 
 ## Chunk 170 (boot221: real frontboard/MG + SB RB NULLPORT)
 
-| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB/MG port before GMD unlocks CA after FLAG98. | out/logs/boot221 |
+| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MG/frontboard → **NULLPORT** (no real port); FLAG98+obj90 ok; **W00T** returned. Restore blanket force. | out/logs/boot221 |
+
+## Chunk 171 (boot222: restore FB/MG force + cave FLAG98)
+
+| boot222 | Image.pth152 | restore frontboard/MG force; cave seeds +0x98/+0x838/+0xc08; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: permanent cave flags + boot220 force set = stable path; watch for IOMFB IOEXT. | out/logs/boot222 |
 

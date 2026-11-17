@@ -226,6 +226,14 @@ def build_cave() -> list[int]:
     emit(0xB9003AA8)  # str w8, [x21, #0x38]
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
+    # boot222: seed fulfilled/main @+0x98 and active flags @+0x838/+0xc08
+    # (boot220 GDB FLAG98 / f838 / fc08) so CA sees them without RetBP races.
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB9009AA8)  # str w8, [x21, #0x98]
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB9083AA8)  # str w8, [x21, #0x838]
+    emit(0x52800028)  # movz w8, #1
+    emit(0xB90C0AA8)  # str w8, [x21, #0xc08]
     skip_size = pc
     emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)

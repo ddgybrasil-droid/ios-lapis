@@ -1,0 +1,8 @@
+Image.pth152 = Image.pth151 + DSC cave FLAG98/f838/fc08
+  boot221: real frontboard/MG → NULLPORT only + W00T. Reverted force.
+  boot222: restore frontboard/MG force; cave seeds +0x98/+0x838/+0xc08; T=1800.
+
+Build:
+  cp /tmp/Image.pth151 /tmp/Image.pth152
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

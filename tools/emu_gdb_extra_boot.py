@@ -278,13 +278,13 @@ class _RetSite(gdb.Breakpoint):
                     # force 0x9f like other auth services.
                     "name='com.apple.oscard'",
                 ]
-                # boot221: stop blanket-forcing frontboard/MG pre-IOMFB —
-                # boot220 denied them before GMD and BB never retried; CA may
-                # need a real SB/MG port. Keep RB forced pre-open (hang risk).
-                # NULLPORT below still denies null-endpoint "success".
+                # boot221: real frontboard/MG → only NULLPORT (same deny) + W00T.
+                # boot222: restore blanket force (boot220 stable, no W00T).
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
+                        "name='com.apple.frontboard.systemappservices'",
+                        "name='com.apple.mobilegestalt.xpc'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
