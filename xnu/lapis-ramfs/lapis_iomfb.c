@@ -1002,9 +1002,14 @@ static void lapis_hid_repulse(void *p0, void *p1)
 	(void)p1;
 	if (!ctx || !ctx->owner)
 		return;
-	/* Delay first re-pulse so NOTE64 consumer can arm. */
+	/*
+	 * boot187: rich pulse right after NOTE64 → BB BRK before GMD.
+	 * boot188: wait 2s before first rich pulse so GMD/IOMFB can run.
+	 */
 	if (ctx->n == 0)
-		IOSleep(100);
+		IOSleep(2000);
+	else
+		IOSleep(250);
 	lapis_fill_digitizer_pulse(pulse);
 	q = lapis_hid_queue_for(ctx->owner);
 	if (q) {
@@ -1014,10 +1019,8 @@ static void lapis_hid_repulse(void *p0, void *p1)
 			  : "LAPIS iomfb: repulse enqfail\n");
 	}
 	ctx->n++;
-	if (ctx->n < 6 && ctx->tc) {
-		IOSleep(250);
+	if (ctx->n < 6 && ctx->tc)
 		thread_call_enter(ctx->tc);
-	}
 }
 
 int lapis_register_notification_port(void *self, void *port,
@@ -1032,17 +1035,22 @@ int lapis_register_notification_port(void *self, void *port,
 	 * boot166: schedule delayed re-pulses (post-IOMFB xpc/pthread wait).
 	 */
 	unsigned char pulse[64];
-	int enq;
+	int enq, i;
 
 	(void)type;
 	(void)ref;
-	lapis_fill_digitizer_pulse(pulse);
+	/*
+	 * boot188: immediate enqueue is 8B zeros (boot159 held past NOTE64).
+	 * Rich digitizer arrives via delayed repulse after GMD window.
+	 */
+	for (i = 0; i < 64; i++)
+		pulse[i] = 0;
 	q = lapis_hid_queue_for(self);
 	if (q) {
 		if (port)
 			IODataQueue_setNotificationPort(q, port);
-		/* Boolean true(1)=success */
-		enq = IOSharedDataQueue_enqueue(q, pulse, 64);
+		/* Boolean true(1)=success — 8-byte empty event */
+		enq = IOSharedDataQueue_enqueue(q, pulse, 8);
 		OSObject_release(q);
 		IOLog(enq ? "LAPIS iomfb: regnote ok enq\n"
 			  : "LAPIS iomfb: regnote ok enqfail\n");

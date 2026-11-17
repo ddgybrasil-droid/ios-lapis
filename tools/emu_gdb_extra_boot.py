@@ -27,16 +27,29 @@ class _RetSite(gdb.Breakpoint):
                     if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
                 except Exception as e:
                     extra+=' obj_err=%r'%e
-            # boot187: after GMD body, dump *out and size fields @+0x30/+0x34.
+            # boot187/188: after GMD body, dump *out and size @+0x30/+0x34.
+            # out* is a userspace pointer — m64 (kernel read) returns None; use
+            # uread/read_memory via inferior (same as ustr path).
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
-                    obj = m64(op) if op else 0
-                    extra += ' *out=%#x' % obj
+                    obj = 0
+                    if op:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(op, 8))
+                            obj = int.from_bytes(raw, 'little')
+                        except Exception:
+                            obj = 0
+                    extra += ' *out=%#x' % (obj or 0)
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
-                        w = m32(obj + 0x30) & 0xffffffff
-                        h = m32(obj + 0x34) & 0xffffffff
-                        extra += ' size=%dx%d' % (w, h)
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x30, 8))
+                            w = int.from_bytes(raw[0:4], 'little')
+                            h = int.from_bytes(raw[4:8], 'little')
+                            extra += ' size=%dx%d' % (w, h)
+                        except Exception as e2:
+                            extra += ' size_err=%r' % e2
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):

@@ -1123,4 +1123,8 @@ Image.pth74.
 
 ## Chunk 136 (boot187: force SB runningboard; dump GMD *out)
 
-| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ГИПОТЕЗА**: SB past null RB + confirm GMD object WxH → CA/IOSurface. | out/logs/boot187 |
+| boot187 | Image.pth117 | force RB/frontboard/analytics for SpringBoard; GMD_BODY_RET *out+size log | qemu11 43G lva=off | **ПРОВЕРЕНО**: SB RB **FORCED**; BB **BRK after NOTE64** (rich pulse) — never GMD; FDR GMD dump failed (userspace *out via m64). | out/logs/boot187 |
+
+## Chunk 137 (boot188: soft HID NOTE64 pulse; fix GMD *out uread)
+
+| boot188 | Image.pth118 | NOTE64→8B zeros; rich pulse after 2s; uread GMD *out; keep SB RB force | qemu11 43G lva=off | **ГИПОТЕЗА**: survive NOTE64 → BB GMD again → CA/IOSurface with SB RB forced. | out/logs/boot188 |
