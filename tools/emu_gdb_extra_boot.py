@@ -946,11 +946,22 @@ def on_external_method():
         P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
         # boot207: RetBP only interesting sels — boot206 RetBP'd every RB
         # method and timed out before SURFACE sel13.
-        if sel in (0, 2, 4, 13, 32) or 'backboard' in pn0.lower():
+        # boot208: after sel32, also RetBP the next few RB sels (post-connect).
+        post32 = (_mm2.get('rb_sel32') and 'runningboard' in pn0.lower()
+                  and _mm2.get('rb_post32', 0) < 24)
+        if post32:
+            _mm2['rb_post32'] = _mm2.get('rb_post32', 0) + 1
+            extra2 = ' POST_SEL32_N=%d' % _mm2['rb_post32']
+            P('IOEXTMETHOD_POST32 proc=%s sel=%d%s' % (pn, sel, extra2))
+        if (sel in (0, 2, 4, 13, 32) or 'backboard' in pn0.lower()
+                or post32):
             tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (
                 pn[0] if pn else '?', sel)
             if sel == 13 and stout_p:
                 tag += ' stoutp=%#x' % stout_p
+            if sel == 32:
+                _mm2['rb_sel32'] = 1
+                tag += ' SURFACE_CONNECT'
             RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)

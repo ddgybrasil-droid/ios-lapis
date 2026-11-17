@@ -1207,5 +1207,9 @@ Image.pth74.
 
 ## Chunk 156 (boot207: fewer RB RetBPs + longer T)
 
-| boot207 | Image.pth137 | RetBP only sels 0/2/4/13/32; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: reach SURFACE sel13→32 again + limits dump + IOCMEM. | out/logs/boot207 |
+| boot207 | Image.pth137 | RetBP only sels 0/2/4/13/32; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+BB WxH+isa; SB_RB_REAL; **SURFACE sel13→32**; **gate+0x22=1**; still **0 IOCMEM after sel32** (boot98-class silent wall). | out/logs/boot207 |
+
+## Chunk 157 (boot208: log RB IOEXT after sel32)
+
+| boot208 | Image.pth138 | POST_SEL32_N log next RB sels after connect; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: see which sel follows connect → map/CA. | out/logs/boot208 |
 
