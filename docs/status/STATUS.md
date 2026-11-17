@@ -1144,3 +1144,11 @@ Image.pth74.
 ## Chunk 141 (boot192: retest isa-preserve cave, longer timeout)
 
 | boot192 | Image.pth122 | same DSC isa-preserve; T=1100; catch BB GMD isa + SURFACE | qemu11 43G lva=off | **ГИПОТЕЗА**: settled cave page + more time → BB GMD with isa≠0 → SURFACE. | out/logs/boot192 |
+
+## Chunk 141 (boot192: retest isa-preserve cave, longer timeout)
+
+| boot192 | Image.pth122 | same DSC isa-preserve; T=1100; catch BB GMD isa + SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR GMD `isa=0x100000204bfb079` size=2420×1668 (cs_invalid allow). BB IOSOPEN ok but **GMD_OUT_NULL** (*out=0) — isa live during Open breaks BB store. SB RB FORCED. **0 SURFACE/sel13**. Boot killed mid-run (gdb Killed). | out/logs/boot192 |
+
+## Chunk 142 (boot193: post-Open isa restore)
+
+| boot193 | Image.pth123 | DSC: full wipe + stash isa@[sp] + restore after Open; GDB ISA_CAPTURED/seed same-boot only | qemu11 43G lva=off | **ГИПОТЕЗА**: BB gets *out WxH (boot190) + isa≠0 (post-Open) → CA can msgSend → SURFACE/sel13. | out/logs/boot193 |

@@ -101,8 +101,8 @@ def build_cave() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame: [sp,#0x8]=iterator out, [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19,
-    # [sp,#0x40]=x29/x30. Keep sp 16-byte aligned.
+    # Frame: [sp,#0]=saved typed_malloc isa, [sp,#0x8]=iterator out,
+    # [sp,#0x20]=x22/x21, [sp,#0x30]=x20/x19, [sp,#0x40]=x29/x30.
     emit(0xD503237F)  # pacibsp
     emit(0xD10143FF)  # sub sp, sp, #0x50
     emit(0xA90257F6)  # stp x22, x21, [sp, #0x20]
@@ -160,12 +160,14 @@ def build_cave() -> list[int]:
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # zero object (16-byte stores) then set Open-critical fields.
-    # boot191: skip first 16 bytes so typed-malloc isa/refcount survive —
-    # boot190 obj40 showed isa=0 after full wipe; CA never reached IOSurface.
+    # boot193: full wipe for BB *out WxH, but stash typed_malloc isa on
+    # [sp,#0] and restore it AFTER Open — boot191–192 left isa live during
+    # Open (BB *out null); boot190 wiped isa permanently (CA starved).
+    emit(0xF94002A8)  # ldr x8, [x21]
+    emit(0xF90003E8)  # str x8, [sp]  (saved isa)
     emit(0x6F00E400)  # movi v0.2d, #0
-    emit(0x910042A8)  # add x8, x21, #0x10
-    emit(0x52801E49)  # movz w9, #0xf2  ((0xf30-0x10)/16)
+    emit(0xAA1503E8)  # mov x8, x21
+    emit(0x52801E69)  # movz w9, #0xf3  (0xf30/16)
     zloop = pc
     emit(0x3C810500)  # str q0, [x8], #16
     emit(0x71000529)  # subs w9, w9, #1
@@ -225,6 +227,9 @@ def build_cave() -> list[int]:
     emit(0x5280D088)  # movz w8, #1668
     emit(0xB9003EA8)  # str w8, [x21, #0x3c]
     skip_size = pc
+    # restore typed_malloc isa after Open (BB + FDR)
+    emit(0xF94003E8)  # ldr x8, [sp]
+    emit(0xF90002A8)  # str x8, [x21]
     emit(0xF9000275)  # str x21, [x19]
     emit(0xAA1603E0)
     emit(enc_bl(pc, REL))

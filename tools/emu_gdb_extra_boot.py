@@ -66,9 +66,23 @@ class _RetSite(gdb.Breakpoint):
                             extra += ' obj40=[%s]' % words
                             isa = int.from_bytes(raw[0:8], 'little')
                             extra += ' isa=%#x' % isa
+                            # boot193: cave restores typed_malloc isa after Open.
+                            # If still zero, copy an earlier same-boot capture
+                            # (FDR) — never a cross-boot PAC'd constant (ASLR).
+                            if isa == 0:
+                                seed = int(_dsc.get('gmd_isa_seed', 0) or 0)
+                                if seed:
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            obj, seed.to_bytes(8, 'little'))
+                                        extra += ' ISA_SEEDED=%#x' % seed
+                                    except Exception as e6:
+                                        extra += ' isa_seed_err=%r' % e6
+                            else:
+                                _dsc['gmd_isa_seed'] = isa
+                                extra += ' ISA_CAPTURED'
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
-                        # boot191: also flags the cave seeds past +0x40.
                         try:
                             raw = bytes(gdb.selected_inferior().read_memory(
                                 obj + 0x838, 4))
