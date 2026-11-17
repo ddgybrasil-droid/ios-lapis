@@ -160,10 +160,12 @@ def build_cave() -> list[int]:
     cbz_obj = len(code)
     emit(0)  # cbz x21 → raw_fallback
 
-    # zero object (16-byte stores) then set Open-critical fields
+    # zero object (16-byte stores) then set Open-critical fields.
+    # boot191: skip first 16 bytes so typed-malloc isa/refcount survive —
+    # boot190 obj40 showed isa=0 after full wipe; CA never reached IOSurface.
     emit(0x6F00E400)  # movi v0.2d, #0
-    emit(0xAA1503E8)  # mov x8, x21
-    emit(0x52801E69)  # movz w9, #0xf3  (0xf30/16)
+    emit(0x910042A8)  # add x8, x21, #0x10
+    emit(0x52801E49)  # movz w9, #0xf2  ((0xf30-0x10)/16)
     zloop = pc
     emit(0x3C810500)  # str q0, [x8], #16
     emit(0x71000529)  # subs w9, w9, #1

@@ -64,8 +64,20 @@ class _RetSite(gdb.Breakpoint):
                             words = ' '.join('%08x' % int.from_bytes(
                                 raw[i:i+4], 'little') for i in range(0, 0x40, 4))
                             extra += ' obj40=[%s]' % words
+                            isa = int.from_bytes(raw[0:8], 'little')
+                            extra += ' isa=%#x' % isa
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
+                        # boot191: also flags the cave seeds past +0x40.
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0x838, 4))
+                            extra += ' f838=%#x' % int.from_bytes(raw, 'little')
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                obj + 0xc08, 4))
+                            extra += ' fc08=%#x' % int.from_bytes(raw, 'little')
+                        except Exception as e5:
+                            extra += ' flag_err=%r' % e5
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
             if t.startswith('XPC_LOOKUP_RET'):

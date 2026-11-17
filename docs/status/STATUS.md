@@ -1135,4 +1135,8 @@ Image.pth74.
 
 ## Chunk 139 (boot190: revert in-NUC surface publish; keep UC tag + deferred republish)
 
-| boot190 | Image.pth120 | NUC surface wake = message only (boot188); keep IOSurfaceRootUserClient + deferred republish; GMD_OUT_NULL tag | qemu11 43G lva=off | **ГИПОТЕЗА**: restore GMD *out WxH then CA can reach SURFACE. | out/logs/boot190 |
+| boot190 | Image.pth120 | NUC surface wake = message only (boot188); keep IOSurfaceRootUserClient + deferred republish; GMD_OUT_NULL tag | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD **restored** `*out size=2420×1668 conn=0x7e0b`; SB system-app-server port ok; NOTE64 ok. **obj40 isa=0** (cave zeroes typed-malloc header); still **0 SURFACE/sel13**. | out/logs/boot190 |
+
+## Chunk 140 (boot191: GMD cave preserve isa/refcount)
+
+| boot191 | Image.pth121 | DSC cave zero skips +0x00..+0x0f; GMD isa/f838/fc08 dump | qemu11 43G lva=off | **ГИПОТЕЗА**: non-null isa → CA proceeds to IOSurfaceRoot/sel13. | out/logs/boot191 |
