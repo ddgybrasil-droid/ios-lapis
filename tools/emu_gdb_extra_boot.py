@@ -43,20 +43,18 @@ class _RetSite(gdb.Breakpoint):
                 # boot171: gestalt/locationd forced pre-open, but analyticsd was
                 # looked up *after* IOMFB open (post_iomfb gate skipped it) and
                 # returned x0=0/null — boot172: always force analyticsd for BB.
-                # boot176: always force locationd (post-open W00T peer).
-                # boot180: do NOT always-force analyticsd — after 0x40000388
-                # fake, BB talks msgid 1026/1018 then respawned; allow real
-                # analyticsd once post_iomfb like boot163.
+                # boot181: restore always-force analyticsd (boot179 reached
+                # XPC388; boot180 skipped post-open traffic without it).
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
+                    "name='com.apple.analyticsd'",
                 ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
-                        "name='com.apple.analyticsd'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.

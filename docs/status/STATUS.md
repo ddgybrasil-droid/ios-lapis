@@ -1095,4 +1095,8 @@ Image.pth74.
 
 ## Chunk 129 (boot180: fake only 0x40000388; real analyticsd post-open)
 
-| boot180 | Image.pth110 | XPC388_FAKE only; stop w00t fake; analyticsd real after IOMFB; NULLPORT BB-only | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid respawn from w00t fake + allow analytics → IOMFB IOCONN/sel8. | out/logs/boot180 |
+| boot180 | Image.pth110 | XPC388_FAKE only; stop w00t fake; analyticsd real after IOMFB; NULLPORT BB-only | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH→WINDOW→IOMFB open then **quiet** (0 XPC388); analyticsd forced pre-match; speculative BB spawn; still **0** sel8. | out/logs/boot180 |
+
+## Chunk 130 (boot181: fixed IOSOPEN→sel8 wrap ABI)
+
+| boot181 | Image.pth111 | DSC wrap inputCnt=0+outCnt=2; Open-wrap sel8; always analyticsd; XPC388_FAKE | qemu11 43G lva=off | **ГИПОТЕЗА**: boot173 FAR=0 was NULL inputCnt=1; fixed wrap → kernel sel8 after BB IOMFB open. | out/logs/boot181 |

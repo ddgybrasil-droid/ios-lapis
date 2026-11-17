@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Wrap IOServiceOpen stub so type=0 opens also probe GetDisplaySize (sel 8).
 
-boot173: APPLIED — BB EXC (FAR=0, ESR translation) immediately after IOMFB
-IOSOPEN_RET; sel8 never reached kernel. REVERTED for boot174. Do not
---write unless the wrap ABI is fixed (stack/PAC/IOCM args).
+boot173: APPLIED — BB EXC (FAR=0) because wrap used inputCnt=1 with NULL
+input (IOCM deref). boot181: fixed ABI — inputCnt=0, outputCnt=2 buffer.
 
 Sites (unslid):
   IOSOPEN stub @0x22c6ce800 in .45 → br wrap cave
@@ -60,7 +59,11 @@ def enc_cbnz_w(pc: int, rt: int, tgt: int) -> int:
 
 
 def build_wrap() -> list[int]:
-    """IOServiceOpen wrap: real open, then sel8 probe if type==0 && kr==0."""
+    """IOServiceOpen wrap: real open, then sel8 probe if type==0 && kr==0.
+
+    boot181 ABI: IOConnectCallMethod(conn, 8, NULL, 0, NULL, 0, out, &cnt)
+    with cnt=2. Prior wrap used inputCnt=1 + NULL input → FAR=0.
+    """
     code: list[int] = []
     pc = WRAP_CAVE
 
@@ -69,9 +72,9 @@ def build_wrap() -> list[int]:
         code.append(w)
         pc += 4
 
-    # Frame 0x60: save x19-x28, x29/x30; keep args x0-x7.
+    # Frame 0x80: save regs + out[2] uint64 @0x60 + outputCnt @0x70
     emit(0xD503237F)  # pacibsp
-    emit(0xD10183FF)  # sub sp, sp, #0x60
+    emit(0xD10203FF)  # sub sp, sp, #0x80
     emit(0xA9027BFD)  # stp x29, x30, [sp, #0x20]
     emit(0xA9036FFC)  # stp x28, x27, [sp, #0x30]
     emit(0xA90467FA)  # stp x26, x25, [sp, #0x40]
@@ -81,9 +84,9 @@ def build_wrap() -> list[int]:
     emit(0x910083FD)  # add x29, sp, #0x20
 
     emit(0xAA0003F3)  # mov x19, x0  service
-    emit(0xAA0103F4)  # mov x20, x1  task
+    emit(0xAA0103F4)  # mov x20, x1  owningTask
     emit(0xAA0203F5)  # mov x21, x2  type
-    emit(0xAA0303F6)  # mov x22, x3  conn*
+    emit(0xAA0303F6)  # mov x22, x3  connect*
     emit(0xAA0403F7)  # mov x23, x4
     emit(0xAA0503F8)  # mov x24, x5
     emit(0xAA0603F9)  # mov x25, x6
@@ -97,33 +100,37 @@ def build_wrap() -> list[int]:
     emit(0xAA1803E5)
     emit(0xAA1903E6)
     emit(0xAA1A03E7)
-    # real Open is ~2GB away — ADRP+ADD+BLR (not BL)
     emit(enc_adrp(16, pc, REAL_OPEN))
     emit(enc_add_imm(16, 16, REAL_OPEN & 0xFFF))
     emit(0xD63F0200)  # blr x16
     emit(0xAA0003FB)  # mov x27, x0  kr
 
-    # if kr != 0 || type != 0 → epi
     cbnz_kr = len(code)
     emit(0)
     cbnz_ty = len(code)
     emit(0)
 
-    # conn = *conn_out; if 0 → epi
+    # conn = *(uint32_t *)connect; if 0 → epi
     emit(0xB94002C0)  # ldr w0, [x22]
     cbz_conn = len(code)
     emit(0)
 
-    # IOConnectCallMethod stub is within BL range of .44
+    # zero out[2]; *outputCnt = 2
+    emit(0xA9007FEF)  # stp xzr, xzr, [sp, #0x60]
+    emit(0x52800048)  # movz w8, #2
+    emit(0xB90073E8)  # str w8, [sp, #0x70]
+
+    # IOConnectCallMethod(conn, 8, NULL, 0, NULL, 0, &out[0], &cnt)
+    # w0 already = conn
     emit(0x52800101)  # movz w1, #8
-    emit(0xD2800002)  # movz x2, #0
-    emit(0x52800023)  # movz w3, #1
-    emit(0xD2800004)
-    emit(0xD2800005)
-    emit(0xD2800006)
-    emit(0xD2800007)
+    emit(0xD2800002)  # movz x2, #0   input
+    emit(0x52800003)  # movz w3, #0   inputCnt  (boot181 fix)
+    emit(0xD2800004)  # movz x4, #0   inputStruct
+    emit(0xD2800005)  # movz x5, #0   inputStructCnt
+    emit(0x910183E6)  # add x6, sp, #0x60  output
+    emit(0x9101C3E7)  # add x7, sp, #0x70  outputCnt*
     emit(enc_bl(pc, IOCM_STUB))
-    # ignore sel8 kr
+    # ignore sel8 kr — always return original open kr
 
     epi = pc
     emit(0xAA1B03E0)  # mov x0, x27
@@ -133,7 +140,7 @@ def build_wrap() -> list[int]:
     emit(0xA9436FFC)
     emit(0xA94467FA)
     emit(0xA9455FF8)
-    emit(0x910183FF)  # add sp, sp, #0x60
+    emit(0x910203FF)  # add sp, sp, #0x80
     emit(0xD65F0FFF)  # retab
 
     def patch(idx: int, word: int) -> None:
@@ -150,7 +157,6 @@ def build_wrap() -> list[int]:
 
 def patch_44(buf: bytearray, *, write: bool) -> bool:
     changed = False
-    # sel5 → sel8 in Open wrap
     fo = SEL5_SITE - SUB44_BASE
     cur = struct.unpack_from("<I", buf, fo)[0]
     want = 0x52800101  # movz w1, #8
@@ -168,11 +174,9 @@ def patch_44(buf: bytearray, *, write: bool) -> bool:
     blob = b"".join(struct.pack("<I", w) for w in cave)
     fo = WRAP_CAVE - SUB44_BASE
     if buf[fo : fo + len(blob)] != blob:
-        # require mostly zero pad
         if any(buf[fo : fo + len(blob)]):
             nz = sum(1 for b in buf[fo : fo + len(blob)] if b)
             if nz > 8 and buf[fo : fo + 4] != blob[:4]:
-                # allow overwrite if already our cave (re-entry)
                 print(f"{WRAP_CAVE:#x}: non-zero pad ({nz} bytes) — writing anyway")
         print(f"{WRAP_CAVE:#x}: write IOSOPEN→sel8 wrap ({len(blob)} bytes)")
         if write:
@@ -190,11 +194,9 @@ def patch_45(buf: bytearray, *, write: bool) -> bool:
     if cur == want:
         print(f"{IOSOPEN_STUB:#x}: stub already branches to wrap")
         return False
-    # Expected stub head: ADRP x16 / ADD / BR
     print(f"{IOSOPEN_STUB:#x}: stub {cur:#x} -> b wrap {want:#x}")
     if write:
         struct.pack_into("<I", buf, fo, want)
-        # NOP the leftover ADD/BR so they are never reached
         struct.pack_into("<I", buf, fo + 4, NOP)
         struct.pack_into("<I", buf, fo + 8, NOP)
     return True
