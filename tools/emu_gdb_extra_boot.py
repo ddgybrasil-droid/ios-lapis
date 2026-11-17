@@ -43,6 +43,16 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' *out=%#x' % (obj or 0)
                     if not obj:
                         extra += ' GMD_OUT_NULL'
+                        # boot195: dump callee-saved regs at cave return to
+                        # see if x19/x21 survived Open when *out stays null.
+                        try:
+                            def _reg(n):
+                                return int(gdb.parse_and_eval('$' + n)) & 0xffffffffffffffff
+                            extra += ' regs=x19=%#x,x20=%#x,x21=%#x,x22=%#x,x23=%#x' % (
+                                _reg('x19'), _reg('x20'), _reg('x21'),
+                                _reg('x22'), _reg('x23'))
+                        except Exception as er:
+                            extra += ' regs_err=%r' % er
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
                         try:
                             raw = bytes(gdb.selected_inferior().read_memory(

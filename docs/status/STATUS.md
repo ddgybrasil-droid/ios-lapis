@@ -1155,4 +1155,8 @@ Image.pth74.
 
 ## Chunk 143 (boot194: publish *out before isa; stash in x23)
 
-| boot194 | Image.pth124 | DSC: full wipe; isa in x23; `str x21,[x19]` then `str x23,[x21]`; GDB isa log | qemu11 43G lva=off | **ГИПОТЕЗА**: boot190 *out order + post-publish isa → BB WxH + isa≠0 → SURFACE. | out/logs/boot194 |
+| boot194 | Image.pth124 | DSC: full wipe; isa in x23; `str x21,[x19]` then `str x23,[x21]`; GDB isa log | qemu11 43G lva=off | **ПРОВЕРЕНО**: still **GMD_OUT_NULL** after have_obj Open (surface wake ok). Order/x23 did not fix — any isa-stash cave diverges from boot190. | out/logs/boot194 |
+
+## Chunk 144 (boot195: revert cave to boot190 + reg dump)
+
+| boot195 | Image.pth125 | DSC exact boot190 wipe (408B); GDB dump x19–x23 on GMD_OUT_NULL | qemu11 43G lva=off | **ГИПОТЕЗА**: restore BB *out WxH; regs show whether x19/x21 die on Open when null recurs. Next: isa-only via GDB or 8B preserve. | out/logs/boot195 |
