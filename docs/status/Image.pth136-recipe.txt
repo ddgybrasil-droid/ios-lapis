@@ -1,0 +1,6 @@
+Image.pth136 = Image.pth135 (same kernel+DSC)
+  boot205: SURFACE sel13→32; BB WxH+isa after respawn; 0 IOCMEM post-sel32.
+  boot206: dump sel13 limits+0x22; watch IOCMEM after sel32; BB EXC path.
+
+Build:
+  cp /tmp/Image.pth135 /tmp/Image.pth136

@@ -1,0 +1,6 @@
+Image.pth149 = Image.pth148 (same kernel+DSC)
+  boot218: oscard force; BB stable past GMD; still 0 IOMFB IOEXT.
+  boot219: real 0x40000388 after BB_GMD_OK (no XPC388_FAKE); T=1800.
+
+Build:
+  cp /tmp/Image.pth148 /tmp/Image.pth149

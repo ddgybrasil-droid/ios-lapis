@@ -30,6 +30,23 @@ class _RetSite(gdb.Breakpoint):
             # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
             # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
             # out* is userspace — use inferior read_memory, not kernel m64.
+            # boot209: SEL32_SCALAR1 did not unlock POST_SEL32 — leave scalar0.
+            if t.startswith('IOEXTMETHOD_RET') and 'sel=13' in t and 'stoutp=0x' in t:
+                try:
+                    sp = int(t.split('stoutp=')[1].split()[0], 16)
+                    raw = bytes(gdb.selected_inferior().read_memory(sp, 40))
+                    words = ' '.join('%04x' % int.from_bytes(raw[i:i+2], 'little')
+                                    for i in range(0, 40, 2))
+                    gate = int.from_bytes(raw[0x22:0x24], 'little')
+                    extra += ' limits40=[%s] gate+0x22=%d' % (words, gate)
+                except Exception as e7:
+                    # kernel stout may need m64 path
+                    try:
+                        sp = int(t.split('stoutp=')[1].split()[0], 16)
+                        gate = m32(sp + 0x22) & 0xffff
+                        extra += ' limits_gate+0x22=%d' % gate
+                    except Exception as e8:
+                        extra += ' limits_err=%r/%r' % (e7, e8)
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -38,8 +55,22 @@ class _RetSite(gdb.Breakpoint):
                         try:
                             raw = bytes(gdb.selected_inferior().read_memory(op, 8))
                             obj = int.from_bytes(raw, 'little')
-                        except Exception:
+                        except Exception as e0:
                             obj = 0
+                            extra += ' *out_read_err=%r' % e0
+                            # boot204: stack *out sometimes MemoryError under
+                            # the wrong thread — fall back to gdb x/gx.
+                            try:
+                                xs = gdb.execute('x/gx %#x' % op, to_string=True)
+                                extra += ' *out_x=%r' % xs.strip()[:80]
+                                # gdb prints "ADDR:\tVALUE" — take the last 0x
+                                # token (VALUE), not the address.
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                if toks:
+                                    obj = int(toks[-1], 16)
+                            except Exception as e1:
+                                extra += ' *out_x_err=%r' % e1
                     extra += ' *out=%#x' % (obj or 0)
                     if not obj:
                         extra += ' GMD_OUT_NULL'
@@ -54,23 +85,40 @@ class _RetSite(gdb.Breakpoint):
                         except Exception as er:
                             extra += ' regs_err=%r' % er
                     if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
+                        def _uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                # boot204/205: GDB often MemoryError on heap
+                                # under the wrong thread — x/gx still works.
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
+                        w = h = 0
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x30, 8))
+                            raw = _uread(obj + 0x30, 8)
                             w = int.from_bytes(raw[0:4], 'little')
                             h = int.from_bytes(raw[4:8], 'little')
                             extra += ' size=%dx%d' % (w, h)
                         except Exception as e2:
                             extra += ' size_err=%r' % e2
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x14, 4))
+                            raw = _uread(obj + 0x14, 8)[:4]
                             extra += ' conn=%#x' % int.from_bytes(raw, 'little')
                         except Exception as e3:
                             extra += ' conn_err=%r' % e3
+                        isa = 0
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj, 0x40))
+                            raw = _uread(obj, 0x40)
                             words = ' '.join('%08x' % int.from_bytes(
                                 raw[i:i+4], 'little') for i in range(0, 0x40, 4))
                             extra += ' obj40=[%s]' % words
@@ -85,6 +133,7 @@ class _RetSite(gdb.Breakpoint):
                                     try:
                                         gdb.selected_inferior().write_memory(
                                             obj, seed.to_bytes(8, 'little'))
+                                        isa = seed
                                         extra += ' ISA_SEEDED=%#x' % seed
                                     except Exception as e6:
                                         extra += ' isa_seed_err=%r' % e6
@@ -93,17 +142,114 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' ISA_CAPTURED'
                         except Exception as e4:
                             extra += ' obj40_err=%r' % e4
+                        f838 = fc08 = 0
                         try:
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0x838, 4))
-                            extra += ' f838=%#x' % int.from_bytes(raw, 'little')
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                obj + 0xc08, 4))
-                            extra += ' fc08=%#x' % int.from_bytes(raw, 'little')
+                            raw = _uread(obj + 0x838, 8)[:4]
+                            f838 = int.from_bytes(raw, 'little')
+                            extra += ' f838=%#x' % f838
+                            raw = _uread(obj + 0xc08, 8)[:4]
+                            fc08 = int.from_bytes(raw, 'little')
+                            extra += ' fc08=%#x' % fc08
                         except Exception as e5:
                             extra += ' flag_err=%r' % e5
+                        # boot211: BB GMD sometimes returns a zeroed *out page
+                        # (size/isa/flags all 0) despite Open kr=0. Force FDR-
+                        # proven panel fields so CA can proceed.
+                        if ('backboardd' in t and obj
+                                and (w == 0 or h == 0 or not isa
+                                     or f838 == 0 or fc08 == 0)):
+                            try:
+                                seed = int(_dsc.get('gmd_isa_seed', 0) or isa or 0)
+                                if seed and not isa:
+                                    gdb.selected_inferior().write_memory(
+                                        obj, seed.to_bytes(8, 'little'))
+                                    isa = seed
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x30, (2420).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x34, (1668).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x38, (2420).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x3c, (1668).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x838, (1).to_bytes(4, 'little'))
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0xc08, (1).to_bytes(4, 'little'))
+                                _mm2['bb_gmd_ok'] = 1
+                                extra += ' BB_GMD_FORCE size=2420x1668'
+                                w, h = 2420, 1668
+                            except Exception as e7:
+                                extra += ' bb_gmd_force_err=%r' % e7
+                        if 'backboardd' in t and w and h and isa:
+                            _mm2['bb_gmd_ok'] = 1
+                            if 'BB_GMD_FORCE' not in extra:
+                                extra += ' BB_GMD_OK'
+                        # boot220/221: CA may require main/fulfilled flag @+0x98
+                        # (boot116 RE). Seed 1 and read back + dump nearby.
+                        if obj and w and h:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x98, (1).to_bytes(4, 'little'))
+                                extra += ' FLAG98=1'
+                            except Exception:
+                                try:
+                                    gdb.execute(
+                                        'set {unsigned int}%#x = 1' % (obj + 0x98),
+                                        to_string=True)
+                                    extra += ' FLAG98=1'
+                                except Exception as e98:
+                                    extra += ' flag98_err=%r' % e98
+                            try:
+                                raw98 = _uread(obj + 0x90, 32)
+                                words98 = ' '.join(
+                                    '%08x' % int.from_bytes(raw98[i:i+4], 'little')
+                                    for i in range(0, 32, 4))
+                                extra += ' obj90=[%s]' % words98
+                            except Exception as e90:
+                                extra += ' obj90_err=%r' % e90
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
+            # boot211/212: BB HID path sees IOHID* CONFORMS → 0; force 1 so
+            # digitizer/event service matching can proceed toward UI.
+            if (t.startswith('CONFORMS_RET')
+                    and ('IOHIDEventService' in t or 'IOHIDDevice' in t)
+                    and 'backboardd' in t and (x0 & 0xffffffff) == 0):
+                try:
+                    gdb.execute('set $x0 = 1', to_string=True)
+                    x0 = 1
+                    extra += ' HID_CONFORMS_FORCE'
+                except Exception as eh:
+                    extra += ' hid_conforms_err=%r' % eh
+            # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
+            # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 12):
+                try:
+                    data = int(_mm2.get('bb_3228_data') or 0)
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        def _peek_uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
+                        raw = _peek_uread(data, 52)
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 52, 4))
+                        extra += ' reply=[%s]' % words
+                except Exception as er:
+                    extra += ' reply_err=%r' % er
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
@@ -125,13 +271,20 @@ class _RetSite(gdb.Breakpoint):
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
+                    # boot214: real analyticsd → w00t@0x4b03 → SPIN 0x10000000
+                    # → BB respawn. Restore force (boot186 path).
                     "name='com.apple.analyticsd'",
+                    # boot218: oscard returned x0=3 then BB w00t/respawn path;
+                    # force 0x9f like other auth services.
+                    "name='com.apple.oscard'",
                 ]
+                # boot221: stop blanket-forcing frontboard/MG pre-IOMFB —
+                # boot220 denied them before GMD and BB never retried; CA may
+                # need a real SB/MG port. Keep RB forced pre-open (hang risk).
+                # NULLPORT below still denies null-endpoint "success".
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
-                        "name='com.apple.frontboard.systemappservices'",
-                        "name='com.apple.mobilegestalt.xpc'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -140,14 +293,22 @@ class _RetSite(gdb.Breakpoint):
                 # boot187: force RB (and frontboard) for SpringBoard too.
                 force_bb = (("proc=backboardd" in t or "proc=?" in t) and
                             any(n in t for n in _force_names))
+                # boot187: force SB RB to avoid null-port hang before GMD.
+                # boot203: once BB GMD published *out with typed isa, allow real
+                # SB↔runningboard so display/CA assertion can reach IOSurface.
                 _sb_force = [
-                    "name='com.apple.runningboard'",
                     "name='com.apple.frontboard.systemappservices'",
                     "name='com.apple.analyticsd'",
                 ]
+                if not _dsc.get('gmd_isa_seed'):
+                    _sb_force.append("name='com.apple.runningboard'")
                 force_sb = ("proc=SpringBoard" in t and
                             any(n in t for n in _sb_force))
                 force_bb = force_bb or force_sb
+                if ("proc=SpringBoard" in t
+                        and "name='com.apple.runningboard'" in t
+                        and _dsc.get('gmd_isa_seed')):
+                    extra += ' SB_RB_REAL_POST_GMD_ISA'
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -170,7 +331,13 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
-                    if (not force_bb and 'proc=backboardd' in t
+                    # boot221: also NULLPORT SpringBoard↔runningboard when
+                    # x0=0 but endpoint ptrs are empty (boot220: x7*=None loop).
+                    _null_proc = ('proc=backboardd' in t or
+                                  ('proc=SpringBoard' in t and
+                                   "name='com.apple.runningboard'" in t))
+                    if (not force_bb
+                            and _null_proc
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
@@ -763,40 +930,8 @@ def _ufn(n):
             P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
                 pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
-            # boot198: do NOT bp the str itself (TCG may skip it — boot196/197).
-            # Arm once on the next insn (mov x0,x22 @ cave+0x17c); if *out
-            # still 0, force write_memory while x19/x21 remain live.
-            if _dsc.get('slide') is not None and not _dsc.get('gmd_str_armed'):
-                after_va = 0x22880511c + 0x17c + _dsc['slide']
-                try:
-                    def _on_gmd_after_str():
-                        x19, x21 = r('x19'), r('x21')
-                        pn2 = (cur_pname() or ['?'])[0]
-                        got = 0
-                        try:
-                            if x19:
-                                got = int.from_bytes(bytes(
-                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
-                        except Exception:
-                            got = 0
-                        P('GMD_AFTER_STR proc=%s x19=%#x x21=%#x *out=%#x' % (
-                            pn2, x19, x21, got))
-                        if (not got) and x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
-                            try:
-                                gdb.selected_inferior().write_memory(
-                                    x19, (x21 & 0xffffffffffffffff).to_bytes(8, 'little'))
-                                got2 = int.from_bytes(bytes(
-                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
-                                P('GMD_AFTER_STR_FORCE proc=%s *out=%#x readback=%#x' % (
-                                    pn2, x21, got2))
-                            except Exception as e:
-                                P('GMD_AFTER_STR_FORCE_ERR %r' % e)
-                        return False
-                    BP('gmd_after_str', _on_gmd_after_str, after_va)
-                    _dsc['gmd_str_armed'] = 1
-                    P('GMD_AFTER_STR_BP %#x' % after_va)
-                except Exception as e:
-                    P('GMD_AFTER_STR_BP_ERR %r' % e)
+            # boot199: no instruction breakpoints in the GMD cave — boot196–198
+            # nearby-str bps left *out=0 even when x19/x21 looked sane (TCG TB).
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False
@@ -906,12 +1041,15 @@ def on_external_method():
         extra = ''
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
-        # Always keep BB/SB/IOMFB method traffic; cap unrelated noise.
-        if _em_cnt['n'] > 80 and 'backboard' not in pn0.lower() and 'SpringBoard' not in pn0 and 'IOMFB' not in pn0:
+        # Always keep BB/SB/RB/IOMFB method traffic; cap unrelated noise.
+        # boot206: include runningboardd (IOGPU→sel13→32 path).
+        keep = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                or 'IOMFB' in pn0 or 'runningboard' in pn0.lower())
+        if _em_cnt['n'] > 80 and not keep:
             return False
         # Dump IOExternalMethodArguments output fields for RB/surface sels.
-        if args and (sel in (0, 2, 4, 13) or (pn and 'runningboard' in str(pn))
-                     or 'backboard' in pn0.lower()):
+        stout_p = 0
+        if args and (sel in (0, 2, 4, 13, 32) or keep):
             try:
                 sin_c = m32(args + 40); sout_c = m32(args + 80)
                 st_in = m32(args + 56); st_out = m32(args + 96)
@@ -922,8 +1060,27 @@ def on_external_method():
             except Exception as e:
                 extra = ' args_err=%s' % e
         P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
-        RetBP(r('x30'), 'IOEXTMETHOD_RET proc=%s sel=%d' % (
-            pn[0] if pn else '?', sel))
+        # boot207: RetBP only interesting sels — boot206 RetBP'd every RB
+        # method and timed out before SURFACE sel13.
+        # boot208: after sel32, also RetBP the next few RB sels (post-connect).
+        post32 = (_mm2.get('rb_sel32') and 'runningboard' in pn0.lower()
+                  and _mm2.get('rb_post32', 0) < 24)
+        if post32:
+            _mm2['rb_post32'] = _mm2.get('rb_post32', 0) + 1
+            extra2 = ' POST_SEL32_N=%d' % _mm2['rb_post32']
+            P('IOEXTMETHOD_POST32 proc=%s sel=%d%s' % (pn, sel, extra2))
+        if (sel in (0, 2, 4, 13, 32) or 'backboard' in pn0.lower()
+                or post32):
+            tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (
+                pn[0] if pn else '?', sel)
+            if sel == 13 and stout_p:
+                tag += ' stoutp=%#x' % stout_p
+            if sel == 32:
+                _mm2['rb_sel32'] = 1
+                tag += ' SURFACE_CONNECT'
+                if sout_p:
+                    tag += ' soutp=%#x' % sout_p
+            RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)
     return False
@@ -1155,6 +1312,8 @@ def on_mach_msg2():
                                  'n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_U err=%r' % e)
+                # boot219: skipping FAKE after GMD → no XPC388 at all + W00T.
+                # Restore FAKE (boot218 stable path).
                 if _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)
@@ -1163,7 +1322,7 @@ def on_mach_msg2():
                             P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_FAKE err=%r' % e)
-                return False
+                    return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.
         # boot167: also dump trap msg header words (identify port peer).
@@ -1212,10 +1371,40 @@ def on_mach_msg2():
                         P('SPIN_U err=%r' % e)
             return False
         _mm2['n'] += 1
-        if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
-            return False
-        if _mm2.get('post_iomfb') and _mm2['n'] > 550:
-            return False
+        # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
+        is_bb_peek = (msgid == 3228 and 'backboard' in pn0.lower())
+        if not is_bb_peek:
+            if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
+                return False
+            if _mm2.get('post_iomfb') and _mm2['n'] > 550:
+                return False
+        if is_bb_peek:
+            _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
+            data = m64(ap + 0)
+            _mm2['bb_3228_data'] = data
+            if _mm2['bb_3228'] <= 16:
+                hdr = ''
+                try:
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                data, 48))
+                        except Exception:
+                            raw = bytearray()
+                            for off in range(0, 48, 8):
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (data + off), to_string=True)
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            raw = bytes(raw[:48])
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 48, 4))
+                        hdr = ' hdr=[%s]' % words
+                except Exception as eh:
+                    hdr = ' hdr_err=%r' % eh
+                P('BB_MSG3228 n=%d remote=%#x local=%#x send=%d rcv=%d%s' % (
+                    _mm2['bb_3228'], remote, local, send_sz, rcv_sz, hdr))
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))

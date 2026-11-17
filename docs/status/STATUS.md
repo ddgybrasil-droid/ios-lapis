@@ -1167,8 +1167,101 @@ Image.pth74.
 
 ## Chunk 146 (boot197: GDB force *out at GMD_STR)
 
-| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ГИПОТЕЗА**: forced *out → WxH for BB → isa/SURFACE next. | out/logs/boot197 |
+| boot197 | Image.pth127 | same DSC reload; single GMD_STR bp + write_memory force + readback | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR FORCE ok → *out WxH isa=0. BB FORCE **MemoryError** on stack out=`0x16b64ef10`; still GMD_OUT_NULL (bp-on-str skips native store). | out/logs/boot197 |
 
-## Chunk 147 (boot198: force *out after str, not on str)
+## Chunk 147 (boot198: native str then force/set fallback)
 
-| boot198 | Image.pth128 | same DSC reload; GDB bp on insn *after* str; force if *out still 0 | qemu11 43G lva=off | **ГИПОТЕЗА**: TCG skips insn under bp (boot196–197); after-str bp lets native str run, force as backup → BB WxH → SURFACE. | out/logs/boot198 |
+| boot198 | Image.pth128 | bp AFTER str; force/set fallback | qemu11 43G lva=off | **ПРОВЕРЕНО**: AFTER_STR still *out=0 (FDR+BB); write_memory MemoryError; gdb set readback 0. Nearby-str bp likely breaks TCG store. | out/logs/boot198 |
+
+## Chunk 148 (boot199: boot190 cave, zero cave insn bps)
+
+| boot199 | Image.pth129 | DSC exact boot190 408B; GMD_BODY log only (no str/after-str bps) | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+**BB GMD *out WxH** isa=0 (restored). Still **0 SURFACE/sel13**. | out/logs/boot199 |
+
+## Chunk 149 (boot200: restore isa after *out, no insn bps)
+
+| boot200 | Image.pth130 | DSC: isa→x23; wipe; str *out then str isa; no cave insn bps | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **PANIC** `vnode_put iocount<1` before any GMD_ENTER (SB/BB up, IOMFB match). Inconclusive for isa. | out/logs/boot200 |
+
+## Chunk 150 (boot201: retest isa restore, same cave)
+
+| boot201 | Image.pth131 | same DSC/kernel as boot200; expect GMD past panic | qemu11 43G lva=off | **ПРОВЕРЕНО**: past panic; FDR+BB GMD Open ok but **GMD_OUT_NULL** (x23 isa path regresses *out vs boot199). 0 SURFACE. | out/logs/boot201 |
+
+## Chunk 151 (boot202: preserve isa by skipping wipe of [obj,#0])
+
+| boot202 | Image.pth132 | boot199 frame; wipe from +0x10; no x23 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB *out WxH + isa=0x10000020b51f079 ISA_CAPTURED**. FDR *out_read MemoryError. Still **0 SURFACE/sel13**. SB RB still FORCED post-GMD. | out/logs/boot202 |
+
+## Chunk 152 (boot203: real SB runningboard after GMD isa)
+
+| boot203 | Image.pth133 | same DSC; stop forcing SB RB once gmd_isa_seed set | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR WxH+isa; BB *out MemoryError (Open+nuc ok); **SB_RB_REAL** port 0x3d03; RB active; still **0 SURFACE**. | out/logs/boot203 |
+
+## Chunk 153 (boot204: zero obj+0x8 beside preserved isa)
+
+| boot204 | Image.pth134 | wipe+0x10 + str xzr,[obj,#8]; *out gdb x/gx fallback | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR/BB *out non-null via x/gx (parser took ADDR first); obj40/isa dump MemoryError → **no ISA_CAPTURED/SB_RB_REAL**; 0 SURFACE. | out/logs/boot204 |
+
+## Chunk 154 (boot205: fix GMD dump x/gx value+obj)
+
+| boot205 | Image.pth135 | same DSC; parse *out VALUE; x/gx obj40/isa | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+**BB** WxH+isa (+0x8==0); SB_RB_REAL; **SURFACE IOCoreSurfaceRoot**; RB **IOGPU→sel13→sel32**. BB EXC/kill once then respawn+GMD. **0 IOCMEM after sel32**. | out/logs/boot205 |
+
+## Chunk 155 (boot206: post-sel32 IOCMEM/CA deepen)
+
+| boot206 | Image.pth136 | sel13 limits dump; keep RB IOEXT; post-sel32 IOCMEM watch | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+BB WxH+isa early (**no** pre-GMD EXC); SB_RB_REAL; **0 SURFACE** — T=1100 STOPPED before RB IOGPU (RB IOEXT RetBP flood suspected). | out/logs/boot206 |
+
+## Chunk 156 (boot207: fewer RB RetBPs + longer T)
+
+| boot207 | Image.pth137 | RetBP only sels 0/2/4/13/32; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR+BB WxH+isa; SB_RB_REAL; **SURFACE sel13→32**; **gate+0x22=1**; still **0 IOCMEM after sel32** (boot98-class silent wall). | out/logs/boot207 |
+
+## Chunk 157 (boot208: log RB IOEXT after sel32)
+
+| boot208 | Image.pth138 | POST_SEL32_N log next RB sels after connect; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE sel13→32 gate+0x22=1; **0 POST_SEL32** (no further IOEXT); SB `service state: running`. Silent after connect. | out/logs/boot208 |
+
+## Chunk 158 (boot209: sel32 scalar_out[0]=1)
+
+| boot209 | Image.pth139 | GDB force sel32 scalar1 on SURFACE_CONNECT; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SEL32_SCALAR1 applied; still **0 POST_SEL32/IOCMEM**. Scalar1 not the wall. | out/logs/boot209 |
+
+## Chunk 159 (boot210: BB/SB IOSurfaceRoot after GMD)
+
+| boot210 | Image.pth140 | after BB GMD: log IOSurfaceRoot MATCH from BB/SB; nudge surface wake; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FDR WxH+isa; **BB GMD empty** (size/isa/flags 0, ISA_SEEDED only); SB_RB_REAL; SURFACE IOCore→sel13→32; **0 BB/SB IOSurfaceRoot**; HID CONFORMS=0. | out/logs/boot210 |
+
+## Chunk 160 (boot211: BB_GMD_FORCE + HID conforms)
+
+| boot211 | Image.pth141 | GDB force BB empty GMD WxH/isa/flags; force IOHIDEventService CONFORMS=1; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID_CONFORMS_FORCE → IOCONN/MAP/NOTE64; **BB_GMD_OK** native WxH+isa; SURFACE sel13→32; then BB **msgid 3228 CPU burn**; 0 POST_SEL32. | out/logs/boot211 |
+
+## Chunk 161 (boot212: HID Device conforms + real analyticsd post-GMD)
+
+| boot212 | Image.pth142 | also force IOHIDDevice CONFORMS; real analyticsd after BB_GMD_OK; log BB_MSG3228; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Device+Event HID_CONFORMS_FORCE; BB_GMD_OK; analyticsd still **FORCED_NULLPORT**; BB_MSG3228 + CPU burn; SURFACE sel32; 0 POST_SEL32. | out/logs/boot212 |
+
+## Chunk 162 (boot213: analytics real nullport + 3228 hdr)
+
+| boot213 | Image.pth143 | skip analyticsd NULLPORT after BB_GMD_OK; dump BB_MSG3228 hdr; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: analytics forced **pre-GMD** (skip never hit); 3228 hdr=`bits=0x1513 size=36 remote=0x203 id=0xc9c body=1,port`; SURFACE sel32; CPU burn. | out/logs/boot213 |
+
+## Chunk 163 (boot214: never force analyticsd + 3228 reply)
+
+| boot214 | Image.pth144 | never force/NULLPORT analyticsd; dump 3228 reply; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ANALYTICS_REAL (x7*=0x100004b03); BB_GMD_OK; then **w00t@0x4b03→SPIN 0x10000000→BB respawn**; 3228=`mach_port_peek` reply id 0xd00 RetCode0. SURFACE sel32. | out/logs/boot214 |
+
+## Chunk 164 (boot215: restore analytics force + peek fail)
+
+| boot215 | Image.pth145 | restore analyticsd 0x9f; after GMD force mach_port_peek RetCode=KERN_FAILURE; T=1400 | qemu11 43G lva=off | **НЕПОЛНО**: T=1400 STOPPED during BB early init (msgid 4811/3228); **0 HID/GMD/PEEK_FAIL**. Retest T=1800. | out/logs/boot215 |
+
+## Chunk 165 (boot216: PEEK_FAIL retest T=1800)
+
+| boot216 | Image.pth146 | same as boot215; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB_GMD_OK; analytics FORCED; **1× PEEK_FAIL** (others MemoryError); SURFACE sel32; still **0 BB IOMFB IOEXT** / no CA unlock. | out/logs/boot216 |
+
+## Chunk 166 (boot217: reliable PEEK_FAIL via x/gx)
+
+| boot217 | Image.pth147 | x/gx peek r/w; exempt 3228 from machmsg cap; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **3× PEEK_FAIL** then BB **respawn** + w00t; SURFACE sel32; oscard x0=3. PEEK_FAIL not a UI unlock (likely causes crash). | out/logs/boot217 |
+
+## Chunk 167 (boot218: drop PEEK_FAIL; force oscard)
+
+| boot218 | Image.pth148 | revert PEEK_FAIL; force oscard 0x9f; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: oscard FORCED; **no PEEK_FAIL/W00T**; single BB SPAWN (stable); BB_GMD_OK; SURFACE sel32; peek CPU burn; **0 BB IOMFB IOEXT**. | out/logs/boot218 |
+
+## Chunk 168 (boot219: real XPC388 after GMD)
+
+| boot219 | Image.pth149 | after BB_GMD_OK let 0x40000388 complete (no FAKE); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no XPC388 at all after GMD; **W00T** returned; SURFACE sel32; still 0 BB IOMFB IOEXT. Restore FAKE. | out/logs/boot219 |
+
+## Chunk 169 (boot220: restore XPC388_FAKE + FLAG98)
+
+| boot220 | Image.pth150 | restore XPC388_FAKE; seed GMD obj+0x98=1; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FLAG98=1+BB_GMD_OK+XPC388_FAKE; no W00T; SURFACE sel32; HID NOTE64; still **0** BB IOMFB IOEXT. Frontboard/MG forced pre-GMD, never retried. | out/logs/boot220 |
+
+## Chunk 170 (boot221: real frontboard/MG + SB RB NULLPORT)
+
+| boot221 | Image.pth151 | allow real BB frontboard/MG (NULLPORT only); SB RB NULLPORT; obj90 dump; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real SB/MG port before GMD unlocks CA after FLAG98. | out/logs/boot221 |
+
