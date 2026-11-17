@@ -763,32 +763,40 @@ def _ufn(n):
             P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
                 pn, outp, r('x19'), r('x21')))
             RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
-            # boot197: single shared bp on final str (cave+0x178). boot196
-            # showed x19/x21 sane at STR but *out still 0 — force the store
-            # via gdb write_memory and verify readback (TCG bp may skip insn).
+            # boot198: do NOT bp the str itself (TCG may skip it — boot196/197).
+            # Arm once on the next insn (mov x0,x22 @ cave+0x17c); if *out
+            # still 0, force write_memory while x19/x21 remain live.
             if _dsc.get('slide') is not None and not _dsc.get('gmd_str_armed'):
-                str_va = 0x22880511c + 0x178 + _dsc['slide']
+                after_va = 0x22880511c + 0x17c + _dsc['slide']
                 try:
-                    def _on_gmd_str():
+                    def _on_gmd_after_str():
                         x19, x21 = r('x19'), r('x21')
                         pn2 = (cur_pname() or ['?'])[0]
-                        P('GMD_STR proc=%s x19=%#x x21=%#x' % (pn2, x19, x21))
-                        if x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
+                        got = 0
+                        try:
+                            if x19:
+                                got = int.from_bytes(bytes(
+                                    gdb.selected_inferior().read_memory(x19, 8)), 'little')
+                        except Exception:
+                            got = 0
+                        P('GMD_AFTER_STR proc=%s x19=%#x x21=%#x *out=%#x' % (
+                            pn2, x19, x21, got))
+                        if (not got) and x19 and x21 and 0x100000000 <= (x21 & 0xffffffffffffffff) < 0x300000000:
                             try:
                                 gdb.selected_inferior().write_memory(
                                     x19, (x21 & 0xffffffffffffffff).to_bytes(8, 'little'))
-                                got = int.from_bytes(bytes(
+                                got2 = int.from_bytes(bytes(
                                     gdb.selected_inferior().read_memory(x19, 8)), 'little')
-                                P('GMD_STR_FORCE proc=%s *out=%#x readback=%#x' % (
-                                    pn2, x21, got))
+                                P('GMD_AFTER_STR_FORCE proc=%s *out=%#x readback=%#x' % (
+                                    pn2, x21, got2))
                             except Exception as e:
-                                P('GMD_STR_FORCE_ERR %r' % e)
+                                P('GMD_AFTER_STR_FORCE_ERR %r' % e)
                         return False
-                    BP('gmd_str', _on_gmd_str, str_va)
+                    BP('gmd_after_str', _on_gmd_after_str, after_va)
                     _dsc['gmd_str_armed'] = 1
-                    P('GMD_STR_BP %#x' % str_va)
+                    P('GMD_AFTER_STR_BP %#x' % after_va)
                 except Exception as e:
-                    P('GMD_STR_BP_ERR %r' % e)
+                    P('GMD_AFTER_STR_BP_ERR %r' % e)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False
