@@ -1227,5 +1227,9 @@ Image.pth74.
 
 ## Chunk 161 (boot212: HID Device conforms + real analyticsd post-GMD)
 
-| boot212 | Image.pth142 | also force IOHIDDevice CONFORMS; real analyticsd after BB_GMD_OK; log BB_MSG3228; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: Device conforms + real analytics unblocks post-GMD 3228 spin toward UI. | out/logs/boot212 |
+| boot212 | Image.pth142 | also force IOHIDDevice CONFORMS; real analyticsd after BB_GMD_OK; log BB_MSG3228; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: Device+Event HID_CONFORMS_FORCE; BB_GMD_OK; analyticsd still **FORCED_NULLPORT**; BB_MSG3228 + CPU burn; SURFACE sel32; 0 POST_SEL32. | out/logs/boot212 |
+
+## Chunk 162 (boot213: analytics real nullport + 3228 hdr)
+
+| boot213 | Image.pth143 | skip analyticsd NULLPORT after BB_GMD_OK; dump BB_MSG3228 hdr; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: real analytics null-port (not 0x9f) + 3228 hdr reveals next UI wall. | out/logs/boot213 |
 

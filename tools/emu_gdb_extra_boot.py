@@ -276,7 +276,13 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
-                    if (not force_bb and 'proc=backboardd' in t
+                    # boot213: after BB_GMD_OK, do NOT nullport-force analyticsd
+                    # (boot212 still FORCED_NULLPORT and 3228 spin continued).
+                    _skip_null = (
+                        _mm2.get('bb_gmd_ok')
+                        and "name='com.apple.analyticsd'" in t)
+                    if (not force_bb and not _skip_null
+                            and 'proc=backboardd' in t
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
@@ -301,6 +307,9 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
+                    if (_skip_null and 'proc=backboardd' in t
+                            and "name='com.apple.analyticsd'" in t):
+                        extra += ' ANALYTICS_REAL_POST_GMD'
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
@@ -1315,8 +1324,19 @@ def on_mach_msg2():
         if msgid == 3228 and 'backboard' in pn0.lower():
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
             if _mm2['bb_3228'] <= 8:
-                P('BB_MSG3228 n=%d remote=%#x local=%#x' % (
-                    _mm2['bb_3228'], remote, local))
+                hdr = ''
+                try:
+                    # mach_msg2_trap_args.data = userspace msg buffer
+                    data = m64(ap + 0)
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        raw = bytes(gdb.selected_inferior().read_memory(data, 48))
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 48, 4))
+                        hdr = ' hdr=[%s]' % words
+                except Exception as eh:
+                    hdr = ' hdr_err=%r' % eh
+                P('BB_MSG3228 n=%d remote=%#x local=%#x send=%d rcv=%d%s' % (
+                    _mm2['bb_3228'], remote, local, send_sz, rcv_sz, hdr))
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
