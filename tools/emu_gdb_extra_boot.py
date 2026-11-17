@@ -700,6 +700,13 @@ def on_iosopen():
                 _mm2['post_uf'] = 0
                 _mm2['n'] = 300
                 P('MACHMSG2_WINDOW post-IOMFB reopen')
+        # boot173: capture userspace frames on BB IOMFB open (2nd).
+        if ('backboard' in pn0.lower() and _iosopen_cnt.get('bb', 0) >= 2
+                and _mm2.get('post_iomfb')):
+            try:
+                _uframes('IOSOPEN_BB_U', 'type=%d' % typ)
+            except Exception as e:
+                P('IOSOPEN_U err=%r' % e)
         RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
             pn0 or '?', typ, outp))
     except Exception as e:
@@ -976,7 +983,17 @@ def on_mach_msg2():
         # boot156: uncapped BB logging drowned the run in w00t/0x40000000
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
+        # boot173: post-IOMFB BB CPU burn with no SPIN — sample w00t/0x40000000.
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_n', 0) < 6):
+                _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
+                P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
+                    pn0, msgid, remote, _mm2['w00t_n']))
+                try:
+                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                except Exception as e:
+                    P('W00T_U err=%r' % e)
             return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.

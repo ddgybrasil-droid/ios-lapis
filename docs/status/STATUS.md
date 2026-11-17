@@ -1063,4 +1063,8 @@ Image.pth74.
 
 ## Chunk 121 (boot172: always-force analyticsd + post-IOMFB null-port deny)
 
-| boot172 | Image.pth102 | analyticsd always 0x9f for BB; FORCED_NULLPORT for post-IOMFB null XPC | qemu11 43G lva=off | **ГИПОТЕЗА**: post-open analyticsd null-port was the SPIN peer → deny unblocks IOMFB IOCONN/sel8/CA. | out/logs/boot172 |
+| boot172 | Image.pth102 | analyticsd always 0x9f for BB; FORCED_NULLPORT for post-IOMFB null XPC | qemu11 43G lva=off | **ПРОВЕРЕНО**: analyticsd **FORCED** post-open; **POST_IOMFB_SPIN=0** (unblocked). Still **0** IOMFB IOCONN/canvas/sel8. BB CPU burn → launchd respawn; SB msgid 11602 flood. Null-port deny unused. | out/logs/boot172 |
+
+## Chunk 122 (boot173: DSC IOSOPEN→sel8 wrap + Open-wrap sel8)
+
+| boot173 | Image.pth103 | wrap IOServiceOpen stub → sel8 GetDisplaySize; Open-wrap w1=#8; W00T sample | qemu11 43G lva=off | **ГИПОТЕЗА**: BB raw-open never ran Open post-path — force sel8 after type=0 open → IOCONN/CA. | out/logs/boot173 |
