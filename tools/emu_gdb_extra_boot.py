@@ -1282,7 +1282,13 @@ def on_mach_msg2():
                                  'n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_U err=%r' % e)
-                if _mm2['xpc388_n'] <= 32:
+                # boot219: after BB_GMD_OK, do NOT short-circuit 0x40000388 —
+                # fake success may skip the real CA/display bind path.
+                if _mm2.get('bb_gmd_ok'):
+                    if _mm2['xpc388_n'] <= 8:
+                        P('POST_IOMFB_XPC388_REAL n=%d' % _mm2['xpc388_n'])
+                    # fall through to normal mach_msg2 RetBP
+                elif _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)
                         gdb.execute('set $pc = $x30', to_string=True)
@@ -1290,7 +1296,7 @@ def on_mach_msg2():
                             P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_FAKE err=%r' % e)
-                return False
+                    return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.
         # boot167: also dump trap msg header words (identify port peer).

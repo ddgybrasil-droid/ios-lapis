@@ -1251,5 +1251,9 @@ Image.pth74.
 
 ## Chunk 167 (boot218: drop PEEK_FAIL; force oscard)
 
-| boot218 | Image.pth148 | revert PEEK_FAIL; force oscard 0x9f; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop peek-crash; deny oscard like ACCHW → BB stays on GMD path toward CA. | out/logs/boot218 |
+| boot218 | Image.pth148 | revert PEEK_FAIL; force oscard 0x9f; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: oscard FORCED; **no PEEK_FAIL/W00T**; single BB SPAWN (stable); BB_GMD_OK; SURFACE sel32; peek CPU burn; **0 BB IOMFB IOEXT**. | out/logs/boot218 |
+
+## Chunk 168 (boot219: real XPC388 after GMD)
+
+| boot219 | Image.pth149 | after BB_GMD_OK let 0x40000388 complete (no FAKE); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real post-GMD XPC388 unlocks CA/display bind. | out/logs/boot219 |
 
