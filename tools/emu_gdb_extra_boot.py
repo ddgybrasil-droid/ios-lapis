@@ -187,9 +187,10 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' BB_GMD_OK'
                 except Exception as e:
                     extra += ' gmd_out_err=%r' % e
-            # boot211: BB HID path sees IOHIDEventService CONFORMS → 0; force 1
-            # so digitizer/event service matching can proceed toward UI.
-            if (t.startswith('CONFORMS_RET') and 'IOHIDEventService' in t
+            # boot211/212: BB HID path sees IOHID* CONFORMS → 0; force 1 so
+            # digitizer/event service matching can proceed toward UI.
+            if (t.startswith('CONFORMS_RET')
+                    and ('IOHIDEventService' in t or 'IOHIDDevice' in t)
                     and 'backboardd' in t and (x0 & 0xffffffff) == 0):
                 try:
                     gdb.execute('set $x0 = 1', to_string=True)
@@ -218,8 +219,12 @@ class _RetSite(gdb.Breakpoint):
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
-                    "name='com.apple.analyticsd'",
                 ]
+                # boot212: after BB_GMD_OK, allow real analyticsd — forced 0x9f
+                # still leaves BB spinning on msgid 3228; test whether a real
+                # analytics port unblocks post-GMD CA/display work.
+                if not _mm2.get('bb_gmd_ok'):
+                    _force_names.append("name='com.apple.analyticsd'")
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
@@ -1307,6 +1312,11 @@ def on_mach_msg2():
             return False
         if _mm2.get('post_iomfb') and _mm2['n'] > 550:
             return False
+        if msgid == 3228 and 'backboard' in pn0.lower():
+            _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
+            if _mm2['bb_3228'] <= 8:
+                P('BB_MSG3228 n=%d remote=%#x local=%#x' % (
+                    _mm2['bb_3228'], remote, local))
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))

@@ -1223,5 +1223,9 @@ Image.pth74.
 
 ## Chunk 160 (boot211: BB_GMD_FORCE + HID conforms)
 
-| boot211 | Image.pth141 | GDB force BB empty GMD WxH/isa/flags; force IOHIDEventService CONFORMS=1; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: empty BB GMD + HID conforms=0 blocks CA/UI. | out/logs/boot211 |
+| boot211 | Image.pth141 | GDB force BB empty GMD WxH/isa/flags; force IOHIDEventService CONFORMS=1; T=1400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID_CONFORMS_FORCE → IOCONN/MAP/NOTE64; **BB_GMD_OK** native WxH+isa; SURFACE sel13→32; then BB **msgid 3228 CPU burn**; 0 POST_SEL32. | out/logs/boot211 |
+
+## Chunk 161 (boot212: HID Device conforms + real analyticsd post-GMD)
+
+| boot212 | Image.pth142 | also force IOHIDDevice CONFORMS; real analyticsd after BB_GMD_OK; log BB_MSG3228; T=1400 | qemu11 43G lva=off | **ГИПОТЕЗА**: Device conforms + real analytics unblocks post-GMD 3228 spin toward UI. | out/logs/boot212 |
 
