@@ -1107,4 +1107,8 @@ Image.pth74.
 
 ## Chunk 132 (boot183: sel8 scalar outs = 2420×1668)
 
-| boot183 | Image.pth113 | lapis_external_method sel8 → scalar_out[0]=2420,[1]=1668 | qemu11 43G lva=off | **ГИПОТЕЗА**: correct GetDisplaySize scalars → BB past FAR=0 into CA/IOSurface. | out/logs/boot183 |
+| boot183 | Image.pth113 | lapis_external_method sel8 → scalar_out[0]=2420,[1]=1668 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB/FDR still **FAR=0** after sel8; crash is `str x21,[x19]` in GMD (out* null) — WxH hardcoded in userspace; nested wrap sel8 likely clobbers x19. | out/logs/boot183 |
+
+## Chunk 133 (boot184: identity IOSOPEN wrap; restore Open sel5)
+
+| boot184 | Image.pth114 | wrap = open-only (no nested sel8); Open-wrap w1=#5 UCAL; keep scalar WxH | qemu11 43G lva=off | **ГИПОТЕЗА**: stop x19 clobber → GMD `*out=obj` ok → BB past FAR=0 into CA. | out/logs/boot184 |
