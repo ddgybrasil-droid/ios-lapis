@@ -1115,4 +1115,8 @@ Image.pth74.
 
 ## Chunk 134 (boot185: revert IOSOPEN stub; real analyticsd post-open)
 
-| boot185 | Image.pth115 | restore stub ADRP/ADD/BR; analyticsd real after IOMFB; SURFACE_MATCH log | qemu11 43G lva=off | **ГИПОТЕЗА**: clean stub + real analytics → CA/IOSurface after GMD. | out/logs/boot185 |
+| boot185 | Image.pth115 | restore stub ADRP/ADD/BR; analyticsd real after IOMFB; SURFACE_MATCH log | qemu11 43G lva=off | **ПРОВЕРЕНО**: no FAR=0; GMD via xpcproxy x0=0; BB open+XPC388; analyticsd **x0=1 null ports** → quiet; **0** SURFACE/sel8. | out/logs/boot185 |
+
+## Chunk 135 (boot186: force analyticsd; IOSurface deferred wake; GMD_BODY log)
+
+| boot186 | Image.pth116 | always-force analyticsd; deferred wake nudges IOSurfaceRoot; GMD_BODY hook | qemu11 43G lva=off | **ГИПОТЕЗА**: deny analyticsd + surface re-wake → BB_SURFACE_MATCH / CA bind. | out/logs/boot186 |

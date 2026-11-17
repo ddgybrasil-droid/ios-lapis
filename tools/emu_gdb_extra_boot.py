@@ -43,18 +43,18 @@ class _RetSite(gdb.Breakpoint):
                 # boot171: gestalt/locationd forced pre-open, but analyticsd was
                 # looked up *after* IOMFB open (post_iomfb gate skipped it) and
                 # returned x0=0/null — boot172: always force analyticsd for BB.
-                # boot185: GMD stable without wrap; after IOMFB allow real
-                # analyticsd (boot184 went quiet after FORCED analytics).
+                # boot185: real analyticsd → x0=1 + null ports then quiet.
+                # boot186: always force analyticsd again.
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
+                    "name='com.apple.analyticsd'",
                 ]
                 if not _mm2.get('post_iomfb'):
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
-                        "name='com.apple.analyticsd'",
                     ]
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
@@ -528,7 +528,9 @@ DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0
           'SBStatic_status':0x224040bf8,
           'SBStatic_cold':0x2241f6e00,
           # boot164: IOMobileFramebufferGetMainDisplay (DSC .44 cave entry)
-          'IOMFB_GetMainDisplay':0x2288047a8}
+          'IOMFB_GetMainDisplay':0x2288047a8,
+          # boot186: GMD body/cave (BB may enter here without the thin stub)
+          'IOMFB_GMD_body':0x22880511c}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -668,6 +670,9 @@ def _ufn(n):
         elif n=='IOMFB_GetMainDisplay':
             P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
             RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
+        elif n=='IOMFB_GMD_body':
+            P('GMD_BODY proc=%s out=%#x' % (pn, r('x0')))
+            RetBP(r('x30'), 'GMD_BODY_RET proc=%s' % pn)
         else:
             P('DSC_CALL %s proc=%s'%(n,pn))
         return False

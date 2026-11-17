@@ -777,6 +777,14 @@ static void lapis_iomfb_deferred_wake(void *p0, void *p1)
 	else
 		msg = 0xe0000401u;
 	IOService_messageClients(ctx->service, msg, 0, 0);
+	/* boot186: re-nudge IOSurfaceRoot on every deferred tick (CA bind). */
+	{
+		void *surf = lapis_published_stub("IOSurfaceRoot");
+		if (surf) {
+			IOService_messageClients(surf, msg, 0, 0);
+			OSObject_release(surf);
+		}
+	}
 	if (ctx->n == 0)
 		IOLog("LAPIS iomfb: deferred wake property-change\n");
 	else if (ctx->n == 1)
