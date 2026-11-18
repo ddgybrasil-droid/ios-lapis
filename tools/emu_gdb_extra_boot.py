@@ -369,6 +369,15 @@ class _RetSite(gdb.Breakpoint):
                                 and "name='com.apple.runningboard'" in t
                                 and saw_port):
                             nullish = False
+                            _mm2['sb_rb_ok'] = 1
+                            extra += ' SB_RB_PORT_KEPT'
+                        # boot247: once SB had a real RB port, do not NULLPORT
+                        # later SB↔RB lookups (boot246 FORCED second lookup;
+                        # SAS null while boot245 kept SAS real). Sticky keep.
+                        if (_mm2.get('sb_rb_ok') and 'proc=SpringBoard' in t
+                                and "name='com.apple.runningboard'" in t):
+                            nullish = False
+                            extra += ' SB_RB_STICKY'
                         # boot237: boot236 still NULLPORTed BB analyticsd via
                         # this path after removing it from force_names.
                         # boot242: boot241 tagged ANALYTICS_REAL with x4/x7=None

@@ -1363,5 +1363,9 @@ Image.pth74.
 
 ## Chunk 195 (boot246: prioritize 6001012 uframes + BB sample)
 
-| boot246 | Image.pth176 | prefer uframes on 6001012; sample BB post-SAS; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: CA/FrontBoard stack on 6001012; BB side of system-app-server. | out/logs/boot246 |
+| boot246 | Image.pth176 | prefer uframes on 6001012; sample BB post-SAS; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE (via CommCenter sel32); **POST_SURFACE_U msgid=6001012** = mach→**BackBoardServices**→**FrontBoard**→libdispatch→SpringBoard; SAS **null** this run. | out/logs/boot246 |
+
+## Chunk 196 (boot247: sticky SB↔RB port for SAS)
+
+| boot247 | Image.pth177 | once SB_RB port kept, never NULLPORT later SB↔RB; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: stabilize system-app-server real (boot245) so FrontBoard/BKS path after 6001012 can progress to CA. | out/logs/boot247 |
 
