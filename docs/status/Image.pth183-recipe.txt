@@ -1,0 +1,9 @@
+Image.pth183 = Image.pth182 + SAS tagged-port keep
+  boot252: forced SAS when x7*=0xfe9694e800003b03 — low32 0x3b03 is a
+  real mach port (same as boot245 …1593 / boot248 …2e03). No SURFACE.
+  boot253: is_port = 0 < (v&0xffffffff) < 0x10000; keep those; only
+  SAS_NULL_FORCE after post_iomfb. T=3000.
+
+Build:
+  cp /tmp/Image.pth182 /tmp/Image.pth183
+  # DSC unchanged; GDB only

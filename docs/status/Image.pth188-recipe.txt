@@ -1,0 +1,8 @@
+Image.pth188 = Image.pth187 + SAS observe-only
+  boot257: soft-null still SB EXC far=0x100000000. keep/0x9f also crash.
+  boot249: untouched SAS (x0=0 x7*=None) lived to SURFACE+6001012.
+  boot258: log SAS only; never write x0/*out7. T=3000.
+
+Build:
+  cp /tmp/Image.pth187 /tmp/Image.pth188
+  # DSC unchanged; GDB only

@@ -1383,5 +1383,33 @@ Image.pth74.
 
 ## Chunk 200 (boot251: dump 6001012 userspace buf + POST_CA_ANY)
 
-| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reply payload + later SB frames reveal next CA/IOMFB wall past BKS→FB. | out/logs/boot251 |
+| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; SAS x7*=None; buf MemoryError; no POST_CA_ANY; prior "SAS real" not a port. | out/logs/boot251 |
+
+## Chunk 201 (boot252: SAS_NULL_FORCE + wider post-SURFACE mach)
+
+| boot252 | Image.pth182 | force 0x9f when SAS x0=0 without mach port; widen post-SURFACE mach to 400; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS early `v=0xfe9694e8…3b03` **misread** as non-port → FORCE; no SURFACE by T≈34m. low32=0x3b03 IS a port. | out/logs/boot252 |
+
+## Chunk 202 (boot253: SAS tagged-port keep)
+
+| boot253 | Image.pth183 | treat low32 of SAS x7* as port; keep real; only NULL-force post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL low=0x3a03 → **SpringBoard EXC/exit**; no SURFACE. Tagged value = stack garbage. | out/logs/boot253 |
+
+## Chunk 203 (boot254: SAS require high32==0)
+
+| boot254 | Image.pth184 | SAS_PORT_REAL only if high32==0; else SAS_NULL_FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE ok; no SB crash; **SB quiet** (no SAS/RB/6001012); mach window never reopened. | out/logs/boot254 |
+
+## Chunk 204 (boot255: reopen mach at SURFACE + SB 11602 frames)
+
+| boot255 | Image.pth185 | reopen mach window at sel32; sample SB 11602 uframes post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_NULL_FORCE → **SB EXC far=0x100000000**/exit; MATCH reopen ok. | out/logs/boot255 |
+
+## Chunk 205 (boot256: SAS soft-null keep x0=0)
+
+| boot256 | Image.pth186 | zero SAS *out7 on garbage; keep x0=0 (no 0x9f); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012 BKS→FB; no SAS lookup; SB PREPAREEXIT after; early MATCH proc=? before GETSIZE. | out/logs/boot256 |
+
+## Chunk 206 (boot257: arm post_iomfb only for real backboardd)
+
+| boot257 | Image.pth187 | no post_iomfb arm on MATCH proc=?; require backboardd; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE before SURFACE ok; SAS_SOFT_NULL still → **SB EXC far=0x100000000**. | out/logs/boot257 |
+
+## Chunk 207 (boot258: SAS observe-only)
+
+| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 untouched SAS → SB lives past 6001012 toward CA. | out/logs/boot258 |
 
