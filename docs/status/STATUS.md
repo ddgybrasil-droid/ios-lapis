@@ -1387,5 +1387,9 @@ Image.pth74.
 
 ## Chunk 201 (boot252: SAS_NULL_FORCE + wider post-SURFACE mach)
 
-| boot252 | Image.pth182 | force 0x9f when SAS x0=0 without mach port; widen post-SURFACE mach to 400; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB retries system-app-server until BB publishes a real port; more mach reveals CA past FrontBoard. | out/logs/boot252 |
+| boot252 | Image.pth182 | force 0x9f when SAS x0=0 without mach port; widen post-SURFACE mach to 400; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS early `v=0xfe9694e8…3b03` **misread** as non-port → FORCE; no SURFACE by T≈34m. low32=0x3b03 IS a port. | out/logs/boot252 |
+
+## Chunk 202 (boot253: SAS tagged-port keep)
+
+| boot253 | Image.pth183 | treat low32 of SAS x7* as port; keep real; only NULL-force post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore true SAS_PORT_REAL (boot245/248 pattern); SURFACE+CA after FrontBoard. | out/logs/boot253 |
 
