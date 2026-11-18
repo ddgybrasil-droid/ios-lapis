@@ -250,15 +250,17 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
-            # boot251/252: dump 6001012 userspace mach_msg buffer on RET.
+            # boot251/252/259: dump 6001012 reply + RET FP walk (boot258
+            # quiet after BKS→FrontBoard; need where SB goes next).
             if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
                     and 'SpringBoard' in t and _mm2.get('dump_6001012', 0) < 1):
                 _mm2['dump_6001012'] = 1
+                _mm2['post_6001012'] = 1
                 try:
                     buf = int(_mm2.get('msg_6001012_buf') or 0)
                     raw = bytearray()
-                    if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
-                        for off in range(0, 80, 8):
+                    if buf:
+                        for off in range(0, 96, 8):
                             try:
                                 xs = gdb.execute(
                                     'x/gx %#x' % (buf + off), to_string=True)
@@ -269,12 +271,36 @@ class _RetSite(gdb.Breakpoint):
                                 raw += b'\x00' * 8
                     if any(raw):
                         words = ' '.join('%08x' % int.from_bytes(
-                            raw[i:i+4], 'little') for i in range(0, 80, 4))
+                            raw[i:i+4], 'little') for i in range(0, len(raw), 4))
                         extra += ' buf=%#x [%s]' % (buf, words)
                     else:
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
+                try:
+                    fps = []
+                    fp = int(gdb.parse_and_eval('$x29')) & 0xffffffffffffffff
+                    lr0 = int(gdb.parse_and_eval('$x30')) & 0xffffffffffffffff
+                    fps.append(lr0)
+                    for _ in range(20):
+                        if not (0x100000000 <= fp < 0x300000000):
+                            break
+                        xs = gdb.execute('x/2gx %#x' % fp, to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        if len(toks) < 2:
+                            break
+                        nfp = int(toks[-2], 16) & 0xffffffffffffffff
+                        nlr = int(toks[-1], 16) & 0xffffffffffffffff
+                        fps.append(nlr)
+                        if nfp <= fp:
+                            break
+                        fp = nfp
+                    if fps:
+                        extra += ' RET_FRAMES ' + ' '.join(
+                            '%#x' % x for x in fps[:16])
+                except Exception as ef:
+                    extra += ' ret_fr_err=%r' % ef
             # boot258: ANY SAS mutation crashes SB (keep/0x9f/soft-null all
             # EXC far=0x100000000). boot249 left the lookup untouched
             # (x0=0 x7*=None) and reached SURFACE+6001012. Observe only.
@@ -1474,11 +1500,48 @@ def on_mach_msg2():
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:
             _mm2['msg_6001012_buf'] = data_ptr
+            _mm2['post_6001012'] = 1  # arm recv-keep early (boot259)
+            if (_mm2.get('dump_6001012_send', 0) < 1
+                    and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')):
+                _mm2['dump_6001012_send'] = 1
+                try:
+                    raw = bytearray()
+                    for off in range(0, 64, 8):
+                        try:
+                            xs = gdb.execute(
+                                'x/gx %#x' % (data_ptr + off), to_string=True)
+                            toks = [tt for tt in xs.replace(':', ' ').split()
+                                    if tt.startswith('0x') and len(tt) > 5]
+                            raw += int(toks[-1], 16).to_bytes(8, 'little')
+                        except Exception:
+                            raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 64, 4))
+                        P('MSG_6001012_SEND buf=%#x [%s]' % (data_ptr, words))
+                except Exception as es:
+                    P('MSG_6001012_SEND err=%r' % es)
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
-        if not sending and recving and _mm2['n'] > 40:
+        # boot259: after 6001012 SB went silent under recv-only drop — keep
+        # logging pure-recv SB mach so we see the post-FrontBoard wait.
+        _sb_recv_keep = (
+            _mm2.get('post_6001012')
+            and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+            and _mm2.get('sb_recv_n', 0) < 40)
+        if not sending and recving and _mm2['n'] > 40 and not _sb_recv_keep:
             return False
+        if _sb_recv_keep and not sending and recving:
+            _mm2['sb_recv_n'] = _mm2.get('sb_recv_n', 0) + 1
+            P('SB_RECV_POST_CA proc=%s msgid=%d remote=%#x local=%#x rcv_name=%#x n=%d' % (
+                pn0, msgid, remote, local, rcv_name, _mm2['sb_recv_n']))
+            if _mm2['sb_recv_n'] <= 6:
+                try:
+                    _uframes('SB_RECV_POST_CA_U', 'n=%d msgid=%d' % (
+                        _mm2['sb_recv_n'], msgid))
+                except Exception as e:
+                    P('SB_RECV_U err=%r' % e)
         # boot156: uncapped BB logging drowned the run in w00t/0x40000000
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.

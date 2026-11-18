@@ -1411,5 +1411,9 @@ Image.pth74.
 
 ## Chunk 207 (boot258: SAS observe-only)
 
-| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 untouched SAS → SB lives past 6001012 toward CA. | out/logs/boot258 |
+| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_OBSERVE v=None → **no SB EXC**; SURFACE+**6001012 x0=0** (BKS→FrontBoard). SB quiet after (recv-only blind). | out/logs/boot258 |
+
+## Chunk 208 (boot259: post-6001012 recv + RET frames)
+
+| boot259 | Image.pth189 | keep SAS observe; log SB recv after 6001012; RET FP walk + send/reply dump; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see post-FrontBoard wait / next CA mach. | out/logs/boot259 |
 
