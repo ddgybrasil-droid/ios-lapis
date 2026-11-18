@@ -365,6 +365,12 @@ class _RetSite(gdb.Breakpoint):
                                 and "name='com.apple.runningboard'" in t
                                 and saw_port):
                             nullish = False
+                        # boot237: boot236 still NULLPORTed BB analyticsd via
+                        # this path after removing it from force_names.
+                        if (_mm2.get('post_iomfb') and 'proc=backboardd' in t
+                                and "name='com.apple.analyticsd'" in t):
+                            nullish = False
+                            extra += ' ANALYTICS_REAL_POST_GMD'
                         if nullish:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)

@@ -1,0 +1,8 @@
+Image.pth167 = Image.pth166 + no BB analytics NULLPORT post-GMD
+  boot236: force_names skipped analyticsd but BB nullport blanket still
+  FORCED_NULLPORT_0x9f.
+  boot237: after post_iomfb, do not NULLPORT BB↔analyticsd; T=1800.
+
+Build:
+  cp /tmp/Image.pth166 /tmp/Image.pth167
+  # DSC unchanged; GDB: emu_gdb_extra_boot.py

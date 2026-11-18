@@ -1323,5 +1323,9 @@ Image.pth74.
 
 ## Chunk 185 (boot236: real analyticsd after GMD)
 
-| boot236 | Image.pth166 | after post_iomfb do not force analyticsd; keep GETSIZE WRAP; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB continues past GETSIZE with real analyticsd → system-app-server. | out/logs/boot236 |
+| boot236 | Image.pth166 | after post_iomfb do not force analyticsd; keep GETSIZE WRAP; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE; analytics still **FORCED_NULLPORT** via BB nullport blanket; system-app-server null. | out/logs/boot236 |
+
+## Chunk 186 (boot237: skip BB analytics NULLPORT post-GMD)
+
+| boot237 | Image.pth167 | post_iomfb: no NULLPORT on BB↔analyticsd; keep GETSIZE; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real analyticsd endpoint → BB continues → system-app-server. | out/logs/boot237 |
 
