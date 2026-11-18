@@ -1,0 +1,9 @@
+Image.pth175 = Image.pth174 + post-SURFACE uframes
+  boot244: ANALYTICS_BAD_FORCE + SURFACE + post-SURFACE; SAS null.
+  boot245: dump userspace frames for post-SURFACE SpringBoard msgids
+  6001012 / 1073742628 / 1073742629 / 1073742031 / 11602 (≤6);
+  keep BAD_FORCE + MATCH post_iomfb; T=3000.
+
+Build:
+  cp /tmp/Image.pth174 /tmp/Image.pth175
+  # DSC unchanged; GDB only

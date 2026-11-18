@@ -1528,12 +1528,23 @@ def on_mach_msg2():
         # short of SURFACE under T=2400.
         # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
         # (W00T/XPC388/peek) so guest runs faster toward SURFACE.
-        interesting = msgid in (0x77303074, 0x40000388, 3228, 4813, 11602)
+        interesting = msgid in (0x77303074, 0x40000388, 3228, 4813, 11602,
+                                6001012, 1073742628, 1073742629, 1073742031)
         do_ret = sending and recving and (
             interesting
             or (not _mm2.get('post_iomfb'))
             or _mm2.get('post_surf_mach')
             or _mm2['n'] <= 40)
+        # boot245: userspace frames on post-SURFACE CA-candidate msgids
+        if (_mm2.get('post_surf_mach') and interesting
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('post_surf_uf', 0) < 6):
+            _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
+            try:
+                _uframes('POST_SURFACE_U', 'msgid=%d n=%d' % (
+                    msgid, _mm2['post_surf_uf']))
+            except Exception as e:
+                P('POST_SURFACE_U err=%r' % e)
         if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))

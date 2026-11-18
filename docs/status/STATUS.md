@@ -1355,5 +1355,9 @@ Image.pth74.
 
 ## Chunk 193 (boot244: analytics x0≠0 always BAD_FORCE)
 
-| boot244 | Image.pth174 | x0≠0 → BAD_FORCE; reject 0x100000000 sentinel as port; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean analytics skip → quieter BB → SAS real and/or clearer CA path via 6001012. | out/logs/boot244 |
+| boot244 | Image.pth174 | x0≠0 → BAD_FORCE; reject 0x100000000 sentinel; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **ANALYTICS_BAD_FORCE**; GETSIZE+**SURFACE**+post-SURFACE; SAS still null; SB_RB port then NULLPORT; msgid 6001012/11602/1073742628. | out/logs/boot244 |
+
+## Chunk 194 (boot245: post-SURFACE userspace frames)
+
+| boot245 | Image.pth175 | _uframes on post-SURFACE msgids 6001012/1073742628/2629; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: identify CA/IOMFB/FrontBoard frames behind 6001012; next UI wall. | out/logs/boot245 |
 
