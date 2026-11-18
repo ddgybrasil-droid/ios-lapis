@@ -1399,5 +1399,9 @@ Image.pth74.
 
 ## Chunk 204 (boot255: reopen mach at SURFACE + SB 11602 frames)
 
-| boot255 | Image.pth185 | reopen mach window at sel32; sample SB 11602 uframes post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: find SB stall before SAS; restore 6001012 after SURFACE. | out/logs/boot255 |
+| boot255 | Image.pth185 | reopen mach window at sel32; sample SB 11602 uframes post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_NULL_FORCE → **SB EXC far=0x100000000**/exit; MATCH reopen ok. | out/logs/boot255 |
+
+## Chunk 205 (boot256: SAS soft-null keep x0=0)
+
+| boot256 | Image.pth186 | zero SAS *out7 on garbage; keep x0=0 (no 0x9f); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 (x0=0+null) → SB lives → SURFACE+6001012. | out/logs/boot256 |
 

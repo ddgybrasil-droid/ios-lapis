@@ -275,10 +275,10 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
-            # boot254: boot253 kept low32 of 0xf88754e8…3a03 as SAS_PORT_REAL
-            # → SpringBoard EXC/exit (OS_REASON). High32 is stale stack; the
-            # "port" was garbage. Require high32==0 for a clean mach_port_t
-            # write; otherwise NULL-force (boot249 SURFACE path).
+            # boot256: boot255 SAS_NULL_FORCE_0x9f → SB EXC far=0x100000000.
+            # boot253 keep-garbage → SB EXC. boot249 left x0=0 + x7*=None
+            # and SB lived to SURFACE+6001012. Soft-null: zero *out7, keep
+            # x0=0 (do NOT 0x9f). Clean high32==0 port still kept.
             if (t.startswith('XPC_LOOKUP_RET')
                     and "name='com.apple.backboard.system-app-server'" in t
                     and 'proc=SpringBoard' in t):
@@ -308,20 +308,15 @@ class _RetSite(gdb.Breakpoint):
                     else:
                         extra += ' SAS_STACK_GARBAGE v=%r' % (
                             None if v is None else hex(v))
-                        if (x0 & 0xffffffff) == 0:
+                        if out7:
                             try:
-                                gdb.execute('set $x0 = 0x9f', to_string=True)
-                                x0 = 0x9f
-                                if out7:
-                                    try:
-                                        gdb.execute(
-                                            'set {unsigned long long}%#x = 0'
-                                            % out7, to_string=True)
-                                    except Exception:
-                                        pass
-                                extra += ' SAS_NULL_FORCE_0x9f'
-                            except Exception as es:
-                                extra += ' sas_force_err=%r' % es
+                                gdb.execute(
+                                    'set {unsigned long long}%#x = 0' % out7,
+                                    to_string=True)
+                            except Exception:
+                                pass
+                        # Keep x0 as-is (0). Do not 0x9f — that crashed SB.
+                        extra += ' SAS_SOFT_NULL'
                 except Exception as es2:
                     extra += ' sas_check_err=%r' % es2
             if t.startswith('XPC_LOOKUP_RET'):

@@ -1,0 +1,9 @@
+Image.pth186 = Image.pth185 + SAS soft-null (keep x0=0)
+  boot255: SAS_NULL_FORCE_0x9f → SpringBoard EXC far=0x100000000.
+  boot253 keep-garbage also crashed SB. boot249 x0=0+null lived.
+  boot256: on SAS stack garbage, zero *out7 but leave x0=0
+  (SAS_SOFT_NULL). Clean high32==0 port still kept. T=3000.
+
+Build:
+  cp /tmp/Image.pth185 /tmp/Image.pth186
+  # DSC unchanged; GDB only
