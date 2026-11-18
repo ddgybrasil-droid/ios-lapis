@@ -553,8 +553,11 @@ class _RetSite(gdb.Breakpoint):
                                         extra += ' %s*=None' % label
                                     else:
                                         extra += ' %s*=%#x' % (label, v)
-                                        if v and v < 0x10000:
-                                            extra += '(port?)'
+                                        # boot253: port name may sit in low32
+                                        # with high tag bits (SAS endpoints).
+                                        low = v & 0xffffffff
+                                        if low and low < 0x10000:
+                                            extra += '(port?%#x)' % low
                             except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))
