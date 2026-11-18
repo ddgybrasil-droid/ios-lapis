@@ -1375,5 +1375,9 @@ Image.pth74.
 
 ## Chunk 198 (boot249: always force BB analytics)
 
-| boot249 | Image.pth179 | always force BB analyticsd 0x9f (no REAL); keep FB_SAS allow; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore SURFACE+SAS+6001012 path of boot245/246; then deepen CA after FrontBoard. | out/logs/boot249 |
+| boot249 | Image.pth179 | always force BB analyticsd 0x9f (no REAL); keep FB_SAS allow; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no W00T; SURFACE+6001012 BKS→FB; SAS **null**; quiet after FrontBoard. | out/logs/boot249 |
+
+## Chunk 199 (boot250: SB FB systemappservices + post-CA frames)
+
+| boot250 | Image.pth180 | SB real frontboard.systemappservices; dump 6001012 reply; POST_CA_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB hosting FB services unlocks SAS/CA; reply+frames show next wall past FrontBoard. | out/logs/boot250 |
 

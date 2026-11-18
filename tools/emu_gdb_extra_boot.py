@@ -304,8 +304,10 @@ class _RetSite(gdb.Breakpoint):
                 # boot187: force SB RB to avoid null-port hang before GMD.
                 # boot203: once BB GMD published *out with typed isa, allow real
                 # SB↔runningboard so display/CA assertion can reach IOSurface.
+                # boot250: stop forcing SB frontboard.systemappservices —
+                # SB hosts FrontBoard; 0x9f blocked system-app services that
+                # BB/CA need after BKS→FB (6001012). Keep analytics force.
                 _sb_force = [
-                    "name='com.apple.frontboard.systemappservices'",
                     "name='com.apple.analyticsd'",
                 ]
                 if not _dsc.get('gmd_isa_seed'):
@@ -317,6 +319,10 @@ class _RetSite(gdb.Breakpoint):
                         and "name='com.apple.runningboard'" in t
                         and _dsc.get('gmd_isa_seed')):
                     extra += ' SB_RB_REAL_POST_GMD_ISA'
+                if ("proc=SpringBoard" in t
+                        and "name='com.apple.frontboard.systemappservices'"
+                        in t):
+                    extra += ' SB_FB_SAS_REAL'
                 if force_bb:
                     try:
                         gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -1581,9 +1587,40 @@ def on_mach_msg2():
                         msgid, _mm2['post_surf_uf']))
                 except Exception as e:
                     P('POST_SURFACE_U err=%r' % e)
+            # boot250: after 6001012, keep sampling next SB msgs for CA
+            # (QuartzCore / IOMFB) — boot249 went quiet post-BKS→FB.
+            elif (_mm2.get('uf_6001012', 0) >= 1
+                  and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                  and _mm2.get('uf_post_ca', 0) < 4
+                  and interesting):
+                _mm2['uf_post_ca'] = _mm2.get('uf_post_ca', 0) + 1
+                _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
+                try:
+                    _uframes('POST_CA_U', 'msgid=%d n=%d' % (
+                        msgid, _mm2['uf_post_ca']))
+                except Exception as e:
+                    P('POST_CA_U err=%r' % e)
         if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))
+            # boot250: dump 6001012 reply (rcv=68) for CA/display payload.
+            if (msgid == 6001012 and 'SpringBoard' in pn0
+                    and _mm2.get('dump_6001012', 0) < 1):
+                _mm2['dump_6001012'] = 1
+                try:
+                    # x1 often msg buffer on trap return path — best-effort
+                    buf = r('x1')
+                    raw = b''
+                    if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
+                        raw = bytes(gdb.selected_inferior().read_memory(buf, 68))
+                    if raw:
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 68, 4))
+                        P('MSG_6001012_REPLY buf=%#x [%s]' % (buf, words))
+                    else:
+                        P('MSG_6001012_REPLY buf=%#x unreadable' % (buf or 0))
+                except Exception as e:
+                    P('MSG_6001012_REPLY err=%r' % e)
     except Exception as e:
         P('ERR mach_msg2 %s' % e)
     return False
