@@ -1387,6 +1387,7 @@ def on_mach_msg2():
         # Trap entry: x0 → mach_msg2_trap_args on kernel stack.
         if (ap >> 40) != 0xfffffe:
             return False
+        data_ptr = m64(ap)  # userspace mach_msg buffer
         opt64 = m64(ap + 8)
         mb_ss = m64(ap + 16); mr_lp = m64(ap + 24); mv_id = m64(ap + 32)
         dc_rn = m64(ap + 40); rs_pr = m64(ap + 48)
@@ -1399,6 +1400,10 @@ def on_mach_msg2():
         rcv_name = (dc_rn >> 32) & 0xffffffff
         rcv_sz = rs_pr & 0xffffffff
         sending = bool(opt64 & 1); recving = bool(opt64 & 2)
+        # boot251: stash userspace buffer for 6001012 reply dump (boot250
+        # tried x1 / kernel VA and got unreadable).
+        if msgid == 6001012 and data_ptr:
+            _mm2['msg_6001012_buf'] = data_ptr
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
@@ -1603,24 +1608,47 @@ def on_mach_msg2():
         if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))
-            # boot250: dump 6001012 reply (rcv=68) for CA/display payload.
+            # boot251: dump 6001012 buffer on RET (userspace data_ptr).
             if (msgid == 6001012 and 'SpringBoard' in pn0
                     and _mm2.get('dump_6001012', 0) < 1):
                 _mm2['dump_6001012'] = 1
-                try:
-                    # x1 often msg buffer on trap return path — best-effort
-                    buf = r('x1')
-                    raw = b''
-                    if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
-                        raw = bytes(gdb.selected_inferior().read_memory(buf, 68))
-                    if raw:
-                        words = ' '.join('%08x' % int.from_bytes(
-                            raw[i:i+4], 'little') for i in range(0, 68, 4))
-                        P('MSG_6001012_REPLY buf=%#x [%s]' % (buf, words))
-                    else:
-                        P('MSG_6001012_REPLY buf=%#x unreadable' % (buf or 0))
-                except Exception as e:
-                    P('MSG_6001012_REPLY err=%r' % e)
+                _buf = data_ptr
+                _ss, _rs = send_sz, rcv_sz
+
+                def _dump_6001012(_b=_buf, _ss=_ss, _rs=_rs):
+                    try:
+                        raw = b''
+                        if (_b and 0x100000000
+                                <= (_b & 0xffffffffffffffff) < 0x300000000):
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                _b, max(_ss, _rs, 68)))
+                        if raw:
+                            words = ' '.join(
+                                '%08x' % int.from_bytes(raw[i:i+4], 'little')
+                                for i in range(0, min(len(raw), 80), 4))
+                            P('MSG_6001012_BUF buf=%#x send=%d rcv=%d x0=%#x [%s]' % (
+                                _b, _ss, _rs,
+                                r('x0') & 0xffffffffffffffff, words))
+                        else:
+                            P('MSG_6001012_BUF buf=%#x unreadable' % (_b or 0))
+                    except Exception as e:
+                        P('MSG_6001012_BUF err=%r' % e)
+                    return False
+
+                RetBP2(r('x30'), _dump_6001012)
+        # boot251: after 6001012, sample later SB mach for CA/IOMFB path.
+        if (_mm2.get('uf_6001012', 0) >= 1
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and sending and recving
+                and _mm2.get('uf_post_ca_any', 0) < 6
+                and msgid not in (1073742628, 1073742629, 1073742031,
+                                  6001012)):
+            _mm2['uf_post_ca_any'] = _mm2.get('uf_post_ca_any', 0) + 1
+            try:
+                _uframes('POST_CA_ANY_U', 'msgid=%d n=%d' % (
+                    msgid, _mm2['uf_post_ca_any']))
+            except Exception as e:
+                P('POST_CA_ANY_U err=%r' % e)
     except Exception as e:
         P('ERR mach_msg2 %s' % e)
     return False

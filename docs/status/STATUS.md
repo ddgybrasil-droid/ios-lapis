@@ -1379,5 +1379,9 @@ Image.pth74.
 
 ## Chunk 199 (boot250: SB FB systemappservices + post-CA frames)
 
-| boot250 | Image.pth180 | SB real frontboard.systemappservices; dump 6001012 reply; POST_CA_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB hosting FB services unlocks SAS/CA; reply+frames show next wall past FrontBoard. | out/logs/boot250 |
+| boot250 | Image.pth180 | SB real frontboard.systemappservices; dump 6001012 reply; POST_CA_U after 6001012; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; SAS null; MSG dump unreadable (kernel VA); no SB FB lookup; W00T≠block SURFACE. | out/logs/boot250 |
+
+## Chunk 200 (boot251: dump 6001012 userspace buf + POST_CA_ANY)
+
+| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reply payload + later SB frames reveal next CA/IOMFB wall past BKS→FB. | out/logs/boot251 |
 
