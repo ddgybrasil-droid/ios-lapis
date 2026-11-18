@@ -1415,5 +1415,9 @@ Image.pth74.
 
 ## Chunk 208 (boot259: post-6001012 recv + RET frames)
 
-| boot259 | Image.pth189 | keep SAS observe; log SB recv after 6001012; RET FP walk + send/reply dump; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see post-FrontBoard wait / next CA mach. | out/logs/boot259 |
+| boot259 | Image.pth189 | keep SAS observe; log SB recv after 6001012; RET FP walk + send/reply dump; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS v=0; 6001012 ok; then msgid **1012/1011/1018→0xe0f** + **SB_RECV** CFRunLoop on `rcv=0x1a03`. Reply buf unreadable. | out/logs/boot259 |
+
+## Chunk 209 (boot260: post-SURFACE analytics real + MIG dump)
+
+| boot260 | Image.pth190 | after rb_sel32 keep BB analytics real; dump SB 1011/12/18 buffers; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB publishes SAS / wakes SB; MIG ascii names the wait. | out/logs/boot260 |
 

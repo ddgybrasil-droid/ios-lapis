@@ -1,0 +1,7 @@
+Image.pth190 = Image.pth189 + post-SURFACE analytics real + SB MIG dump
+  boot259: after 6001012 SB does 1012/1011/1018 to 0xe0f then CFRunLoop recv.
+  boot260: stop forcing BB analytics after SURFACE; dump MIG buffers (ascii).
+  T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth189 /tmp/Image.pth190
