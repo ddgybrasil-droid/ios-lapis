@@ -382,6 +382,16 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
     wemit(0x910083E7)  # add x7, sp, #0x20
     wemit(enc_bl(wpc, CALLMETHOD))
     wemit(0xF94017F5)  # ldr x21, [sp, #0x28]
+    # boot232: deepen light object like real ALLOC — SUBINIT(+0x840) +
+    # 16B const @+0x880. Cave skips these; BB may stall after GETSIZE.
+    wemit(0x910852A0)  # add x0, x21, #0x840
+    wemit(enc_bl(wpc, OBJ_SUBINIT))
+    wemit(0xF94017F5)  # ldr x21, [sp, #0x28]  (SUBINIT may clobber)
+    wemit(enc_adrp(8, wpc, OBJ_CONST_ADRP))
+    wemit(enc_add_imm(8, 8, OBJ_CONST_OFF))
+    wemit(0xA9402509)  # ldp x9, x10, [x8]
+    wemit(0x911002AB)  # add x11, x21, #0x880
+    wemit(0xA9002949)  # stp x9, x10, [x11]
     wemit(0xF9401BFE)  # ldr x30, [sp, #0x30]
     wemit(0x910103FF)  # add sp, sp, #0x40
     wemit(0xD65F03C0)  # ret

@@ -1330,19 +1330,17 @@ def on_mach_msg2():
                                  'n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
                         P('XPC388_U err=%r' % e)
-                # boot219: skipping FAKE after GMD → no XPC388 + W00T.
-                # boot230: after real sel=8 GETSIZE, FAKE x0=0 → W00T (empty
-                # "success" reply). boot176 real path returned 0x10004004 then
-                # quiet. boot231: return that mach error instead of success.
+                # boot231: ERR 0x10004004 → no W00T but also no SURFACE (BB
+                # aborts display path). Restore FAKE success (boot230) while
+                # boot232 deepens GMD object via OBJ_SUBINIT+const.
                 if _mm2['xpc388_n'] <= 32:
                     try:
-                        gdb.execute('set $x0 = 0x10004004', to_string=True)
+                        gdb.execute('set $x0 = 0', to_string=True)
                         gdb.execute('set $pc = $x30', to_string=True)
                         if _mm2['xpc388_n'] <= 8:
-                            P('POST_IOMFB_XPC388_ERR n=%d x0=0x10004004' %
-                              _mm2['xpc388_n'])
+                            P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
                     except Exception as e:
-                        P('XPC388_ERR err=%r' % e)
+                        P('XPC388_FAKE err=%r' % e)
                     return False
         # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
         # Sample a few with kernel LR so we can attribute the wait; then drop.

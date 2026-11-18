@@ -1303,5 +1303,9 @@ Image.pth74.
 
 ## Chunk 180 (boot231: XPC388 return mach error)
 
-| boot231 | Image.pth161 | XPC388 short-circuit x0=0x10004004 (boot176 real); keep WRAP ABI; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: no W00T after GETSIZE; BB continues past post-GMD XPC; more IOMFB/CA. | out/logs/boot231 |
+| boot231 | Image.pth161 | XPC388 short-circuit x0=0x10004004 (boot176 real); keep WRAP ABI; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; XPC388_ERR; **0 W00T** but **0 SURFACE** — BB aborts display path. Restore FAKE. | out/logs/boot231 |
+
+## Chunk 181 (boot232: OBJ_SUBINIT + const after sel8)
+
+| boot232 | Image.pth162 | WRAP after GETSIZE: OBJ_SUBINIT(+0x840)+const@+0x880; XPC388_FAKE; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: deeper GMD object → more BB IOMFB/CA after GETSIZE; keep SURFACE. | out/logs/boot232 |
 

@@ -1,0 +1,9 @@
+Image.pth162 = Image.pth161 + WRAP OBJ_SUBINIT/const
+  boot231: XPC388_ERR → no W00T, no SURFACE (BB aborts).
+  boot232: after sel8 CallMethod, OBJ_SUBINIT(obj+0x840) + 16B const
+  @obj+0x880; restore XPC388_FAKE; T=1800.
+
+Build:
+  cp /tmp/Image.pth161 /tmp/Image.pth162
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write
