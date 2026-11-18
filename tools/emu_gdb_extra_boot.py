@@ -381,12 +381,13 @@ class _RetSite(gdb.Breakpoint):
                         # (unconditional nullish=False) → x0=0+null → W00T/slow
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
-                        if (_mm2.get('post_iomfb') and 'proc=backboardd' in t
+                        # boot249: boot248 ANALYTICS_REAL (x0=0+port) → W00T/SPIN
+                        # and no SURFACE. boot245/246 forced analytics and got
+                        # SURFACE+SAS. Always treat BB analytics as force-null.
+                        if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
-                            if not nullish:
-                                extra += ' ANALYTICS_REAL_POST_GMD'
-                            else:
-                                extra += ' ANALYTICS_NULL_WILL_FORCE'
+                            nullish = True
+                            extra += ' ANALYTICS_ALWAYS_FORCE'
                         # boot248: BB looks up frontboard.systemappservices
                         # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
                         # never retries — block FB↔BB system-app handshake.
@@ -426,16 +427,16 @@ class _RetSite(gdb.Breakpoint):
                                     break
                             except Exception:
                                 pass
+                        # boot249: always force BB analytics (REAL→W00T boot248).
                         # Pre-MATCH real port → hang (boot214); force 0x9f.
-                        # Post-MATCH real port + x0==0 → keep (ANALYTICS_REAL).
                         # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
                         need_force = False
                         tag = ''
                         if (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
-                        elif not _mm2.get('post_iomfb') and has_port:
-                            need_force, tag = True, ' ANALYTICS_PREMATCH_FORCE_0x9f'
-                        elif (x0 & 0xffffffff) == 0 and not has_port and _mm2.get('post_iomfb'):
+                        elif has_port:
+                            need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
+                        elif (x0 & 0xffffffff) == 0 and not has_port:
                             need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:
                             try:

@@ -1371,5 +1371,9 @@ Image.pth74.
 
 ## Chunk 197 (boot248: real BB↔FrontBoard systemappservices)
 
-| boot248 | Image.pth178 | revert sticky; allow BB real frontboard.systemappservices (no pre-MATCH force); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB never retried FB systemappservices after FORCED_XPCERR; real handshake unlocks CA after BKS→FB. | out/logs/boot248 |
+| boot248 | Image.pth178 | revert sticky; allow BB real frontboard.systemappservices (no pre-MATCH force); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FB_SAS null (timing→force); **ANALYTICS_REAL→W00T/SPIN**; early SAS; **no SURFACE**. | out/logs/boot248 |
+
+## Chunk 198 (boot249: always force BB analytics)
+
+| boot249 | Image.pth179 | always force BB analyticsd 0x9f (no REAL); keep FB_SAS allow; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore SURFACE+SAS+6001012 path of boot245/246; then deepen CA after FrontBoard. | out/logs/boot249 |
 
