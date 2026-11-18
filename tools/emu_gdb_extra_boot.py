@@ -279,8 +279,10 @@ class _RetSite(gdb.Breakpoint):
                     "name='com.apple.oscard'",
                 ]
                 if not _mm2.get('post_iomfb'):
-                    # boot214: real analyticsd pre-GMD → w00t/SPIN/respawn.
-                    _force_names.append("name='com.apple.analyticsd'")
+                    # boot243: do NOT force analyticsd via force_names — boot242
+                    # completed analytics RET before BB_IOMFB_MATCH and got
+                    # FORCED_XPCERR, never retried; SAS stayed null. Rely on
+                    # nullport/REAL/BAD_FORCE paths below instead.
                     # boot221: real frontboard/MG → only NULLPORT + W00T.
                     # boot222: restore blanket force (boot220 stable, no W00T).
                     _force_names += [
@@ -288,6 +290,8 @@ class _RetSite(gdb.Breakpoint):
                         "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
                     ]
+                    # Pre-MATCH BB analytics with a real port still hangs
+                    # (boot214). Force only that case via dedicated check later.
                 # boot177: BB early XPC logged as proc=? (pname miss) so
                 # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
                 # boot178: treat proc=? like backboardd for force-name list.
@@ -385,15 +389,11 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
-                    # boot241: boot240 BB analytics returned x0=1 + null ports
-                    # (never entered ANALYTICS_REAL); RB timed out pre-SURFACE.
-                    # Force clean 0x9f on non-zero+null so BB skips half-broken
-                    # analytics (boot185 quiet path) while T=3000 lets RB finish.
-                    if (_mm2.get('post_iomfb') and 'proc=backboardd' in t
+                    # boot241/243: BB analytics hygiene outside the x0==0 block.
+                    if ('proc=backboardd' in t
                             and "name='com.apple.analyticsd'" in t
-                            and (x0 & 0xffffffff) != 0
                             and not force_bb):
-                        bad_null = True
+                        has_port = False
                         for ptr in (x4, x6, x7):
                             if not ptr:
                                 continue
@@ -401,18 +401,29 @@ class _RetSite(gdb.Breakpoint):
                                 v = m64(ptr)
                                 if v and (v < 0x10000
                                           or 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000):
-                                    bad_null = False
+                                    has_port = True
                                     break
                             except Exception:
                                 pass
-                        if bad_null:
+                        # Pre-MATCH real port → hang (boot214); force 0x9f.
+                        # Post-MATCH real port → keep (ANALYTICS_REAL via above).
+                        # Any null / non-zero → clean 0x9f.
+                        need_force = False
+                        tag = ''
+                        if not _mm2.get('post_iomfb') and has_port:
+                            need_force, tag = True, ' ANALYTICS_PREMATCH_FORCE_0x9f'
+                        elif (x0 & 0xffffffff) != 0 and not has_port:
+                            need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                        elif (x0 & 0xffffffff) == 0 and not has_port and _mm2.get('post_iomfb'):
+                            need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                        if need_force:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
                                 x0 = 0x9f
                                 force_bb = True
-                                extra += ' ANALYTICS_BAD_FORCE_0x9f'
+                                extra += tag
                             except Exception as e:
-                                extra += ' analytics_bad_err=%r' % e
+                                extra += ' analytics_force_err=%r' % e
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue

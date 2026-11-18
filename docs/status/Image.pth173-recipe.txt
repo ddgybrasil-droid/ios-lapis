@@ -8,3 +8,6 @@ Image.pth173 = Image.pth172 + post_iomfb at BB IOMFB MATCH
 Build:
   cp /tmp/Image.pth172 /tmp/Image.pth173
   # DSC unchanged; GDB only
+
+Also: remove analyticsd from pre-GMD force_names; PREMATCH real-port
+force only; post-MATCH REAL-with-port / NULL_FORCE / BAD_FORCE.
