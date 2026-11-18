@@ -1383,5 +1383,9 @@ Image.pth74.
 
 ## Chunk 200 (boot251: dump 6001012 userspace buf + POST_CA_ANY)
 
-| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reply payload + later SB frames reveal next CA/IOMFB wall past BKS→FB. | out/logs/boot251 |
+| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; SAS x7*=None; buf MemoryError; no POST_CA_ANY; prior "SAS real" not a port. | out/logs/boot251 |
+
+## Chunk 201 (boot252: SAS_NULL_FORCE + wider post-SURFACE mach)
+
+| boot252 | Image.pth182 | force 0x9f when SAS x0=0 without mach port; widen post-SURFACE mach to 400; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB retries system-app-server until BB publishes a real port; more mach reveals CA past FrontBoard. | out/logs/boot252 |
 

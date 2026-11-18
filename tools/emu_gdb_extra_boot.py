@@ -250,26 +250,24 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
-            # boot251: dump 6001012 userspace mach_msg buffer on RET.
+            # boot251/252: dump 6001012 userspace mach_msg buffer on RET.
             if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
                     and 'SpringBoard' in t and _mm2.get('dump_6001012', 0) < 1):
                 _mm2['dump_6001012'] = 1
                 try:
                     buf = int(_mm2.get('msg_6001012_buf') or 0)
-                    raw = b''
+                    raw = bytearray()
                     if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
-                        try:
-                            raw = bytes(gdb.selected_inferior().read_memory(buf, 80))
-                        except Exception:
-                            raw = bytearray()
-                            for off in range(0, 80, 8):
+                        for off in range(0, 80, 8):
+                            try:
                                 xs = gdb.execute(
                                     'x/gx %#x' % (buf + off), to_string=True)
                                 toks = [tt for tt in xs.replace(':', ' ').split()
                                         if tt.startswith('0x') and len(tt) > 5]
                                 raw += int(toks[-1], 16).to_bytes(8, 'little')
-                            raw = bytes(raw[:80])
-                    if raw:
+                            except Exception:
+                                raw += b'\x00' * 8
+                    if any(raw):
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 80, 4))
                         extra += ' buf=%#x [%s]' % (buf, words)
@@ -277,6 +275,51 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
+            # boot252: prior "SAS real" values were NOT mach ports (no
+            # (port?) tag — e.g. 0x3cf94e8…). Treat x0=0 + non-port as null
+            # and force 0x9f so SB can retry once BB publishes.
+            if (t.startswith('XPC_LOOKUP_RET')
+                    and "name='com.apple.backboard.system-app-server'" in t
+                    and 'proc=SpringBoard' in t):
+                try:
+                    # Parse out7= from tag; read *out7
+                    out7 = 0
+                    if 'out7=0x' in t:
+                        out7 = int(t.split('out7=')[1].split()[0], 16)
+                    v = None
+                    if out7:
+                        try:
+                            v = m64(out7)
+                        except Exception:
+                            try:
+                                xs = gdb.execute('x/gx %#x' % out7, to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                v = int(toks[-1], 16)
+                            except Exception:
+                                v = None
+                    is_port = bool(v is not None and 0 < (v & 0xffffffffffffffff) < 0x10000)
+                    if is_port:
+                        extra += ' SAS_PORT_REAL'
+                        _mm2['sas_ok'] = 1
+                    else:
+                        extra += ' SAS_NOT_PORT v=%r' % (None if v is None else hex(v))
+                        if (x0 & 0xffffffff) == 0:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                if out7:
+                                    try:
+                                        gdb.execute(
+                                            'set {unsigned int}%#x = 0' % out7,
+                                            to_string=True)
+                                    except Exception:
+                                        pass
+                                extra += ' SAS_NULL_FORCE_0x9f'
+                            except Exception as es:
+                                extra += ' sas_force_err=%r' % es
+                except Exception as es2:
+                    extra += ' sas_check_err=%r' % es2
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
@@ -1549,7 +1592,10 @@ def on_mach_msg2():
                     and not is_sb_bb):
                 return False
             # boot239: 550→180 so RB can reach SURFACE_MATCH under T=2400
-            if _mm2.get('post_iomfb') and _mm2['n'] > 180:
+            # boot252: after SURFACE widen to 400 for SB/BB CA path (was
+            # quiet after 6001012 under 180-cap).
+            _mach_cap = 400 if _mm2.get('post_surf_mach') else 180
+            if _mm2.get('post_iomfb') and _mm2['n'] > _mach_cap:
                 return False
         if is_bb_peek:
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
