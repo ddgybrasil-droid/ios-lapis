@@ -1535,16 +1535,33 @@ def on_mach_msg2():
             or (not _mm2.get('post_iomfb'))
             or _mm2.get('post_surf_mach')
             or _mm2['n'] <= 40)
-        # boot245: userspace frames on post-SURFACE CA-candidate msgids
-        if (_mm2.get('post_surf_mach') and interesting
-                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
-                and _mm2.get('post_surf_uf', 0) < 6):
-            _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
-            try:
-                _uframes('POST_SURFACE_U', 'msgid=%d n=%d' % (
-                    msgid, _mm2['post_surf_uf']))
-            except Exception as e:
-                P('POST_SURFACE_U err=%r' % e)
+        # boot245/246: userspace frames on post-SURFACE CA-candidate msgids.
+        # boot245 burned the ≤6 budget on 2628/11602/2629 before 6001012.
+        # Prefer 6001012 / 1073742031; also sample BB after real SAS.
+        if (_mm2.get('post_surf_mach')
+                and _mm2.get('post_surf_uf', 0) < 8):
+            want = False
+            if msgid == 6001012 and _mm2.get('uf_6001012', 0) < 2:
+                want = True
+                _mm2['uf_6001012'] = _mm2.get('uf_6001012', 0) + 1
+            elif msgid in (1073742031, 1073742628, 1073742629) and (
+                    'SpringBoard' in pn0 or pn0 == 'SpringBoard'):
+                key = 'uf_%d' % msgid
+                if _mm2.get(key, 0) < 1:
+                    want = True
+                    _mm2[key] = 1
+            elif (msgid in (11602, 3228, 4813)
+                  and 'backboard' in pn0.lower()
+                  and _mm2.get('uf_bb_post', 0) < 2):
+                want = True
+                _mm2['uf_bb_post'] = _mm2.get('uf_bb_post', 0) + 1
+            if want:
+                _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
+                try:
+                    _uframes('POST_SURFACE_U', 'msgid=%d n=%d' % (
+                        msgid, _mm2['post_surf_uf']))
+                except Exception as e:
+                    P('POST_SURFACE_U err=%r' % e)
         if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))

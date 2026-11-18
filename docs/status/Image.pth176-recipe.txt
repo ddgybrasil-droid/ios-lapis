@@ -1,0 +1,9 @@
+Image.pth176 = Image.pth175 + prioritize 6001012 uframes
+  boot245: SURFACE + real system-app-server; POST_SURFACE_U burned
+  budget on 2628/11602/2629 (xpc path) before 6001012.
+  boot246: prefer 6001012 (×2) and 1073742031; one each of 2628/2629;
+  sample BB post-SURFACE; T=3000.
+
+Build:
+  cp /tmp/Image.pth175 /tmp/Image.pth176
+  # DSC unchanged; GDB only

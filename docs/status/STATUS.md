@@ -1359,5 +1359,9 @@ Image.pth74.
 
 ## Chunk 194 (boot245: post-SURFACE userspace frames)
 
-| boot245 | Image.pth175 | _uframes on post-SURFACE msgids 6001012/1073742628/2629; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: identify CA/IOMFB/FrontBoard frames behind 6001012; next UI wall. | out/logs/boot245 |
+| boot245 | Image.pth175 | _uframes on post-SURFACE msgids; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE+**system-app-server x7*=…1593 REAL**; analytics FORCED_NULLPORT; POST_SURFACE_U n=1..6 (xpc/0x197f2* + SB) before 6001012 — missed CA msgid frames. | out/logs/boot245 |
+
+## Chunk 195 (boot246: prioritize 6001012 uframes + BB sample)
+
+| boot246 | Image.pth176 | prefer uframes on 6001012; sample BB post-SAS; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: CA/FrontBoard stack on 6001012; BB side of system-app-server. | out/logs/boot246 |
 
