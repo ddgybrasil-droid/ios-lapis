@@ -331,19 +331,19 @@ class _RetSite(gdb.Breakpoint):
                     # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
-                    # boot221: also NULLPORT SpringBoard↔runningboard when
-                    # x0=0 but endpoint ptrs empty. boot233: after GMD isa,
-                    # do NOT NULLPORT SB RB — boot232 killed system-app-server
-                    # (x7*=None) right after FORCED_NULLPORT on RB.
+                    # boot233: skip all SB RB NULLPORT → SB loops on x0=0 with
+                    # x7*=None, never reaches system-app-server.
+                    # boot234: after GMD, NULLPORT SB RB only when no readable
+                    # port; keep when x7 shows a real port name (<0x10000).
                     _null_proc = ('proc=backboardd' in t or
                                   ('proc=SpringBoard' in t and
-                                   "name='com.apple.runningboard'" in t and
-                                   not _dsc.get('gmd_isa_seed')))
+                                   "name='com.apple.runningboard'" in t))
                     if (not force_bb
                             and _null_proc
                             and 'cfprefsd' not in t
                             and (x0 & 0xffffffff) == 0):
                         nullish = True
+                        saw_port = False
                         for ptr in (x4, x6, x7):
                             if not ptr:
                                 continue
@@ -351,12 +351,18 @@ class _RetSite(gdb.Breakpoint):
                                 v = m64(ptr)
                                 if v and v < 0x10000:
                                     nullish = False
+                                    saw_port = True
                                     break
                                 if v and 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000:
                                     nullish = False
                                     break
                             except Exception:
                                 pass
+                        # After GMD: only deny when we truly have no port.
+                        if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
+                                and "name='com.apple.runningboard'" in t
+                                and saw_port):
+                            nullish = False
                         if nullish:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)

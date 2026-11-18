@@ -1311,5 +1311,9 @@ Image.pth74.
 
 ## Chunk 182 (boot233: no SB RB NULLPORT after GMD)
 
-| boot233 | Image.pth163 | after gmd_isa_seed skip SB↔RB NULLPORT; keep SUBINIT WRAP; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB keeps RB + gets system-app-server; CA path. | out/logs/boot233 |
+| boot233 | Image.pth163 | after gmd_isa_seed skip SB↔RB NULLPORT; keep SUBINIT WRAP; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE; SB RB **x7*=0x3d03** (no FORCED_NULLPORT); SB then loops RB with x7*=None — **0 system-app-server**; 0 W00T; BB quieter than boot232. | out/logs/boot233 |
+
+## Chunk 183 (boot234: smart SB RB NULLPORT)
+
+| boot234 | Image.pth164 | NULLPORT SB RB only when no readable port; keep port when seen; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB keeps good RB port, skips dead lookups → system-app-server. | out/logs/boot234 |
 
