@@ -250,6 +250,33 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
+            # boot251: dump 6001012 userspace mach_msg buffer on RET.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
+                    and 'SpringBoard' in t and _mm2.get('dump_6001012', 0) < 1):
+                _mm2['dump_6001012'] = 1
+                try:
+                    buf = int(_mm2.get('msg_6001012_buf') or 0)
+                    raw = b''
+                    if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(buf, 80))
+                        except Exception:
+                            raw = bytearray()
+                            for off in range(0, 80, 8):
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (buf + off), to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            raw = bytes(raw[:80])
+                    if raw:
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 80, 4))
+                        extra += ' buf=%#x [%s]' % (buf, words)
+                    else:
+                        extra += ' buf=%#x unreadable' % (buf or 0)
+                except Exception as e6:
+                    extra += ' buf_err=%r' % e6
             if t.startswith('XPC_LOOKUP_RET'):
                 # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
                 # boot145: ACCHW-only left BB with a real RB port; it hung on RB
@@ -1608,34 +1635,6 @@ def on_mach_msg2():
         if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))
-            # boot251: dump 6001012 buffer on RET (userspace data_ptr).
-            if (msgid == 6001012 and 'SpringBoard' in pn0
-                    and _mm2.get('dump_6001012', 0) < 1):
-                _mm2['dump_6001012'] = 1
-                _buf = data_ptr
-                _ss, _rs = send_sz, rcv_sz
-
-                def _dump_6001012(_b=_buf, _ss=_ss, _rs=_rs):
-                    try:
-                        raw = b''
-                        if (_b and 0x100000000
-                                <= (_b & 0xffffffffffffffff) < 0x300000000):
-                            raw = bytes(gdb.selected_inferior().read_memory(
-                                _b, max(_ss, _rs, 68)))
-                        if raw:
-                            words = ' '.join(
-                                '%08x' % int.from_bytes(raw[i:i+4], 'little')
-                                for i in range(0, min(len(raw), 80), 4))
-                            P('MSG_6001012_BUF buf=%#x send=%d rcv=%d x0=%#x [%s]' % (
-                                _b, _ss, _rs,
-                                r('x0') & 0xffffffffffffffff, words))
-                        else:
-                            P('MSG_6001012_BUF buf=%#x unreadable' % (_b or 0))
-                    except Exception as e:
-                        P('MSG_6001012_BUF err=%r' % e)
-                    return False
-
-                RetBP2(r('x30'), _dump_6001012)
         # boot251: after 6001012, sample later SB mach for CA/IOMFB path.
         if (_mm2.get('uf_6001012', 0) >= 1
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
