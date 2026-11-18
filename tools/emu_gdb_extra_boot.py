@@ -275,12 +275,10 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
-            # boot253: boot252 treated tagged ports as non-ports.
-            # Real values look like 0xfe9694e800003b03 — low 32 = 0x3b03
-            # (mach port name); same pattern as boot245 0x…1593 / boot248
-            # 0x…2e03. Only force when low32 is not a port name.
-            # Also: only after BB_GMD / post_iomfb (early SB SAS before BB
-            # ready — boot252 forced and never retried; no SURFACE).
+            # boot254: boot253 kept low32 of 0xf88754e8…3a03 as SAS_PORT_REAL
+            # → SpringBoard EXC/exit (OS_REASON). High32 is stale stack; the
+            # "port" was garbage. Require high32==0 for a clean mach_port_t
+            # write; otherwise NULL-force (boot249 SURFACE path).
             if (t.startswith('XPC_LOOKUP_RET')
                     and "name='com.apple.backboard.system-app-server'" in t
                     and 'proc=SpringBoard' in t):
@@ -300,17 +298,17 @@ class _RetSite(gdb.Breakpoint):
                                 v = int(toks[-1], 16)
                             except Exception:
                                 v = None
-                    low = (v & 0xffffffff) if v is not None else 0
-                    is_port = bool(0 < low < 0x10000)
+                    raw = (v & 0xffffffffffffffff) if v is not None else 0
+                    low = raw & 0xffffffff
+                    high = (raw >> 32) & 0xffffffff
+                    is_port = bool(high == 0 and 0 < low < 0x10000)
                     if is_port:
-                        extra += ' SAS_PORT_REAL low=%#x raw=%#x' % (low, v)
+                        extra += ' SAS_PORT_REAL port=%#x' % low
                         _mm2['sas_ok'] = 1
-                        # Keep x0=0; do not CLEARED — this IS the endpoint.
                     else:
-                        extra += ' SAS_NOT_PORT v=%r' % (
+                        extra += ' SAS_STACK_GARBAGE v=%r' % (
                             None if v is None else hex(v))
-                        if ((x0 & 0xffffffff) == 0
-                                and _mm2.get('post_iomfb')):
+                        if (x0 & 0xffffffff) == 0:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
                                 x0 = 0x9f
@@ -324,8 +322,6 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' SAS_NULL_FORCE_0x9f'
                             except Exception as es:
                                 extra += ' sas_force_err=%r' % es
-                        elif (x0 & 0xffffffff) == 0:
-                            extra += ' SAS_EARLY_KEEP'
                 except Exception as es2:
                     extra += ' sas_check_err=%r' % es2
             if t.startswith('XPC_LOOKUP_RET'):

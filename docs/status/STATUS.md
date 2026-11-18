@@ -1391,5 +1391,9 @@ Image.pth74.
 
 ## Chunk 202 (boot253: SAS tagged-port keep)
 
-| boot253 | Image.pth183 | treat low32 of SAS x7* as port; keep real; only NULL-force post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore true SAS_PORT_REAL (boot245/248 pattern); SURFACE+CA after FrontBoard. | out/logs/boot253 |
+| boot253 | Image.pth183 | treat low32 of SAS x7* as port; keep real; only NULL-force post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL low=0x3a03 → **SpringBoard EXC/exit**; no SURFACE. Tagged value = stack garbage. | out/logs/boot253 |
+
+## Chunk 203 (boot254: SAS require high32==0)
+
+| boot254 | Image.pth184 | SAS_PORT_REAL only if high32==0; else SAS_NULL_FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot249 SURFACE+6001012; then find when BB writes a clean port. | out/logs/boot254 |
 
