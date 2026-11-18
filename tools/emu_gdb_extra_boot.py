@@ -379,6 +379,34 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
+                    # boot241: boot240 BB analytics returned x0=1 + null ports
+                    # (never entered ANALYTICS_REAL); RB timed out pre-SURFACE.
+                    # Force clean 0x9f on non-zero+null so BB skips half-broken
+                    # analytics (boot185 quiet path) while T=3000 lets RB finish.
+                    if (_mm2.get('post_iomfb') and 'proc=backboardd' in t
+                            and "name='com.apple.analyticsd'" in t
+                            and (x0 & 0xffffffff) != 0
+                            and not force_bb):
+                        bad_null = True
+                        for ptr in (x4, x6, x7):
+                            if not ptr:
+                                continue
+                            try:
+                                v = m64(ptr)
+                                if v and (v < 0x10000
+                                          or 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000):
+                                    bad_null = False
+                                    break
+                            except Exception:
+                                pass
+                        if bad_null:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                force_bb = True
+                                extra += ' ANALYTICS_BAD_FORCE_0x9f'
+                            except Exception as e:
+                                extra += ' analytics_bad_err=%r' % e
                     for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
                         if not ptr:
                             continue
@@ -1465,16 +1493,17 @@ def on_mach_msg2():
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
-        # boot165: first few BB msgs after IOMFB open — userspace frames.
-        if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
-                and _mm2.get('post_uf', 0) < 3):
-            _mm2['post_uf'] = _mm2.get('post_uf', 0) + 1
-            try:
-                _uframes('POST_IOMFB_U', 'msgid=%d n=%d' % (
-                    msgid, _mm2['post_uf']))
-            except Exception as e:
-                P('POST_IOMFB_U err=%r' % e)
-        if sending and recving:
+        # boot241: drop POST_IOMFB_U stack walks — boot240 GDB drag left RB
+        # short of SURFACE under T=2400.
+        # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
+        # (W00T/XPC388/peek) so guest runs faster toward SURFACE.
+        interesting = msgid in (0x77303074, 0x40000388, 3228, 4813, 11602)
+        do_ret = sending and recving and (
+            interesting
+            or (not _mm2.get('post_iomfb'))
+            or _mm2.get('post_surf_mach')
+            or _mm2['n'] <= 40)
+        if do_ret:
             RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
                 pn0, msgid, remote))
     except Exception as e:

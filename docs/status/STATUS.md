@@ -1339,5 +1339,9 @@ Image.pth74.
 
 ## Chunk 189 (boot240: keep SB/BB mach after SURFACE)
 
-| boot240 | Image.pth170 | after rb_sel32 keep SB/BB; reopen 180-msg window; T=2400 | qemu11 43G lva=off | **ГИПОТЕЗА**: see SB↔BB post-system-app-server traffic toward CA/IOMFB; next UI wall. | out/logs/boot240 |
+| boot240 | Image.pth170 | after rb_sel32 keep SB/BB; reopen 180-msg window; T=2400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+BB_GMD_OK+**system-app-server real**; analytics **x0=1+null** (no ANALYTICS_REAL); RB reached keybagd/lsd but **0 SURFACE** (T killed mid-init). No post-SURFACE window. | out/logs/boot240 |
+
+## Chunk 190 (boot241: analytics bad→0x9f + less GDB drag + T=3000)
+
+| boot241 | Image.pth171 | ANALYTICS_BAD_FORCE when x0≠0+null; drop POST_IOMFB_U; RetBP lean; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean analytics skip + faster guest → SURFACE like boot239; then post-SURFACE SB/BB mach for CA. | out/logs/boot241 |
 
