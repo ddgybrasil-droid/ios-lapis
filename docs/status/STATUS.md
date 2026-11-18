@@ -1367,5 +1367,9 @@ Image.pth74.
 
 ## Chunk 196 (boot247: sticky SB↔RB port for SAS)
 
-| boot247 | Image.pth177 | once SB_RB port kept, never NULLPORT later SB↔RB; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: stabilize system-app-server real (boot245) so FrontBoard/BKS path after 6001012 can progress to CA. | out/logs/boot247 |
+| boot247 | Image.pth177 | once SB_RB port kept, never NULLPORT later SB↔RB; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: sticky **регресс** — null SB_RB left x0=0 → spin on 1073742628; SURFACE ok; no SAS/6001012. | out/logs/boot247 |
+
+## Chunk 197 (boot248: real BB↔FrontBoard systemappservices)
+
+| boot248 | Image.pth178 | revert sticky; allow BB real frontboard.systemappservices (no pre-MATCH force); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB never retried FB systemappservices after FORCED_XPCERR; real handshake unlocks CA after BKS→FB. | out/logs/boot248 |
 

@@ -285,9 +285,11 @@ class _RetSite(gdb.Breakpoint):
                     # nullport/REAL/BAD_FORCE paths below instead.
                     # boot221: real frontboard/MG → only NULLPORT + W00T.
                     # boot222: restore blanket force (boot220 stable, no W00T).
+                    # boot248: do NOT force frontboard.systemappservices —
+                    # BB only looks it up pre-MATCH; FORCED_XPCERR never
+                    # retries (boot245/247). Handled via FB_SAS_REAL below.
                     _force_names += [
                         "name='com.apple.runningboard'",
-                        "name='com.apple.frontboard.systemappservices'",
                         "name='com.apple.mobilegestalt.xpc'",
                     ]
                     # Pre-MATCH BB analytics with a real port still hangs
@@ -369,15 +371,10 @@ class _RetSite(gdb.Breakpoint):
                                 and "name='com.apple.runningboard'" in t
                                 and saw_port):
                             nullish = False
-                            _mm2['sb_rb_ok'] = 1
                             extra += ' SB_RB_PORT_KEPT'
-                        # boot247: once SB had a real RB port, do not NULLPORT
-                        # later SB↔RB lookups (boot246 FORCED second lookup;
-                        # SAS null while boot245 kept SAS real). Sticky keep.
-                        if (_mm2.get('sb_rb_ok') and 'proc=SpringBoard' in t
-                                and "name='com.apple.runningboard'" in t):
-                            nullish = False
-                            extra += ' SB_RB_STICKY'
+                        # boot248: boot247 sticky-kept null SB_RB (x0=0) and
+                        # spun on msgid 1073742628 — never reached SAS/6001012.
+                        # Reverted sticky; force 0x9f on true null again.
                         # boot237: boot236 still NULLPORTed BB analyticsd via
                         # this path after removing it from force_names.
                         # boot242: boot241 tagged ANALYTICS_REAL with x4/x7=None
@@ -390,6 +387,18 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' ANALYTICS_REAL_POST_GMD'
                             else:
                                 extra += ' ANALYTICS_NULL_WILL_FORCE'
+                        # boot248: BB looks up frontboard.systemappservices
+                        # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
+                        # never retries — block FB↔BB system-app handshake.
+                        # Allow real port; force only true null (like analytics).
+                        if ('proc=backboardd' in t
+                                and "name='com.apple.frontboard.systemappservices'"
+                                in t):
+                            if not nullish:
+                                nullish = False
+                                extra += ' FB_SAS_REAL_BB'
+                            else:
+                                extra += ' FB_SAS_NULL_WILL_FORCE'
                         if nullish:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
