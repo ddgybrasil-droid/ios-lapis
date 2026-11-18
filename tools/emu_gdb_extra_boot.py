@@ -389,7 +389,7 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FORCED_NULLPORT_0x9f'
                             except Exception as e:
                                 extra += ' nullforce_err=%r' % e
-                    # boot241/243: BB analytics hygiene outside the x0==0 block.
+                    # boot241/244: BB analytics hygiene outside the x0==0 block.
                     if ('proc=backboardd' in t
                             and "name='com.apple.analyticsd'" in t
                             and not force_bb):
@@ -398,22 +398,25 @@ class _RetSite(gdb.Breakpoint):
                             if not ptr:
                                 continue
                             try:
-                                v = m64(ptr)
-                                if v and (v < 0x10000
-                                          or 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000):
+                                v = m64(ptr) & 0xffffffffffffffff
+                                # boot244: 0x100000000 alone is a sentinel (boot243
+                                # x0=1 + x7*=0x100000000 skipped BAD_FORCE).
+                                if v and v != 0x100000000 and (
+                                        v < 0x10000
+                                        or 0x100000000 < v < 0x300000000):
                                     has_port = True
                                     break
                             except Exception:
                                 pass
                         # Pre-MATCH real port → hang (boot214); force 0x9f.
-                        # Post-MATCH real port → keep (ANALYTICS_REAL via above).
-                        # Any null / non-zero → clean 0x9f.
+                        # Post-MATCH real port + x0==0 → keep (ANALYTICS_REAL).
+                        # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
                         need_force = False
                         tag = ''
-                        if not _mm2.get('post_iomfb') and has_port:
-                            need_force, tag = True, ' ANALYTICS_PREMATCH_FORCE_0x9f'
-                        elif (x0 & 0xffffffff) != 0 and not has_port:
+                        if (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                        elif not _mm2.get('post_iomfb') and has_port:
+                            need_force, tag = True, ' ANALYTICS_PREMATCH_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port and _mm2.get('post_iomfb'):
                             need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:

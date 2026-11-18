@@ -1,0 +1,9 @@
+Image.pth174 = Image.pth173 + analytics x0!=0 always BAD_FORCE
+  boot243: SURFACE+post-SURFACE ok; analytics x0=1 with sentinel
+  x7*=0x100000000 skipped BAD_FORCE; SAS null.
+  boot244: any BB analytics x0!=0 → BAD_FORCE_0x9f; treat
+  0x100000000 as non-port; keep MATCH-time post_iomfb; T=3000.
+
+Build:
+  cp /tmp/Image.pth173 /tmp/Image.pth174
+  # DSC unchanged; GDB only

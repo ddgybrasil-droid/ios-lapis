@@ -1351,5 +1351,9 @@ Image.pth74.
 
 ## Chunk 192 (boot243: post_iomfb at BB IOMFB MATCH)
 
-| boot243 | Image.pth173 | arm post_iomfb on BB_IOMFB_MATCH (not IOSOPEN); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: analytics RET after MATCH gets REAL port → system-app-server real + keep SURFACE; then CA via post-SURFACE mach. | out/logs/boot243 |
+| boot243 | Image.pth173 | arm post_iomfb on BB_IOMFB_MATCH; no blanket analytics force; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH window armed; GETSIZE+**SURFACE**+post-SURFACE mach; analytics **x0=1 x7*=0x100000000** (sentinel skipped BAD_FORCE); SAS null; SB msgid 11602/6001012. | out/logs/boot243 |
+
+## Chunk 193 (boot244: analytics x0≠0 always BAD_FORCE)
+
+| boot244 | Image.pth174 | x0≠0 → BAD_FORCE; reject 0x100000000 sentinel as port; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean analytics skip → quieter BB → SAS real and/or clearer CA path via 6001012. | out/logs/boot244 |
 
