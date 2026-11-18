@@ -1258,6 +1258,13 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
+                # boot255: reopen SB/BB mach window at SURFACE itself
+                # (boot254: no SB/BB msg after SURFACE → never reopened;
+                # SB was quiet, 0×6001012).
+                if not _mm2.get('post_surf_mach'):
+                    _mm2['post_surf_mach'] = 1
+                    _mm2['n'] = 0
+                    P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
@@ -1701,6 +1708,18 @@ def on_mach_msg2():
                     msgid, _mm2['uf_post_ca_any']))
             except Exception as e:
                 P('POST_CA_ANY_U err=%r' % e)
+        # boot255: SB quiet after early 11602 in boot254 — sample a few
+        # post_iomfb SB 11602 frames to see the wait.
+        if (_mm2.get('post_iomfb')
+                and msgid == 11602
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('uf_sb_11602', 0) < 3):
+            _mm2['uf_sb_11602'] = _mm2.get('uf_sb_11602', 0) + 1
+            try:
+                _uframes('SB_11602_U', 'n=%d remote=%#x' % (
+                    _mm2['uf_sb_11602'], remote))
+            except Exception as e:
+                P('SB_11602_U err=%r' % e)
     except Exception as e:
         P('ERR mach_msg2 %s' % e)
     return False

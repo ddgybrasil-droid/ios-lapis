@@ -1395,5 +1395,9 @@ Image.pth74.
 
 ## Chunk 203 (boot254: SAS require high32==0)
 
-| boot254 | Image.pth184 | SAS_PORT_REAL only if high32==0; else SAS_NULL_FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot249 SURFACE+6001012; then find when BB writes a clean port. | out/logs/boot254 |
+| boot254 | Image.pth184 | SAS_PORT_REAL only if high32==0; else SAS_NULL_FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE ok; no SB crash; **SB quiet** (no SAS/RB/6001012); mach window never reopened. | out/logs/boot254 |
+
+## Chunk 204 (boot255: reopen mach at SURFACE + SB 11602 frames)
+
+| boot255 | Image.pth185 | reopen mach window at sel32; sample SB 11602 uframes post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: find SB stall before SAS; restore 6001012 after SURFACE. | out/logs/boot255 |
 
