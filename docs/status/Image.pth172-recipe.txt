@@ -1,0 +1,9 @@
+Image.pth172 = Image.pth171 + ANALYTICS_REAL requires port
+  boot241: ANALYTICS_REAL tagged with null ports (bug); 0 SURFACE;
+  SAS null; RB timed out at BaseBoard prefs.
+  boot242: only ANALYTICS_REAL when nullish already False (port seen);
+  else ANALYTICS_NULL_WILL_FORCE → FORCED_NULLPORT_0x9f; T=3000.
+
+Build:
+  cp /tmp/Image.pth171 /tmp/Image.pth172
+  # DSC unchanged; GDB only

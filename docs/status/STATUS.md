@@ -1343,5 +1343,9 @@ Image.pth74.
 
 ## Chunk 190 (boot241: analytics bad→0x9f + less GDB drag + T=3000)
 
-| boot241 | Image.pth171 | ANALYTICS_BAD_FORCE when x0≠0+null; drop POST_IOMFB_U; RetBP lean; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean analytics skip + faster guest → SURFACE like boot239; then post-SURFACE SB/BB mach for CA. | out/logs/boot241 |
+| boot241 | Image.pth171 | ANALYTICS_BAD_FORCE when x0≠0+null; drop POST_IOMFB_U; RetBP lean; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+BB_GMD_OK; **ANALYTICS_REAL with null ports** (bug); SAS x7*=None; W00T; RB→keybagd/lsd/BaseBoard; **0 SURFACE**. | out/logs/boot241 |
+
+## Chunk 191 (boot242: ANALYTICS_REAL only with port)
+
+| boot242 | Image.pth172 | analytics nullish keep→FORCED_NULLPORT if no port; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop x0=0+null analytics half-state; recover SURFACE (+SAS) like boot239. | out/logs/boot242 |
 
