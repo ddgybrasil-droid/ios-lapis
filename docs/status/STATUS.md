@@ -1335,5 +1335,9 @@ Image.pth74.
 
 ## Chunk 188 (boot239: throttle post-GMD mach + T=2400)
 
-| boot239 | Image.pth169 | post_iomfb MACHMSG2 cap 550→180; peek exempt≤8; drop non-RB after sel32; T=2400 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot237 ANALYTICS_REAL delayed RB spawn past T=1800 (0 SURFACE). Faster GDB + longer T → SURFACE + keep system-app-server. | out/logs/boot239 |
+| boot239 | Image.pth169 | post_iomfb MACHMSG2 cap 550→180; peek exempt≤8; drop non-RB after sel32; T=2400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: DSC_SLIDE; **GETSIZE+BB_GMD_OK+ANALYTICS_REAL**; **SURFACE sel13→32**; **system-app-server x7*=…2e07** (combo breakthrough!). SB_RB real port kept. But post-SURFACE mach throttle dropped SB/BB → **0 MACHMSG2 after SURFACE** (blind to CA). | out/logs/boot239 |
+
+## Chunk 189 (boot240: keep SB/BB mach after SURFACE)
+
+| boot240 | Image.pth170 | after rb_sel32 keep SB/BB; reopen 180-msg window; T=2400 | qemu11 43G lva=off | **ГИПОТЕЗА**: see SB↔BB post-system-app-server traffic toward CA/IOMFB; next UI wall. | out/logs/boot240 |
 

@@ -1417,11 +1417,23 @@ def on_mach_msg2():
         if not peek_exempt:
             if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
                 return False
+            # boot240: boot239 hit SURFACE+real system-app-server but then
+            # dropped ALL non-RB mach — 0 MACHMSG2 after SURFACE, blind to
+            # SB↔BB CA path. Keep SB/BB/RB; drop only unrelated. Reopen
+            # window BEFORE the n>180 cap so reset can take effect.
+            is_sb_bb = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                        or pn0 == 'SpringBoard')
+            if (_mm2.get('rb_sel32') and not _mm2.get('post_surf_mach')
+                    and is_sb_bb):
+                _mm2['post_surf_mach'] = 1
+                _mm2['n'] = 0  # allow another 180 SB/BB msgs post-SURFACE
+                P('MACHMSG2_WINDOW post-SURFACE reopen')
+            if (_mm2.get('rb_sel32')
+                    and 'runningboard' not in pn0.lower()
+                    and not is_sb_bb):
+                return False
             # boot239: 550→180 so RB can reach SURFACE_MATCH under T=2400
             if _mm2.get('post_iomfb') and _mm2['n'] > 180:
-                return False
-            # After SURFACE sel32, stop unrelated mach RetBP entirely.
-            if _mm2.get('rb_sel32') and 'runningboard' not in pn0.lower():
                 return False
         if is_bb_peek:
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
