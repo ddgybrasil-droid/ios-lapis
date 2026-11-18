@@ -1331,5 +1331,9 @@ Image.pth74.
 
 ## Chunk 187 (boot238: retest system-app-server + SURFACE)
 
-| boot238 | Image.pth168 | same as boot237; watch SURFACE+CA after system-app-server; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: confirm system-app-server; recover SURFACE; probe CA. | out/logs/boot238 |
+| boot238 | Image.pth168 | same as boot237; watch SURFACE+CA after system-app-server; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: flaky early **initproc panic** — `dyld cache '(null)' not loaded` / libSystem (no DSC_SLIDE). Same Image+DSC as boot237 (CD stale=0, WRAP present); not corruption. Relaunch. | out/logs/boot238 |
+
+## Chunk 188 (boot239: throttle post-GMD mach + T=2400)
+
+| boot239 | Image.pth169 | post_iomfb MACHMSG2 cap 550→180; peek exempt≤8; drop non-RB after sel32; T=2400 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot237 ANALYTICS_REAL delayed RB spawn past T=1800 (0 SURFACE). Faster GDB + longer T → SURFACE + keep system-app-server. | out/logs/boot239 |
 

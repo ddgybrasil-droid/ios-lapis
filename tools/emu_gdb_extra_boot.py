@@ -1408,11 +1408,20 @@ def on_mach_msg2():
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
+        # boot239: ANALYTICS_REAL + real system-app-server floods SB/BB mach
+        # and delays runningboardd past T=1800 (boot237: RB spawn late, 0
+        # SURFACE). Cap post_iomfb mach hard; only first few 3228 peeks exempt.
         is_bb_peek = (msgid == 3228 and 'backboard' in pn0.lower())
-        if not is_bb_peek:
+        bb_peek_n = _mm2.get('bb_3228', 0)
+        peek_exempt = is_bb_peek and bb_peek_n < 8
+        if not peek_exempt:
             if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
                 return False
-            if _mm2.get('post_iomfb') and _mm2['n'] > 550:
+            # boot239: 550→180 so RB can reach SURFACE_MATCH under T=2400
+            if _mm2.get('post_iomfb') and _mm2['n'] > 180:
+                return False
+            # After SURFACE sel32, stop unrelated mach RetBP entirely.
+            if _mm2.get('rb_sel32') and 'runningboard' not in pn0.lower():
                 return False
         if is_bb_peek:
             _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1

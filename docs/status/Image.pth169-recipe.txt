@@ -1,0 +1,10 @@
+Image.pth169 = Image.pth168 + post-GMD mach throttle
+  boot238: flaky initproc (no DSC_SLIDE); same kernel/DSC as boot237.
+  boot239: emu_gdb_extra_boot.py — post_iomfb MACHMSG2 n>180 drop
+  (was 550); bb_3228 peek exempt only first 8; after rb_sel32 drop
+  non-runningboardd mach. T=2400 to catch late SURFACE after
+  ANALYTICS_REAL + system-app-server.
+
+Build:
+  cp /tmp/Image.pth168 /tmp/Image.pth169
+  # DSC unchanged; GDB only
