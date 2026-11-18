@@ -1403,5 +1403,9 @@ Image.pth74.
 
 ## Chunk 205 (boot256: SAS soft-null keep x0=0)
 
-| boot256 | Image.pth186 | zero SAS *out7 on garbage; keep x0=0 (no 0x9f); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 (x0=0+null) → SB lives → SURFACE+6001012. | out/logs/boot256 |
+| boot256 | Image.pth186 | zero SAS *out7 on garbage; keep x0=0 (no 0x9f); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012 BKS→FB; no SAS lookup; SB PREPAREEXIT after; early MATCH proc=? before GETSIZE. | out/logs/boot256 |
+
+## Chunk 206 (boot257: arm post_iomfb only for real backboardd)
+
+| boot257 | Image.pth187 | no post_iomfb arm on MATCH proc=?; require backboardd; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: correct GMD→SURFACE order; SB reaches SAS soft-null and stays past 6001012 toward CA. | out/logs/boot257 |
 

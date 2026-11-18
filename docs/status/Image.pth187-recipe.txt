@@ -1,0 +1,9 @@
+Image.pth187 = Image.pth186 + post_iomfb only for real backboardd
+  boot256: SURFACE+6001012 ok; early BB_IOMFB_MATCH proc=? armed
+  post_iomfb before real GETSIZE; SB exited after 6001012; no SAS.
+  boot257: arm post_iomfb only when pname has backboard; still log
+  proc=? MATCH. Keep SAS_SOFT_NULL. T=3000.
+
+Build:
+  cp /tmp/Image.pth186 /tmp/Image.pth187
+  # DSC unchanged; GDB only

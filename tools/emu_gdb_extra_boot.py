@@ -837,16 +837,15 @@ def _iok(tag,ma,cnt):
     if k not in _iok_seen or ui:
         _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
     # boot176: arm post_iomfb on BB IOMobileFramebuffer match (not Nth open).
-    # boot182: also arm for proc=? (boot181 GMD/IOMFB open logged as ? and
-    # skipped MATCH → no WINDOW).
-    if (any('IOMobileFramebuffer' in x for x in s)
-            and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
-        _mm2['bb_iomfb_match'] = 1
-        P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
-        # boot243: arm post_iomfb at MATCH (not wait for IOSOPEN). boot242
-        # forced analytics RET before Open → no ANALYTICS_REAL; boot239's
-        # analytics RET landed after MATCH/Open race and got a real port+SAS.
-        if not _mm2.get('post_iomfb'):
+    # boot182: also armed for proc=? — boot256 MATCH proc=? armed early,
+    # SURFACE before real BB GETSIZE, SB exited after 6001012 w/o SAS.
+    # boot257: only arm for real backboardd; still LOG proc=? MATCH.
+    if any('IOMobileFramebuffer' in x for x in s):
+        if 'backboard' in pn0.lower() or pn0 in ('', '?'):
+            _mm2['bb_iomfb_match'] = 1
+            P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
+        if 'backboard' in pn0.lower() and not _mm2.get('post_iomfb'):
+            # boot243: arm at MATCH (not wait for IOSOPEN).
             _mm2['post_iomfb'] = 1
             _mm2['spin1'] = 0
             _mm2['post_spin_uf'] = 0
