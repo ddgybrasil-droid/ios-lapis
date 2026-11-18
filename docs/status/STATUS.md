@@ -1319,5 +1319,9 @@ Image.pth74.
 
 ## Chunk 184 (boot235: revert OBJ_SUBINIT)
 
-| boot235 | Image.pth165 | WRAP = boot230 GETSIZE-only; keep smart SB RB NULLPORT; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore BB GETSIZE+GMD_OK+SURFACE; SB system-app-server. | out/logs/boot235 |
+| boot235 | Image.pth165 | WRAP = boot230 GETSIZE-only; keep smart SB RB NULLPORT; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK+SURFACE restored; 0 W00T; SB RB port then NULLPORT; system-app-server x7*=None. Post-GMD: XPC388_FAKE → analytics FORCED → BB quiet. | out/logs/boot235 |
+
+## Chunk 185 (boot236: real analyticsd after GMD)
+
+| boot236 | Image.pth166 | after post_iomfb do not force analyticsd; keep GETSIZE WRAP; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB continues past GETSIZE with real analyticsd → system-app-server. | out/logs/boot236 |
 

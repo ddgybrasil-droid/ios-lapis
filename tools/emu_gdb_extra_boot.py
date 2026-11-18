@@ -268,19 +268,21 @@ class _RetSite(gdb.Breakpoint):
                 # returned x0=0/null — boot172: always force analyticsd for BB.
                 # boot185: real analyticsd → x0=1 + null ports then quiet.
                 # boot186: always force analyticsd again.
+                # boot236: after GETSIZE/GMD, forcing analyticsd leaves BB quiet
+                # (boot235). Allow real analyticsd once post_iomfb; still force
+                # pre-GMD to avoid early hang.
                 _force_names = [
                     "name='com.apple.ACCHWComponentAuthService'",
                     "name='com.apple.locationd.registration'",
-                    # boot214: real analyticsd → w00t@0x4b03 → SPIN 0x10000000
-                    # → BB respawn. Restore force (boot186 path).
-                    "name='com.apple.analyticsd'",
                     # boot218: oscard returned x0=3 then BB w00t/respawn path;
                     # force 0x9f like other auth services.
                     "name='com.apple.oscard'",
                 ]
-                # boot221: real frontboard/MG → only NULLPORT (same deny) + W00T.
-                # boot222: restore blanket force (boot220 stable, no W00T).
                 if not _mm2.get('post_iomfb'):
+                    # boot214: real analyticsd pre-GMD → w00t/SPIN/respawn.
+                    _force_names.append("name='com.apple.analyticsd'")
+                    # boot221: real frontboard/MG → only NULLPORT + W00T.
+                    # boot222: restore blanket force (boot220 stable, no W00T).
                     _force_names += [
                         "name='com.apple.runningboard'",
                         "name='com.apple.frontboard.systemappservices'",
