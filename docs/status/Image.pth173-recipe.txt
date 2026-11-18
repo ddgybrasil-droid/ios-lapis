@@ -1,0 +1,10 @@
+Image.pth173 = Image.pth172 + post_iomfb at BB IOMFB MATCH
+  boot242: SURFACE+post-SURFACE SB mach recovered; analytics forced
+  before MATCH/Open so no REAL port / SAS null.
+  boot243: set post_iomfb on BB_IOMFB_MATCH (widen race so analytics
+  RET after match can be ANALYTICS_REAL); keep port-required REAL;
+  T=3000.
+
+Build:
+  cp /tmp/Image.pth172 /tmp/Image.pth173
+  # DSC unchanged; GDB only

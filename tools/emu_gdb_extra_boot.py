@@ -725,6 +725,17 @@ def _iok(tag,ma,cnt):
             and ('backboard' in pn0.lower() or pn0 in ('', '?'))):
         _mm2['bb_iomfb_match'] = 1
         P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
+        # boot243: arm post_iomfb at MATCH (not wait for IOSOPEN). boot242
+        # forced analytics RET before Open → no ANALYTICS_REAL; boot239's
+        # analytics RET landed after MATCH/Open race and got a real port+SAS.
+        if not _mm2.get('post_iomfb'):
+            _mm2['post_iomfb'] = 1
+            _mm2['spin1'] = 0
+            _mm2['post_spin_uf'] = 0
+            _mm2['post_uf'] = 0
+            _mm2['w00t_n'] = 0
+            _mm2['n'] = 300
+            P('MACHMSG2_WINDOW post-IOMFB reopen (at MATCH)')
     # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
     if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
            for x in s):

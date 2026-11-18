@@ -1347,5 +1347,9 @@ Image.pth74.
 
 ## Chunk 191 (boot242: ANALYTICS_REAL only with port)
 
-| boot242 | Image.pth172 | analytics nullish keep→FORCED_NULLPORT if no port; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: stop x0=0+null analytics half-state; recover SURFACE (+SAS) like boot239. | out/logs/boot242 |
+| boot242 | Image.pth172 | analytics nullish keep→FORCED_NULLPORT if no port; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+**SURFACE sel13→32**+post-SURFACE mach window (SB msgid 1073742628/2629/6001012/11602); analytics **FORCED pre-MATCH**; SAS x7*=None; SB_RB port kept. | out/logs/boot242 |
+
+## Chunk 192 (boot243: post_iomfb at BB IOMFB MATCH)
+
+| boot243 | Image.pth173 | arm post_iomfb on BB_IOMFB_MATCH (not IOSOPEN); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: analytics RET after MATCH gets REAL port → system-app-server real + keep SURFACE; then CA via post-SURFACE mach. | out/logs/boot243 |
 
