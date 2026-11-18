@@ -275,10 +275,9 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
-            # boot256: boot255 SAS_NULL_FORCE_0x9f → SB EXC far=0x100000000.
-            # boot253 keep-garbage → SB EXC. boot249 left x0=0 + x7*=None
-            # and SB lived to SURFACE+6001012. Soft-null: zero *out7, keep
-            # x0=0 (do NOT 0x9f). Clean high32==0 port still kept.
+            # boot258: ANY SAS mutation crashes SB (keep/0x9f/soft-null all
+            # EXC far=0x100000000). boot249 left the lookup untouched
+            # (x0=0 x7*=None) and reached SURFACE+6001012. Observe only.
             if (t.startswith('XPC_LOOKUP_RET')
                     and "name='com.apple.backboard.system-app-server'" in t
                     and 'proc=SpringBoard' in t):
@@ -291,32 +290,18 @@ class _RetSite(gdb.Breakpoint):
                         try:
                             v = m64(out7)
                         except Exception:
-                            try:
-                                xs = gdb.execute('x/gx %#x' % out7, to_string=True)
-                                toks = [tt for tt in xs.replace(':', ' ').split()
-                                        if tt.startswith('0x') and len(tt) > 5]
-                                v = int(toks[-1], 16)
-                            except Exception:
-                                v = None
-                    raw = (v & 0xffffffffffffffff) if v is not None else 0
-                    low = raw & 0xffffffff
-                    high = (raw >> 32) & 0xffffffff
-                    is_port = bool(high == 0 and 0 < low < 0x10000)
-                    if is_port:
-                        extra += ' SAS_PORT_REAL port=%#x' % low
-                        _mm2['sas_ok'] = 1
+                            v = None
+                    if v is None:
+                        extra += ' SAS_OBSERVE v=None'
                     else:
-                        extra += ' SAS_STACK_GARBAGE v=%r' % (
-                            None if v is None else hex(v))
-                        if out7:
-                            try:
-                                gdb.execute(
-                                    'set {unsigned long long}%#x = 0' % out7,
-                                    to_string=True)
-                            except Exception:
-                                pass
-                        # Keep x0 as-is (0). Do not 0x9f — that crashed SB.
-                        extra += ' SAS_SOFT_NULL'
+                        raw = v & 0xffffffffffffffff
+                        low = raw & 0xffffffff
+                        high = (raw >> 32) & 0xffffffff
+                        if high == 0 and 0 < low < 0x10000:
+                            extra += ' SAS_PORT_REAL port=%#x' % low
+                            _mm2['sas_ok'] = 1
+                        else:
+                            extra += ' SAS_OBSERVE v=%#x' % raw
                 except Exception as es2:
                     extra += ' sas_check_err=%r' % es2
             if t.startswith('XPC_LOOKUP_RET'):

@@ -1407,5 +1407,9 @@ Image.pth74.
 
 ## Chunk 206 (boot257: arm post_iomfb only for real backboardd)
 
-| boot257 | Image.pth187 | no post_iomfb arm on MATCH proc=?; require backboardd; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: correct GMD→SURFACE order; SB reaches SAS soft-null and stays past 6001012 toward CA. | out/logs/boot257 |
+| boot257 | Image.pth187 | no post_iomfb arm on MATCH proc=?; require backboardd; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE before SURFACE ok; SAS_SOFT_NULL still → **SB EXC far=0x100000000**. | out/logs/boot257 |
+
+## Chunk 207 (boot258: SAS observe-only)
+
+| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 untouched SAS → SB lives past 6001012 toward CA. | out/logs/boot258 |
 
