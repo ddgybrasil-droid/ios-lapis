@@ -475,6 +475,13 @@ class _RetSite(gdb.Breakpoint):
                                 extra += ' FB_SAS_REAL_BB'
                             else:
                                 extra += ' FB_SAS_NULL_WILL_FORCE'
+                        # boot256: do not 0x9f SpringBoard system-app-server
+                        # (soft-null above; 0x9f → EXC in boot255).
+                        if ('proc=SpringBoard' in t
+                                and "name='com.apple.backboard.system-app-server'"
+                                in t):
+                            nullish = False
+                            extra += ' SAS_SKIP_NULLPORT'
                         if nullish:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
