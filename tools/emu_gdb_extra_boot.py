@@ -332,10 +332,13 @@ class _RetSite(gdb.Breakpoint):
                     # NULLPORT for proc=backboardd (not bare proc=? — that hit
                     # wirelessinsightsd in boot179).
                     # boot221: also NULLPORT SpringBoard↔runningboard when
-                    # x0=0 but endpoint ptrs are empty (boot220: x7*=None loop).
+                    # x0=0 but endpoint ptrs empty. boot233: after GMD isa,
+                    # do NOT NULLPORT SB RB — boot232 killed system-app-server
+                    # (x7*=None) right after FORCED_NULLPORT on RB.
                     _null_proc = ('proc=backboardd' in t or
                                   ('proc=SpringBoard' in t and
-                                   "name='com.apple.runningboard'" in t))
+                                   "name='com.apple.runningboard'" in t and
+                                   not _dsc.get('gmd_isa_seed')))
                     if (not force_bb
                             and _null_proc
                             and 'cfprefsd' not in t

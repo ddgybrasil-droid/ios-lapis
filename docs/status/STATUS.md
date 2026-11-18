@@ -1307,5 +1307,9 @@ Image.pth74.
 
 ## Chunk 181 (boot232: OBJ_SUBINIT + const after sel8)
 
-| boot232 | Image.pth162 | WRAP after GETSIZE: OBJ_SUBINIT(+0x840)+const@+0x880; XPC388_FAKE; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: deeper GMD object → more BB IOMFB/CA after GETSIZE; keep SURFACE. | out/logs/boot232 |
+| boot232 | Image.pth162 | WRAP after GETSIZE: OBJ_SUBINIT(+0x840)+const@+0x880; XPC388_FAKE; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; **435 BB lines post-GMD** (was 32); SURFACE; no XPC388; W00T; SB system-app-server **x7*=None** after SB RB NULLPORT; soc-generation miss. | out/logs/boot232 |
+
+## Chunk 182 (boot233: no SB RB NULLPORT after GMD)
+
+| boot233 | Image.pth163 | after gmd_isa_seed skip SB↔RB NULLPORT; keep SUBINIT WRAP; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB keeps RB + gets system-app-server; CA path. | out/logs/boot233 |
 

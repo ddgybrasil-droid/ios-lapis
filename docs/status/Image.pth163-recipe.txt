@@ -1,0 +1,8 @@
+Image.pth163 = Image.pth162 + no SB RB NULLPORT post-GMD
+  boot232: OBJ_SUBINIT unlocked 435 BB post-GMD lines + SURFACE; SB
+  system-app-server null after FORCED_NULLPORT on runningboard.
+  boot233: skip SB↔RB NULLPORT once gmd_isa_seed; T=1800.
+
+Build:
+  cp /tmp/Image.pth162 /tmp/Image.pth163
+  # DSC unchanged; GDB: emu_gdb_extra_boot.py
