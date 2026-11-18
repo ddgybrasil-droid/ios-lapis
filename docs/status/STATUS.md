@@ -1315,5 +1315,9 @@ Image.pth74.
 
 ## Chunk 183 (boot234: smart SB RB NULLPORT)
 
-| boot234 | Image.pth164 | NULLPORT SB RB only when no readable port; keep port when seen; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB keeps good RB port, skips dead lookups → system-app-server. | out/logs/boot234 |
+| boot234 | Image.pth164 | NULLPORT SB RB only when no readable port; keep port when seen; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **no BB GMD** (BB respawn → 11602); SURFACE via xpcproxy; SB system-app-server x7*=None. OBJ_SUBINIT suspect. | out/logs/boot234 |
+
+## Chunk 184 (boot235: revert OBJ_SUBINIT)
+
+| boot235 | Image.pth165 | WRAP = boot230 GETSIZE-only; keep smart SB RB NULLPORT; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore BB GETSIZE+GMD_OK+SURFACE; SB system-app-server. | out/logs/boot235 |
 
