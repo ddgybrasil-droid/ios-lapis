@@ -1327,5 +1327,5 @@ Image.pth74.
 
 ## Chunk 186 (boot237: skip BB analytics NULLPORT post-GMD)
 
-| boot237 | Image.pth167 | post_iomfb: no NULLPORT on BB↔analyticsd; keep GETSIZE; T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: real analyticsd endpoint → BB continues → system-app-server. | out/logs/boot237 |
+| boot237 | Image.pth167 | post_iomfb: no NULLPORT on BB↔analyticsd; keep GETSIZE; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; **ANALYTICS_REAL** x7*=0x100007b13; **system-app-server x7*=0x…3a03** (first real endpoint!); SB then rich mach (3228/4813); 1× W00T to analytics; SURFACE pending. | out/logs/boot237 |
 
