@@ -1,0 +1,9 @@
+Image.pth171 = Image.pth170 + analytics-bad force + GDB lean + T=3000
+  boot240: GETSIZE+SAS real; analytics x0=1 null; RB timed out pre-SURFACE.
+  boot241: force 0x9f on post-GMD BB analytics when x0≠0+null
+  (ANALYTICS_BAD_FORCE); drop POST_IOMFB_U walks; RetBP only
+  interesting/first-40 mach; keep post-SURFACE SB/BB window; T=3000.
+
+Build:
+  cp /tmp/Image.pth170 /tmp/Image.pth171
+  # DSC unchanged; GDB only

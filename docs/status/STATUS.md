@@ -1279,5 +1279,109 @@ Image.pth74.
 
 ## Chunk 174 (boot225: cave sel5 + sel8 GetDisplaySize)
 
-| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ГИПОТЕЗА**: GetDisplaySize after UCAL advances CA past first bind. | out/logs/boot225 |
+| boot225 | Image.pth155 | after sel5 also CallMethod sel=8 (2 scalar outs); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: in-cave sel8 grew cave → clobbered DSC → **initproc panic** (launchd ns=2/0xa). Reverted; restored post-cave from clean. | out/logs/boot225 |
+
+## Chunk 175 (boot226: restore sel5-only cave)
+
+| boot226 | Image.pth156 | sel5-only cave (boot224); scrub post-cave; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: launchd OK; **BB IOMFB_UCAL sel=5 x0=0** + BB_GMD_OK+XPC388_FAKE restored. | out/logs/boot226 |
+
+## Chunk 176 (boot227: sel8 via WRAP_CAVE)
+
+| boot227 | Image.pth157 | cave BL WRAP_SEL8 after sel5 (484B cave); T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB+FDR sel=5+8 x0=0 but **no GMD_BODY_RET** — WRAP reused cave SP, CallMethod smashed frame. | out/logs/boot227 |
+
+## Chunk 177 (boot228: WRAP_SEL8 private stack)
+
+| boot228 | Image.pth158 | WRAP_SEL8 sub sp,#0x20 before CallMethod; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: still no GMD_BODY_RET; BB sel8 → **0xe00002bf** (no IOEXT). Root cause: WRAP `ret` used x30 clobbered by BL CallMethod (infinite ret). | out/logs/boot228 |
+
+## Chunk 178 (boot229: WRAP save x30)
+
+| boot229 | Image.pth159 | WRAP save/restore x30 across CallMethod; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **GMD_BODY_RET + BB_GMD_OK + FLAG98**; BB sel=5 **IOMFB_UCAL x0=0**; BB sel=8 → **0xe00002bf** (no IOEXT — WRAP private frame reused [sp] for outputCnt, CallMethod read it as outputStruct); FDR sel8 IOEXT ok; SURFACE sel13→32; SB got system-app-server. | out/logs/boot229 |
+
+## Chunk 179 (boot230: WRAP CallMethod stack ABI)
+
+| boot230 | Image.pth160 | WRAP: zero arg9/arg10; scalars@+0x10; cnt@+0x20; save x21+x30; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **BB sel=8 IOMFB_GETSIZE x0=0** + IOEXT; GMD_BODY_RET+BB_GMD_OK+FLAG98; XPC388_FAKE then **W00T**; SURFACE sel32; no further BB IOMFB sels after cave. | out/logs/boot230 |
+
+## Chunk 180 (boot231: XPC388 return mach error)
+
+| boot231 | Image.pth161 | XPC388 short-circuit x0=0x10004004 (boot176 real); keep WRAP ABI; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; XPC388_ERR; **0 W00T** but **0 SURFACE** — BB aborts display path. Restore FAKE. | out/logs/boot231 |
+
+## Chunk 181 (boot232: OBJ_SUBINIT + const after sel8)
+
+| boot232 | Image.pth162 | WRAP after GETSIZE: OBJ_SUBINIT(+0x840)+const@+0x880; XPC388_FAKE; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; **435 BB lines post-GMD** (was 32); SURFACE; no XPC388; W00T; SB system-app-server **x7*=None** after SB RB NULLPORT; soc-generation miss. | out/logs/boot232 |
+
+## Chunk 182 (boot233: no SB RB NULLPORT after GMD)
+
+| boot233 | Image.pth163 | after gmd_isa_seed skip SB↔RB NULLPORT; keep SUBINIT WRAP; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE; SB RB **x7*=0x3d03** (no FORCED_NULLPORT); SB then loops RB with x7*=None — **0 system-app-server**; 0 W00T; BB quieter than boot232. | out/logs/boot233 |
+
+## Chunk 183 (boot234: smart SB RB NULLPORT)
+
+| boot234 | Image.pth164 | NULLPORT SB RB only when no readable port; keep port when seen; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **no BB GMD** (BB respawn → 11602); SURFACE via xpcproxy; SB system-app-server x7*=None. OBJ_SUBINIT suspect. | out/logs/boot234 |
+
+## Chunk 184 (boot235: revert OBJ_SUBINIT)
+
+| boot235 | Image.pth165 | WRAP = boot230 GETSIZE-only; keep smart SB RB NULLPORT; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK+SURFACE restored; 0 W00T; SB RB port then NULLPORT; system-app-server x7*=None. Post-GMD: XPC388_FAKE → analytics FORCED → BB quiet. | out/logs/boot235 |
+
+## Chunk 185 (boot236: real analyticsd after GMD)
+
+| boot236 | Image.pth166 | after post_iomfb do not force analyticsd; keep GETSIZE WRAP; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE; analytics still **FORCED_NULLPORT** via BB nullport blanket; system-app-server null. | out/logs/boot236 |
+
+## Chunk 186 (boot237: skip BB analytics NULLPORT post-GMD)
+
+| boot237 | Image.pth167 | post_iomfb: no NULLPORT on BB↔analyticsd; keep GETSIZE; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+GMD_OK; **ANALYTICS_REAL** x7*=0x100007b13; **system-app-server x7*=0x…3a03** (first real endpoint!); SB then rich mach (3228/4813); 1× W00T to analytics; **0 SURFACE** this run. | out/logs/boot237 |
+
+## Chunk 187 (boot238: retest system-app-server + SURFACE)
+
+| boot238 | Image.pth168 | same as boot237; watch SURFACE+CA after system-app-server; T=1800 | qemu11 43G lva=off | **ПРОВЕРЕНО**: flaky early **initproc panic** — `dyld cache '(null)' not loaded` / libSystem (no DSC_SLIDE). Same Image+DSC as boot237 (CD stale=0, WRAP present); not corruption. Relaunch. | out/logs/boot238 |
+
+## Chunk 188 (boot239: throttle post-GMD mach + T=2400)
+
+| boot239 | Image.pth169 | post_iomfb MACHMSG2 cap 550→180; peek exempt≤8; drop non-RB after sel32; T=2400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: DSC_SLIDE; **GETSIZE+BB_GMD_OK+ANALYTICS_REAL**; **SURFACE sel13→32**; **system-app-server x7*=…2e07** (combo breakthrough!). SB_RB real port kept. But post-SURFACE mach throttle dropped SB/BB → **0 MACHMSG2 after SURFACE** (blind to CA). | out/logs/boot239 |
+
+## Chunk 189 (boot240: keep SB/BB mach after SURFACE)
+
+| boot240 | Image.pth170 | after rb_sel32 keep SB/BB; reopen 180-msg window; T=2400 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+BB_GMD_OK+**system-app-server real**; analytics **x0=1+null** (no ANALYTICS_REAL); RB reached keybagd/lsd but **0 SURFACE** (T killed mid-init). No post-SURFACE window. | out/logs/boot240 |
+
+## Chunk 190 (boot241: analytics bad→0x9f + less GDB drag + T=3000)
+
+| boot241 | Image.pth171 | ANALYTICS_BAD_FORCE when x0≠0+null; drop POST_IOMFB_U; RetBP lean; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+BB_GMD_OK; **ANALYTICS_REAL with null ports** (bug); SAS x7*=None; W00T; RB→keybagd/lsd/BaseBoard; **0 SURFACE**. | out/logs/boot241 |
+
+## Chunk 191 (boot242: ANALYTICS_REAL only with port)
+
+| boot242 | Image.pth172 | analytics nullish keep→FORCED_NULLPORT if no port; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+**SURFACE sel13→32**+post-SURFACE mach window (SB msgid 1073742628/2629/6001012/11602); analytics **FORCED pre-MATCH**; SAS x7*=None; SB_RB port kept. | out/logs/boot242 |
+
+## Chunk 192 (boot243: post_iomfb at BB IOMFB MATCH)
+
+| boot243 | Image.pth173 | arm post_iomfb on BB_IOMFB_MATCH; no blanket analytics force; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH window armed; GETSIZE+**SURFACE**+post-SURFACE mach; analytics **x0=1 x7*=0x100000000** (sentinel skipped BAD_FORCE); SAS null; SB msgid 11602/6001012. | out/logs/boot243 |
+
+## Chunk 193 (boot244: analytics x0≠0 always BAD_FORCE)
+
+| boot244 | Image.pth174 | x0≠0 → BAD_FORCE; reject 0x100000000 sentinel; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **ANALYTICS_BAD_FORCE**; GETSIZE+**SURFACE**+post-SURFACE; SAS still null; SB_RB port then NULLPORT; msgid 6001012/11602/1073742628. | out/logs/boot244 |
+
+## Chunk 194 (boot245: post-SURFACE userspace frames)
+
+| boot245 | Image.pth175 | _uframes on post-SURFACE msgids; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE+SURFACE+**system-app-server x7*=…1593 REAL**; analytics FORCED_NULLPORT; POST_SURFACE_U n=1..6 (xpc/0x197f2* + SB) before 6001012 — missed CA msgid frames. | out/logs/boot245 |
+
+## Chunk 195 (boot246: prioritize 6001012 uframes + BB sample)
+
+| boot246 | Image.pth176 | prefer uframes on 6001012; sample BB post-SAS; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE (via CommCenter sel32); **POST_SURFACE_U msgid=6001012** = mach→**BackBoardServices**→**FrontBoard**→libdispatch→SpringBoard; SAS **null** this run. | out/logs/boot246 |
+
+## Chunk 196 (boot247: sticky SB↔RB port for SAS)
+
+| boot247 | Image.pth177 | once SB_RB port kept, never NULLPORT later SB↔RB; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: sticky **регресс** — null SB_RB left x0=0 → spin on 1073742628; SURFACE ok; no SAS/6001012. | out/logs/boot247 |
+
+## Chunk 197 (boot248: real BB↔FrontBoard systemappservices)
+
+| boot248 | Image.pth178 | revert sticky; allow BB real frontboard.systemappservices (no pre-MATCH force); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FB_SAS null (timing→force); **ANALYTICS_REAL→W00T/SPIN**; early SAS; **no SURFACE**. | out/logs/boot248 |
+
+## Chunk 198 (boot249: always force BB analytics)
+
+| boot249 | Image.pth179 | always force BB analyticsd 0x9f (no REAL); keep FB_SAS allow; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no W00T; SURFACE+6001012 BKS→FB; SAS **null**; quiet after FrontBoard. | out/logs/boot249 |
+
+## Chunk 199 (boot250: SB FB systemappservices + post-CA frames)
+
+| boot250 | Image.pth180 | SB real frontboard.systemappservices; dump 6001012 reply; POST_CA_U after 6001012; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; SAS null; MSG dump unreadable (kernel VA); no SB FB lookup; W00T≠block SURFACE. | out/logs/boot250 |
+
+## Chunk 200 (boot251: dump 6001012 userspace buf + POST_CA_ANY)
+
+| boot251 | Image.pth181 | stash data_ptr; dump 6001012 on RET; POST_CA_ANY_U after 6001012; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reply payload + later SB frames reveal next CA/IOMFB wall past BKS→FB. | out/logs/boot251 |
 

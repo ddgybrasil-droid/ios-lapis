@@ -1,0 +1,9 @@
+Image.pth181 = Image.pth180 + 6001012 userspace dump + POST_CA_ANY
+  boot250: SURFACE+6001012; SAS null; reply dump hit kernel VA;
+  no SB frontboard.systemappservices lookup; W00T before SURFACE ok.
+  boot251: stash mach_msg2 data_ptr; dump buffer on RET; sample
+  POST_CA_ANY_U on later SB msgs. T=3000.
+
+Build:
+  cp /tmp/Image.pth180 /tmp/Image.pth181
+  # DSC unchanged; GDB only

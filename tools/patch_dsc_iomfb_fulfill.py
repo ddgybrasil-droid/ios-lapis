@@ -43,6 +43,7 @@ IOSOPEN = 0x22C6CE800
 # boot224: real IOMobileFramebufferOpen post-path calls this with w1=#5
 # (UCAL) right after IOServiceOpen — cave was skipping it (0 post-GMD IOEXT).
 CALLMETHOD = 0x22C6CE650
+WRAP_SEL8 = 0x228831528  # boot226/227: sel8 helper (no main-cave growth)
 TYPE_INIT = 0x22880686C  # fills malloc-type slot at TYPE_SLOT
 TYPED_MALLOC = 0x22C6CE8B0  # malloc_type_malloc(zone=0, type, size, 0)
 TYPE_SLOT_ADRP, TYPE_SLOT_OFF = 0x2801A3000, 0x520
@@ -234,18 +235,8 @@ def build_cave() -> list[int]:
     emit(0xD2800006)  # movz x6, #0
     emit(0xD2800007)  # movz x7, #0
     emit(enc_bl(pc, CALLMETHOD))
-    # boot225: also GetDisplaySize sel=8 with 2 scalar outs (boot147/182 RE).
-    emit(0xB94016A0)  # ldr w0, [x21, #0x14]
-    emit(0x52800101)  # movz w1, #8
-    emit(0xD2800002)  # movz x2, #0
-    emit(0x52800003)  # movz w3, #0
-    emit(0xD2800004)  # movz x4, #0
-    emit(0xD2800005)  # movz x5, #0
-    emit(0x910043E6)  # add x6, sp, #0x10  output scalars
-    emit(0x52800048)  # movz w8, #2
-    emit(0xB90003E8)  # str w8, [sp]  outputCnt=2
-    emit(0x910003E7)  # mov x7, sp
-    emit(enc_bl(pc, CALLMETHOD))
+    # boot227: sel=8 via WRAP_SEL8 (one BL) — avoids growing main cave.
+    emit(enc_bl(pc, WRAP_SEL8))
     emit(0x52812E88)  # movz w8, #2420
     emit(0xB90032A8)  # str w8, [x21, #0x30]
     emit(0x5280D088)  # movz w8, #1668
@@ -359,6 +350,53 @@ def patch_bytes(buf: bytearray, *, write: bool) -> bool:
         changed = True
     else:
         print(f"{CAVE:#x}: open cave already present")
+
+    # boot227/228: sel=8 helper. boot227 reused cave SP and CallMethod
+    # smashed saved x21/x30 → no GMD_BODY_RET. Allocate a private frame.
+    wrap: list[int] = []
+    wpc = WRAP_SEL8
+
+    def wemit(insn: int) -> None:
+        nonlocal wpc
+        wrap.append(insn)
+        wpc += 4
+
+    # boot229: save x30 across BL CALLMETHOD (else ret loops, no GMD_BODY_RET).
+    # boot230: CallMethod arg9/arg10 live at [sp]/[sp,#8]. boot228/229 put
+    # outputCnt/scalars there → garbage outputStruct → BB sel=8 0xe00002bf
+    # (no IOEXT). Zero stack args; keep scalars/cnt/x30 in the private frame.
+    # Also save x21 across CallMethod (sel=5 may have left it live for WRAP).
+    wemit(0xD10103FF)  # sub sp, sp, #0x40
+    wemit(0xA9007FFF)  # stp xzr, xzr, [sp]       arg9/arg10 = NULL
+    wemit(0xF9001BFE)  # str x30, [sp, #0x30]
+    wemit(0xF90017F5)  # str x21, [sp, #0x28]
+    wemit(0xB94016A0)  # ldr w0, [x21, #0x14]
+    wemit(0x52800101)  # movz w1, #8
+    wemit(0xD2800002)  # movz x2, #0
+    wemit(0x52800003)  # movz w3, #0
+    wemit(0xD2800004)  # movz x4, #0
+    wemit(0xD2800005)  # movz x5, #0
+    wemit(0x910043E6)  # add x6, sp, #0x10  output scalars
+    wemit(0x52800048)  # movz w8, #2
+    wemit(0xB90023E8)  # str w8, [sp, #0x20]  outputCnt
+    wemit(0x910083E7)  # add x7, sp, #0x20
+    wemit(enc_bl(wpc, CALLMETHOD))
+    wemit(0xF94017F5)  # ldr x21, [sp, #0x28]
+    # boot235: drop OBJ_SUBINIT/const — boot234 lost BB GMD entirely
+    # (FDR *out looked non-page; BB respawned into msgid 11602). Keep
+    # boot230 GETSIZE-only WRAP (stable GETSIZE+SURFACE).
+    wemit(0xF9401BFE)  # ldr x30, [sp, #0x30]
+    wemit(0x910103FF)  # add sp, sp, #0x40
+    wemit(0xD65F03C0)  # ret
+    wrap_blob = b"".join(struct.pack("<I", w) for w in wrap)
+    fo_wrap = WRAP_SEL8 - SUBCACHE_BASE
+    if buf[fo_wrap : fo_wrap + len(wrap_blob)] != wrap_blob:
+        print(f"{WRAP_SEL8:#x}: write sel8 wrap ({len(wrap_blob)} bytes)")
+        if write:
+            buf[fo_wrap : fo_wrap + len(wrap_blob)] = wrap_blob
+        changed = True
+    else:
+        print(f"{WRAP_SEL8:#x}: sel8 wrap already present")
     return changed
 
 

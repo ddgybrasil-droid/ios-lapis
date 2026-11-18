@@ -1,0 +1,8 @@
+Image.pth157 = Image.pth156 + WRAP_SEL8 after cave sel5
+  boot226: sel5 restored.
+  boot227: BL WRAP_SEL8 (GetDisplaySize) after sel5; T=1800.
+
+Build:
+  cp /tmp/Image.pth156 /tmp/Image.pth157
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

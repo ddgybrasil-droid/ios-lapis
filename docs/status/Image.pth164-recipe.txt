@@ -1,0 +1,9 @@
+Image.pth164 = Image.pth163 + smart SB RB NULLPORT
+  boot233: SB kept RB port 0x3d03 but then looped x7*=None; never
+  looked up system-app-server.
+  boot234: after GMD, NULLPORT SB RB only when no readable port;
+  keep when a real port name is visible; T=1800.
+
+Build:
+  cp /tmp/Image.pth163 /tmp/Image.pth164
+  # DSC unchanged; GDB: emu_gdb_extra_boot.py

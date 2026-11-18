@@ -1,0 +1,8 @@
+Image.pth159 = Image.pth158 + WRAP x30 save
+  boot228: WRAP ret looped (x30 clobber); BB sel8 0xe00002bf.
+  boot229: str/ldr x30 around CallMethod; T=1800.
+
+Build:
+  cp /tmp/Image.pth158 /tmp/Image.pth159
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write
