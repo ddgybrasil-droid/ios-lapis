@@ -1273,11 +1273,16 @@ def _ufn(n):
                 # boot287/291: short-circuit with stashed tagged port via LR.
                 # boot293: SEED_EARLY on RET before GMD wrote port but
                 # x7*=None (did not stick) → SAS null despite stash.
-                # boot294: shortcircuit on any BB analytics enter once stash
-                # exists (do not wait for post_iomfb/GMD).
+                # boot294: shortcircuit anytime stash exists → SURFACE ok but
+                # SB never looked up runningboard (0 PORT_KEPT/6001012/SAS).
+                # Early BB analytics success races ahead; SB stalls on 11602.
+                # boot295: shortcircuit only AFTER sb_rb_seen (PORT_KEPT), so
+                # SB reaches RB/SURFACE/6001012 first; then seed analytics for
+                # the boot288 SAS_PORT_REAL window without pre-RB race.
                 if (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
-                        and _mm2.get('analytics_port')):
+                        and _mm2.get('analytics_port')
+                        and _mm2.get('sb_rb_seen')):
                     try:
                         ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
                         if ap < 0x10000:

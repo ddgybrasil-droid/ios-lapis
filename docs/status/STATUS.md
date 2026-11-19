@@ -1557,5 +1557,9 @@ Image.pth74.
 
 ## Chunk 243 (boot294: shortcircuit seed anytime stash exists)
 
-| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable seeded analytics before SURFACE → SAS_PORT_REAL. | out/logs/boot294 |
+| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SHORTCIRCUIT_SEED `0x10000121b` pre-GMD → GMD_OK+W00T+SURFACE; **0 PORT_KEPT / 0×6001012 / 0 SAS** — SB never XPC_LOOKUP runningboard (last activity msgid 11602/1026); early shortcircuit races BB ahead of SB_RB. Harmful. | out/logs/boot294 |
+
+## Chunk 244 (boot295: shortcircuit only after SB_RB PORT_KEPT)
+
+| boot295 | Image.pth225 | SHORTCIRCUIT_SEED only when `sb_rb_seen`; keep SURFACE always + POST_SURFACE SB_RB force; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot293 SURFACE+6001012+PORT_KEPT, then seed analytics for SAS_PORT_REAL (boot288) without pre-RB race. | out/logs/boot295 |
 
