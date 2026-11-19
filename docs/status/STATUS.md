@@ -1445,5 +1445,9 @@ Image.pth74.
 
 ## Chunk 215 (boot266: BB frontboard.systemappservices keep)
 
-| boot266 | Image.pth196 | post_iomfb keep BB FB SAS null as x0=0 (no 0x9f); watch SAS publish; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB can publish system-app-server → SB past CFRunLoop toward CA. | out/logs/boot266 |
+| boot266 | Image.pth196 | post_iomfb keep BB FB SAS null as x0=0 (no 0x9f); watch SAS publish; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FB lookup **pre-MATCH** → only `FB_SAS_NULL_WILL_FORCE` (KEEP never fired); GETSIZE+GMD+SAS null+6001012; **W00T×4 uframes**; RB late → **11602 before IOGPU/IOCore** → **0 SURFACE** (~40m). | out/logs/boot266 |
+
+## Chunk 216 (boot267: always FB_SAS keep + analytics REAL post_iomfb)
+
+| boot267 | Image.pth197 | always `FB_SAS_NULL_KEEP`; keep analytics REAL after post_iomfb; W00T_U only n=1; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot239 path (analytics REAL→SAS) + no pre-MATCH FB 0x9f + lighter W00T_U so RB reaches SURFACE. | out/logs/boot267 |
 

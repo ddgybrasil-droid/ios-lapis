@@ -497,12 +497,15 @@ class _RetSite(gdb.Breakpoint):
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
                         # boot249: always force BB analytics pre-SURFACE.
-                        # boot262: after SURFACE keep only clean small port;
-                        # otherwise force (boot261b sentinel must not pass).
+                        # boot262: after SURFACE keep only clean small port.
+                        # boot267: after post_iomfb keep a real analytics port
+                        # (boot239 SAS); still 0x9f when null (boot241 W00T).
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
                             _keep = False
-                            if _mm2.get('rb_sel32') and not nullish:
+                            if not nullish and (
+                                    _mm2.get('rb_sel32')
+                                    or _mm2.get('post_iomfb')):
                                 for ptr in (x4, x6, x7):
                                     if not ptr:
                                         continue
@@ -511,19 +514,26 @@ class _RetSite(gdb.Breakpoint):
                                         if 0 < v < 0x10000:
                                             _keep = True
                                             break
+                                        if (v
+                                                and v != 0x100000000
+                                                and 0x100000000 < v < 0x300000000):
+                                            _keep = True
+                                            break
                                     except Exception:
                                         pass
                             if _keep:
                                 nullish = False
-                                extra += ' ANALYTICS_POST_SURFACE_KEEP'
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' ANALYTICS_POST_SURFACE_KEEP'
+                                else:
+                                    extra += ' ANALYTICS_REAL_POST_IOMFB'
                             else:
                                 nullish = True
                                 extra += ' ANALYTICS_ALWAYS_FORCE'
-                        # boot248/266: BB frontboard.systemappservices — forcing
-                        # 0x9f may block BB from publishing system-app-server
-                        # (boot265: HID props OK, SURFACE+6001012, SAS still null,
-                        # SB CFRunLoop). After SURFACE keep real; pre-SURFACE
-                        # still force only true null.
+                        # boot248/266/267: BB frontboard.systemappservices —
+                        # lookup is ALWAYS pre-MATCH (boot266: WILL_FORCE only,
+                        # FB_SAS_NULL_KEEP never fired). Never 0x9f — leave
+                        # x0=0 so BB can retry / continue SAS publish.
                         if ('proc=backboardd' in t
                                 and "name='com.apple.frontboard.systemappservices'"
                                 in t):
@@ -534,13 +544,8 @@ class _RetSite(gdb.Breakpoint):
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
                             else:
-                                # boot266: even null — do NOT 0x9f after GMD;
-                                # leave x0=0 so BB can retry / continue publish.
-                                if _mm2.get('post_iomfb'):
-                                    nullish = False
-                                    extra += ' FB_SAS_NULL_KEEP'
-                                else:
-                                    extra += ' FB_SAS_NULL_WILL_FORCE'
+                                nullish = False
+                                extra += ' FB_SAS_NULL_KEEP'
                         # boot256: do not 0x9f SpringBoard system-app-server
                         # (soft-null above; 0x9f → EXC in boot255).
                         if ('proc=SpringBoard' in t
@@ -579,7 +584,9 @@ class _RetSite(gdb.Breakpoint):
                         # Pre-MATCH real port → hang (boot214); force 0x9f.
                         # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
                         # boot262: boot261b NOFORCE kept x0=1+0x100000000 — bad.
-                        # After SURFACE, keep ONLY a clean small port; else force.
+                        # boot267: after post_iomfb keep a real analytics port
+                        # (boot239 SURFACE+SAS); still BAD_FORCE sentinel;
+                        # pre-IOMFB still force real/null.
                         need_force = False
                         tag = ''
                         clean_port = False
@@ -598,6 +605,9 @@ class _RetSite(gdb.Breakpoint):
                             extra += ' ANALYTICS_POST_SURFACE_REAL'
                         elif (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                        elif has_port and _mm2.get('post_iomfb'):
+                            # boot267/239: real analytics after IOMFB → SAS
+                            extra += ' ANALYTICS_REAL_POST_IOMFB'
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port:
@@ -1672,15 +1682,18 @@ def on_mach_msg2():
         # boot179: W00T_FAKE on w00t/0x40000000 after 0x40000388 → BB respawn.
         # boot180: fake ONLY 0x40000388/384 (the post-open error); log others.
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            # boot267: uframes only on first W00T — boot266's 4× W00T_U
+            # stalled RB past IOGPU/IOCoreSurfaceRoot (0 SURFACE).
             if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
                     and _mm2.get('w00t_n', 0) < 4):
                 _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
                 P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
                     pn0, msgid, remote, _mm2['w00t_n']))
-                try:
-                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
-                except Exception as e:
-                    P('W00T_U err=%r' % e)
+                if _mm2['w00t_n'] == 1:
+                    try:
+                        _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                    except Exception as e:
+                        P('W00T_U err=%r' % e)
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
