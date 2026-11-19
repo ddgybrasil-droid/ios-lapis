@@ -1489,5 +1489,9 @@ Image.pth74.
 
 ## Chunk 226 (boot277: seed analytics even pre-post_iomfb)
 
-| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early seed → boot239-like analytics REAL → SAS_PORT_REAL. | out/logs/boot277 |
+| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS_OBSERVE; SEED_EARLY skipped — BB analytics x0!=0 → **ANALYTICS_BAD_FORCE** cleared stash. | out/logs/boot277 |
+
+## Chunk 227 (boot278: seed analytics on BAD_FORCE path)
+
+| boot278 | Image.pth208 | ANALYTICS_PORT_SEED_BADPATH before BAD_FORCE; SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: seed on x0!=0 path → analytics REAL → SAS_PORT_REAL. | out/logs/boot278 |
 

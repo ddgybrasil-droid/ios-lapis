@@ -647,6 +647,24 @@ class _RetSite(gdb.Breakpoint):
                                     extra += '+X0CLR'
                                 except Exception as e:
                                     extra += ' x0clr_err=%r' % e
+                        elif (_mm2.get('analytics_port') and x7
+                                and ((x0 & 0xffffffff) != 0 or not has_port)):
+                            # boot277: BB analytics arrived with x0!=0 →
+                            # BAD_FORCE skipped SEED_EARLY (x0==0 block) and
+                            # cleared ports → SAS null despite stash.
+                            # boot278: seed stash here before any BAD_FORCE.
+                            try:
+                                ap = int(_mm2['analytics_port']) & 0xffffffff
+                                gdb.execute(
+                                    'set {unsigned long long}%#x = %#x' % (
+                                        x7, ap),
+                                    to_string=True)
+                                gdb.execute('set $x0 = 0', to_string=True)
+                                x0 = 0
+                                extra += ' ANALYTICS_PORT_SEED_BADPATH port=%#x' % ap
+                            except Exception as e:
+                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                                extra += ' ANALYTICS_SEED_BAD_ERR=%r' % e
                         elif (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
