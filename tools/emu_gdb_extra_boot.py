@@ -627,7 +627,10 @@ class _RetSite(gdb.Breakpoint):
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port:
-                            need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                            if _mm2.get('post_iomfb'):
+                                extra += ' ANALYTICS_NULL_POST_IOMFB_KEEP'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
