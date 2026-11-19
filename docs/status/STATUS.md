@@ -1429,5 +1429,9 @@ Image.pth74.
 
 ## Chunk 211 (boot262: force bad analytics; dump BB CA_MIG)
 
-| boot262 | Image.pth192 | force analytics unless clean port post-SURFACE; dump BB/SB 1012 MIG; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid sentinel; MIG ascii names post-FrontBoard wait. | out/logs/boot262 |
+| boot262 | Image.pth192 | force analytics unless clean port post-SURFACE; dump BB/SB 1012 MIG; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; CA_MIG=`asl.remote`/`iohideventsystem.available`; HID open+map+NOTE64 then **BB BRK abort** → SB exit. | out/logs/boot262 |
+
+## Chunk 212 (boot263: HID prop buf + BB EXC frames)
+
+| boot263 | Image.pth193 | dump HIDEventServiceProperties bin_buf outs; BB EXC uframes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see if HID dict empty / where BB aborts after NOTE64. | out/logs/boot263 |
 

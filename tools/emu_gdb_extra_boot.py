@@ -221,6 +221,44 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
+            # boot263: boot262 BB aborted (BRK) after HID map/NOTE64 + empty-looking
+            # HIDEventServiceProperties. Dump bin_buf out size; BB EXC frames.
+            if (t.startswith('IOREGPROP_buf_RET')
+                    and 'HIDEventServiceProperties' in t
+                    and 'backboardd' in t
+                    and _mm2.get('hid_prop_dump', 0) < 4):
+                _mm2['hid_prop_dump'] = _mm2.get('hid_prop_dump', 0) + 1
+                try:
+                    # MIG out: often x1=buf ptr, x2=size ptr or size in x2.
+                    xs = []
+                    for reg in ('x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7'):
+                        try:
+                            xs.append('%s=%#x' % (
+                                reg, int(gdb.parse_and_eval('$'+reg))
+                                & 0xffffffffffffffff))
+                        except Exception:
+                            pass
+                    extra += ' HIDPROP_REGS ' + ' '.join(xs)
+                    # Try dereference likely size outs.
+                    for reg in ('x2', 'x3', 'x4'):
+                        try:
+                            a = int(gdb.parse_and_eval('$'+reg)) & 0xffffffffffffffff
+                            if 0x100000000 <= a < 0x300000000:
+                                raw = gdb.execute('x/gx %#x' % a, to_string=True)
+                                toks = [tt for tt in raw.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                extra += ' *%s=%s' % (reg, toks[-1] if toks else '?')
+                        except Exception:
+                            pass
+                except Exception as ep:
+                    extra += ' hidprop_err=%r' % ep
+            if (t.startswith('EXC_TRIAGE') and 'proc=backboardd' in t
+                    and _mm2.get('bb_exc_uf', 0) < 2):
+                _mm2['bb_exc_uf'] = _mm2.get('bb_exc_uf', 0) + 1
+                try:
+                    _uframes('BB_EXC_U', 'n=%d' % _mm2['bb_exc_uf'])
+                except Exception as ee:
+                    extra += ' bb_exc_uf_err=%r' % ee
             # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
             # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
