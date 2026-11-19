@@ -530,10 +530,9 @@ class _RetSite(gdb.Breakpoint):
                             else:
                                 nullish = True
                                 extra += ' ANALYTICS_ALWAYS_FORCE'
-                        # boot248/266/267: BB frontboard.systemappservices —
-                        # lookup is ALWAYS pre-MATCH (boot266: WILL_FORCE only,
-                        # FB_SAS_NULL_KEEP never fired). Never 0x9f — leave
-                        # x0=0 so BB can retry / continue SAS publish.
+                        # boot267: FB_SAS_NULL_KEEP (x0=0) → SURFACE ok but SB
+                        # never reached RB/SAS/6001012 (stuck pre-SURFACE 11602).
+                        # boot268: restore 0x9f on null (boot265 path); keep real.
                         if ('proc=backboardd' in t
                                 and "name='com.apple.frontboard.systemappservices'"
                                 in t):
@@ -544,8 +543,7 @@ class _RetSite(gdb.Breakpoint):
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
                             else:
-                                nullish = False
-                                extra += ' FB_SAS_NULL_KEEP'
+                                extra += ' FB_SAS_NULL_WILL_FORCE'
                         # boot256: do not 0x9f SpringBoard system-app-server
                         # (soft-null above; 0x9f → EXC in boot255).
                         if ('proc=SpringBoard' in t

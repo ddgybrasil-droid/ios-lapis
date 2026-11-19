@@ -1449,5 +1449,9 @@ Image.pth74.
 
 ## Chunk 216 (boot267: always FB_SAS keep + analytics REAL post_iomfb)
 
-| boot267 | Image.pth197 | always `FB_SAS_NULL_KEEP`; keep analytics REAL after post_iomfb; W00T_U only n=1; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot239 path (analytics REAL→SAS) + no pre-MATCH FB 0x9f + lighter W00T_U so RB reaches SURFACE. | out/logs/boot267 |
+| boot267 | Image.pth197 | always `FB_SAS_NULL_KEEP`; keep analytics REAL after post_iomfb; W00T_U only n=1; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: `FB_SAS_NULL_KEEP`+GETSIZE+SURFACE+sel32; analytics pre-MATCH ALWAYS_FORCE; **SB quiet** — no RB/SAS/6001012 (vs boot265). KEEP harmful. | out/logs/boot267 |
+
+## Chunk 217 (boot268: revert FB_SAS force; keep analytics REAL post_iomfb)
+
+| boot268 | Image.pth198 | restore FB_SAS null→0x9f; keep analytics REAL after post_iomfb; W00T_U n=1; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot265 SURFACE+6001012 path + boot239 analytics REAL for SAS publish. | out/logs/boot268 |
 
