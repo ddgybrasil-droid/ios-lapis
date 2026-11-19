@@ -500,9 +500,11 @@ class _RetSite(gdb.Breakpoint):
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
                         # boot249: always force BB analytics pre-SURFACE.
-                        # boot262: after SURFACE keep only clean small port.
-                        # boot267: after post_iomfb keep a real analytics port
-                        # (boot239 SAS); still 0x9f when null (boot241 W00T).
+                        # boot267/271: keep real after post_iomfb (boot239 SAS).
+                        # boot272: boot271 had timed analytics port but BB got
+                        # null+ALWAYS_FORCE mid-IOMFB; boot239's REAL spanned
+                        # MATCH→GMD. Soft-keep null after post_iomfb so BB can
+                        # retry (0x9f prevents retry — boot243).
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
                             _keep = False
@@ -530,6 +532,9 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' ANALYTICS_POST_SURFACE_KEEP'
                                 else:
                                     extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            elif _mm2.get('post_iomfb'):
+                                nullish = False
+                                extra += ' ANALYTICS_POST_IOMFB_NULL_KEEP'
                             else:
                                 nullish = True
                                 extra += ' ANALYTICS_ALWAYS_FORCE'

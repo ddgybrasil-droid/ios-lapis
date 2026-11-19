@@ -1465,5 +1465,9 @@ Image.pth74.
 
 ## Chunk 220 (boot271: analytics REAL before BAD_FORCE)
 
-| boot271 | Image.pth201 | post_iomfb analytics has_port → keep REAL (+x0=0) before BAD_FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot239 ANALYTICS_REAL→SAS; boot270 destroyed port via BAD_FORCE order. | out/logs/boot271 |
+| boot271 | Image.pth201 | post_iomfb analytics has_port → keep REAL (+x0=0) before BAD_FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: boot265 path restored — early RB+PORT_KEPT+SURFACE+SAS null+6001012; CA_MIG asl/syslog; analytics mid-IOMFB **ALWAYS_FORCE** null (timed had port). | out/logs/boot271 |
+
+## Chunk 221 (boot272: soft-keep null analytics after post_iomfb)
+
+| boot272 | Image.pth202 | post_iomfb analytics null → keep x0=0 (no 0x9f); allow retry like boot239 long lookup; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: 0x9f blocks retry (boot243); soft-keep → later REAL → SAS publish. | out/logs/boot272 |
 
