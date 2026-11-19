@@ -567,8 +567,16 @@ class _RetSite(gdb.Breakpoint):
                                     nullish = True
                                     extra += ' ANALYTICS_SEED_ERR=%r' % e
                             else:
-                                nullish = True
-                                extra += ' ANALYTICS_ALWAYS_FORCE'
+                                # boot282: ALWAYS_FORCE pre-SURFACE (no stash)
+                                # cleared analytics → no post-SURFACE REAL
+                                # (unlike boot281 BAD_SKIP path). Skip force
+                                # until SURFACE so BB can get a late port.
+                                if not _mm2.get('rb_sel32'):
+                                    nullish = False
+                                    extra += ' ANALYTICS_ALWAYS_SKIP_NO_STASH'
+                                else:
+                                    nullish = True
+                                    extra += ' ANALYTICS_ALWAYS_FORCE'
                         # boot267: FB_SAS_NULL_KEEP (x0=0) → SURFACE ok but SB
                         # never reached RB/SAS/6001012 (stuck pre-SURFACE 11602).
                         # boot268: restore 0x9f on null (boot265 path); keep real.

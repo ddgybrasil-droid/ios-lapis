@@ -1509,5 +1509,9 @@ Image.pth74.
 
 ## Chunk 231 (boot282: skip FB_SAS null post-SURFACE + tagged SAS observe)
 
-| boot282 | Image.pth212 | FB_SAS_NULL_SKIP_POST_SURFACE; accept tagged SAS low; keep analytics skip; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB↔FB soft after SURFACE → SB republishes SAS → SAS_PORT_REAL. | out/logs/boot282 |
+| boot282 | Image.pth212 | FB_SAS_NULL_SKIP_POST_SURFACE; accept tagged SAS low; keep analytics skip; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS null; **ALWAYS_FORCE** pre-SURFACE (no stash) → no post-SURFACE analytics REAL; no FB_SAS post-SURFACE hit. | out/logs/boot282 |
+
+## Chunk 232 (boot283: skip ALWAYS_FORCE analytics pre-SURFACE)
+
+| boot283 | Image.pth213 | ANALYTICS_ALWAYS_SKIP_NO_STASH; FB_SAS skip post-SURFACE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip ALWAYS_FORCE → late REAL like boot281 → SAS_PORT_REAL. | out/logs/boot283 |
 
