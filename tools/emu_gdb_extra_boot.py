@@ -1254,28 +1254,41 @@ def _ufn(n):
                 # boot287: boot286 BB crashed mid-analytics LOOKUP (EXC
                 # BAD_ACCESS, no RET) after GMD — never SEED/REAL → SAS null.
                 # Short-circuit: seed stashed tagged port + return via LR.
+                # boot290: boot289 had SURFACE+6001012 but 0 stash → no
+                # shortcircuit → SAS_OBSERVE null (boot288 SAS may have been
+                # a stale port from killed BB). Even without stash, return
+                # success-null via LR so BB can finish init and publish SAS.
                 if (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
-                        and _mm2.get('analytics_port')
                         and (_mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'))
                         and not _mm2.get('analytics_ok')):
                     try:
-                        ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
-                        if ap < 0x10000:
-                            ap = 0x100000000 | ap
                         x7e = r('x7')
-                        if x7e:
-                            gdb.execute(
-                                'set {unsigned long long}%#x = %#x' % (
-                                    x7e, ap),
-                                to_string=True)
+                        ap = int(_mm2.get('analytics_port') or 0) & 0xffffffffffffffff
+                        tag = 'ANALYTICS_SHORTCIRCUIT_NULL'
+                        if ap:
+                            if ap < 0x10000:
+                                ap = 0x100000000 | ap
+                            if x7e:
+                                gdb.execute(
+                                    'set {unsigned long long}%#x = %#x' % (
+                                        x7e, ap),
+                                    to_string=True)
+                            tag = 'ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap
+                        elif x7e:
+                            # success-null: clear out-port so BB does not
+                            # chase a garbage value after skipped lookup.
+                            try:
+                                gdb.execute(
+                                    'set {unsigned long long}%#x = 0' % x7e,
+                                    to_string=True)
+                            except Exception:
+                                pass
                         gdb.execute('set $x0 = 0', to_string=True)
                         lr = r('x30')
                         gdb.execute('set $pc = %#x' % lr, to_string=True)
                         _mm2['analytics_ok'] = 1
-                        P('ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap)
-                        # Still arm RET at LR in case we land there again;
-                        # primary path continues at return site now.
+                        P(tag)
                         RetBP(lr,
                               "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
                                   pn, name, r('x4'), r('x6'), r('x7')))

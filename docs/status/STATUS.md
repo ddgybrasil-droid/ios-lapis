@@ -1537,5 +1537,9 @@ Image.pth74.
 
 ## Chunk 238 (boot289: allow SURFACE always; keep shortcircuit)
 
-| boot289 | Image.pth219 | no NotReady SURFACE defer (log PRE_BB_GMD only); keep SHORTCIRCUIT; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SURFACE+SAS_PORT_REAL+6001012 together (boot288 SAS without SURFACE). | out/logs/boot289 |
+| boot289 | Image.pth219 | no NotReady SURFACE defer (log PRE_BB_GMD only); keep SHORTCIRCUIT; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB kill→respawn; **SURFACE x0=0** + **6001012** + CA_MIG 1012/1018; **0 stash** → no SHORTCIRCUIT; analytics NULL_SKIP; **SAS_OBSERVE null**; BB W00T/SPIN. SURFACE path fixed; SAS still missing. | out/logs/boot289 |
+
+## Chunk 239 (boot290: analytics shortcircuit even without stash)
+
+| boot290 | Image.pth220 | SHORTCIRCUIT_NULL (success-null via LR) when no stash post-GMD; keep SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip analytics wait → BB publishes SAS before/with SURFACE+6001012. | out/logs/boot290 |
 
