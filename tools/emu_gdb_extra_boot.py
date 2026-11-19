@@ -221,44 +221,40 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
-            # boot263: boot262 BB aborted (BRK) after HID map/NOTE64 + empty-looking
-            # HIDEventServiceProperties. Dump bin_buf out size; BB EXC frames.
+            # boot263/264: HIDPROP x0=0 (success) x4=kbuf. Dump kbuf bytes once.
+            # boot263: BB exited pre-SURFACE (reason_seen=None) — sample PREPAREEXIT.
             if (t.startswith('IOREGPROP_buf_RET')
                     and 'HIDEventServiceProperties' in t
                     and 'backboardd' in t
-                    and _mm2.get('hid_prop_dump', 0) < 4):
+                    and _mm2.get('hid_prop_dump', 0) < 2):
                 _mm2['hid_prop_dump'] = _mm2.get('hid_prop_dump', 0) + 1
                 try:
-                    # MIG out: often x1=buf ptr, x2=size ptr or size in x2.
-                    xs = []
-                    for reg in ('x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7'):
+                    x4 = int(gdb.parse_and_eval('$x4')) & 0xffffffffffffffff
+                    x1 = int(gdb.parse_and_eval('$x1')) & 0xffffffffffffffff
+                    extra += ' HIDPROP_REGS x0=%#x x1=%#x x4=%#x' % (
+                        int(gdb.parse_and_eval('$x0')) & 0xffffffffffffffff,
+                        x1, x4)
+                    # Kernel buffer at x4 (boot263); also try x2 if looks like kva.
+                    for label, a in (('x4', x4),
+                                     ('x2', int(gdb.parse_and_eval('$x2'))
+                                      & 0xffffffffffffffff)):
+                        if not (a >> 40):
+                            continue
                         try:
-                            xs.append('%s=%#x' % (
-                                reg, int(gdb.parse_and_eval('$'+reg))
-                                & 0xffffffffffffffff))
-                        except Exception:
-                            pass
-                    extra += ' HIDPROP_REGS ' + ' '.join(xs)
-                    # Try dereference likely size outs.
-                    for reg in ('x2', 'x3', 'x4'):
-                        try:
-                            a = int(gdb.parse_and_eval('$'+reg)) & 0xffffffffffffffff
-                            if 0x100000000 <= a < 0x300000000:
-                                raw = gdb.execute('x/gx %#x' % a, to_string=True)
-                                toks = [tt for tt in raw.replace(':', ' ').split()
+                            raw = bytearray()
+                            for off in range(0, 64, 8):
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (a + off), to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
                                         if tt.startswith('0x') and len(tt) > 5]
-                                extra += ' *%s=%s' % (reg, toks[-1] if toks else '?')
-                        except Exception:
-                            pass
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            words = ' '.join('%08x' % int.from_bytes(
+                                raw[i:i+4], 'little') for i in range(0, 64, 4))
+                            extra += ' HIDPROP_BUF_%s=[%s]' % (label, words)
+                        except Exception as eb:
+                            extra += ' hidbuf_%s_err=%r' % (label, eb)
                 except Exception as ep:
                     extra += ' hidprop_err=%r' % ep
-            if (t.startswith('EXC_TRIAGE') and 'proc=backboardd' in t
-                    and _mm2.get('bb_exc_uf', 0) < 2):
-                _mm2['bb_exc_uf'] = _mm2.get('bb_exc_uf', 0) + 1
-                try:
-                    _uframes('BB_EXC_U', 'n=%d' % _mm2['bb_exc_uf'])
-                except Exception as ee:
-                    extra += ' bb_exc_uf_err=%r' % ee
             # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
             # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t

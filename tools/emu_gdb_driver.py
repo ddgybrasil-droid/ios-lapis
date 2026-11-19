@@ -71,7 +71,29 @@ def on_reason():
     return False
 def on_prepexit():
     state.setdefault('pe',0); state['pe']+=1
-    P('PROC_PREPAREEXIT #%d proc=%s reason_seen=%s'%(state['pe'], triage_pname(), state.get('reason')))
+    pn = triage_pname()
+    P('PROC_PREPAREEXIT #%d proc=%s reason_seen=%s'%(state['pe'], pn, state.get('reason')))
+    # boot264: BB exited pre-SURFACE with reason_seen=None — dump ELR/LR/FP.
+    if isinstance(pn, str) and 'backboard' in pn.lower() and state.get('bb_exit_dump', 0) < 1:
+        state['bb_exit_dump'] = 1
+        try:
+            P('BB_EXIT_REGS elr=%s lr=%s fp=%s pc=%s x0=%s' % (
+                h(sysreg('ELR_EL1')), h(r('x30')), h(r('x29')), h(r('pc')), h(r('x0'))))
+            fp = r('x29'); chain = [r('x30')]
+            for _ in range(16):
+                if not fp or (fp & 7) or not (0x100000000 <= (fp & 0xffffffffffffffff) < 0x300000000):
+                    break
+                try:
+                    nfp, lr = struct.unpack('<QQ', bytes(gdb.selected_inferior().read_memory(fp, 16)))
+                except Exception:
+                    break
+                chain.append(lr & 0xffffffffffffffff)
+                if nfp <= fp:
+                    break
+                fp = nfp
+            P('BB_EXIT_FRAMES ' + ' '.join(hex(x) for x in chain[:16]))
+        except Exception as e:
+            P('BB_EXIT_DUMP err=%r' % e)
     if state.get('reason'):
         if os.environ.get('CONT_REASON','0')=='1':
             state['reason']=None; return False

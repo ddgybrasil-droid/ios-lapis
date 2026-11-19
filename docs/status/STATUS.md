@@ -1433,5 +1433,9 @@ Image.pth74.
 
 ## Chunk 212 (boot263: HID prop buf + BB EXC frames)
 
-| boot263 | Image.pth193 | dump HIDEventServiceProperties bin_buf outs; BB EXC uframes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see if HID dict empty / where BB aborts after NOTE64. | out/logs/boot263 |
+| boot263 | Image.pth193 | dump HIDEventServiceProperties bin_buf outs; BB EXC uframes; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HIDPROP x0=0 x1=0x10001 x4=kbuf; BB **PREPAREEXIT reason=None** after GETSIZE → **0 SURFACE**. | out/logs/boot263 |
+
+## Chunk 213 (boot264: HIDPROP kbuf dump + BB_EXIT frames)
+
+| boot264 | Image.pth194 | dump HIDPROP x4 bytes; BB_EXIT_REGS/FRAMES on prepareexit; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see HID dict payload; why BB exits pre-SURFACE. | out/logs/boot264 |
 

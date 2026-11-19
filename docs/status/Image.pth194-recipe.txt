@@ -1,0 +1,8 @@
+Image.pth194 = Image.pth193 + HIDPROP kbuf dump + BB_EXIT frames
+  boot263: HIDPROP success regs (x1=0x10001 x4=kbuf); BB exit reason=None
+           after GETSIZE → 0 SURFACE (vs boot262 which reached SURFACE).
+  boot264: dump 64B at HIDPROP x4; BB_EXIT_REGS/FRAMES in driver.
+  T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth193 /tmp/Image.pth194
