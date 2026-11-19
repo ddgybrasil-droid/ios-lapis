@@ -401,6 +401,7 @@ class _RetSite(gdb.Breakpoint):
                             if high:
                                 extra += '(tagged)'
                             _mm2['sas_ok'] = 1
+                            _mm2['sas_port'] = low
                         else:
                             extra += ' SAS_OBSERVE v=%#x' % raw
                 except Exception as es2:
@@ -2011,6 +2012,13 @@ def on_mach_msg2():
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
+        # boot297: after SAS_PORT_REAL, log traffic to that port (CA/UI path).
+        if (_mm2.get('sas_ok') and _mm2.get('sas_port')
+                and (remote & 0xffff) == (_mm2['sas_port'] & 0xffff)
+                and _mm2.get('sas_mach_n', 0) < 24):
+            _mm2['sas_mach_n'] = _mm2.get('sas_mach_n', 0) + 1
+            P('SAS_MACH n=%d proc=%s msgid=%d remote=%#x send=%d rcv=%d' % (
+                _mm2['sas_mach_n'], pn0, msgid, remote, send_sz, rcv_sz))
         # boot241: drop POST_IOMFB_U stack walks — boot240 GDB drag left RB
         # short of SURFACE under T=2400.
         # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
