@@ -1425,5 +1425,9 @@ Image.pth74.
 
 | boot261 | Image.pth191 | MATCH/IOSOPEN n=0; arm SB_RECV only after rb_sel32+6001012; keep post-SURFACE analytics; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **initproc panic** (exit 0xa) — flaky like boot238. Relaunch → boot261b. | out/logs/boot261 |
 
-| boot261b | Image.pth191 | same as boot261; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore SURFACE+6001012; MIG dump + analytics real post-SURFACE. | out/logs/boot261b |
+| boot261b | Image.pth191 | same as boot261; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012 restored; analytics NOFORCE → **x0=1+sentinel**; SB 3240+recv; BB did 1012/1018 (no SB_CA_MIG). | out/logs/boot261b |
+
+## Chunk 211 (boot262: force bad analytics; dump BB CA_MIG)
+
+| boot262 | Image.pth192 | force analytics unless clean port post-SURFACE; dump BB/SB 1012 MIG; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid sentinel; MIG ascii names post-FrontBoard wait. | out/logs/boot262 |
 

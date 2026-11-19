@@ -467,18 +467,13 @@ class _RetSite(gdb.Breakpoint):
                         # (unconditional nullish=False) → x0=0+null → W00T/slow
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
-                        # boot249: boot248 ANALYTICS_REAL (x0=0+port) → W00T/SPIN
-                        # and no SURFACE. boot245/246 forced analytics and got
-                        # SURFACE+SAS. Always treat BB analytics as force-null
-                        # UNTIL SURFACE (boot260): after rb_sel32 allow real so
-                        # BB can publish system-app-server / wake SB runloop.
+                        # boot249: always force BB analytics pre-SURFACE.
+                        # boot261b: POST_SURFACE_NOFORCE left x0=1+sentinel
+                        # 0x100000000 — still force that. Only keep a clean port.
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
-                            if _mm2.get('rb_sel32'):
-                                extra += ' ANALYTICS_POST_SURFACE_KEEP'
-                            else:
-                                nullish = True
-                                extra += ' ANALYTICS_ALWAYS_FORCE'
+                            nullish = True
+                            extra += ' ANALYTICS_ALWAYS_FORCE'
                         # boot248: BB looks up frontboard.systemappservices
                         # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
                         # never retries — block FB↔BB system-app handshake.
@@ -528,11 +523,24 @@ class _RetSite(gdb.Breakpoint):
                         # boot249: always force BB analytics (REAL→W00T boot248).
                         # Pre-MATCH real port → hang (boot214); force 0x9f.
                         # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
-                        # boot260: after SURFACE keep real (see POST_SURFACE_KEEP).
+                        # boot262: boot261b NOFORCE kept x0=1+0x100000000 — bad.
+                        # After SURFACE, keep ONLY a clean small port; else force.
                         need_force = False
                         tag = ''
-                        if _mm2.get('rb_sel32'):
-                            extra += ' ANALYTICS_POST_SURFACE_NOFORCE'
+                        clean_port = False
+                        if _mm2.get('rb_sel32') and has_port:
+                            for ptr in (x4, x6, x7):
+                                if not ptr:
+                                    continue
+                                try:
+                                    v = m64(ptr) & 0xffffffffffffffff
+                                    if 0 < v < 0x10000:
+                                        clean_port = True
+                                        break
+                                except Exception:
+                                    pass
+                        if clean_port:
+                            extra += ' ANALYTICS_POST_SURFACE_REAL'
                         elif (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
@@ -1507,13 +1515,14 @@ def on_mach_msg2():
         rcv_name = (dc_rn >> 32) & 0xffffffff
         rcv_sz = rs_pr & 0xffffffff
         sending = bool(opt64 & 1); recving = bool(opt64 & 2)
-        # boot260: dump SB post-CA bootstrap-ish msgids (1011/1012/1018) —
-        # boot259 showed them to remote=0xe0f then CFRunLoop recv wait.
+        # boot260/262: dump 1011/1012/1018 buffers (SB or BB) after SURFACE —
+        # boot261b: SB skipped MIG; BB did 1012/1018. Need ascii service names.
         if (msgid in (1011, 1012, 1018)
                 and data_ptr
-                and _mm2.get('post_6001012')
-                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
-                and _mm2.get('dump_ca_mig', 0) < 6):
+                and _mm2.get('rb_sel32')
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard'
+                     or 'backboard' in pn0.lower())
+                and _mm2.get('dump_ca_mig', 0) < 8):
             _mm2['dump_ca_mig'] = _mm2.get('dump_ca_mig', 0) + 1
             try:
                 raw = bytearray()
@@ -1534,10 +1543,10 @@ def on_mach_msg2():
                     pass
                 words = ' '.join('%08x' % int.from_bytes(
                     raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
-                P('SB_CA_MIG msgid=%d remote=%#x buf=%#x [%s] ascii=%r' % (
-                    msgid, remote, data_ptr, words, ascii_s[:80]))
+                P('CA_MIG proc=%s msgid=%d remote=%#x buf=%#x [%s] ascii=%r' % (
+                    pn0, msgid, remote, data_ptr, words, ascii_s[:80]))
             except Exception as em:
-                P('SB_CA_MIG err=%r' % em)
+                P('CA_MIG err=%r' % em)
         # boot251: stash userspace buffer for 6001012 reply dump (boot250
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:

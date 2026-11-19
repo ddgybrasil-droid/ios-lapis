@@ -1,0 +1,8 @@
+Image.pth192 = Image.pth191 + analytics sentinel force + BB CA_MIG dump
+  boot261b: SURFACE+6001012 ok; POST_SURFACE_NOFORCE kept x0=1+0x100000000;
+            SB skipped 1012; BB did 1012/1018; SB then 3240+CFRunLoop.
+  boot262: force analytics unless clean small port; dump BB/SB MIG ascii.
+  T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth191 /tmp/Image.pth192
