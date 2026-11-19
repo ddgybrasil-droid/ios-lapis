@@ -708,8 +708,20 @@ class _RetSite(gdb.Breakpoint):
                             # x7*=None) → BAD_FORCE cleared BB analytics →
                             # SAS null. Skip force so BB can retry when
                             # analyticsd publishes (boot239 REAL path).
+                            # boot292: boot291 SURFACE+6001012 but analytics
+                            # BAD_SKIP (x0=1, 0 stash) → SAS null. Soft-clear
+                            # x0=0 after GMD (natural RET, not SHORTCIRCUIT_NULL
+                            # which EXC'd BB in boot290) so BB can publish SAS.
                             if not _mm2.get('rb_sel32'):
                                 extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
+                                if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
+                                    try:
+                                        gdb.execute('set $x0 = 0', to_string=True)
+                                        x0 = 0
+                                        _mm2['analytics_ok'] = 1
+                                        extra += ' ANALYTICS_BAD_SOFT_OK'
+                                    except Exception as e:
+                                        extra += ' bad_soft_err=%r' % e
                             else:
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:

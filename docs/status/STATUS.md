@@ -1545,5 +1545,9 @@ Image.pth74.
 
 ## Chunk 240 (boot291: SEED shortcircuit only; no NULL)
 
-| boot291 | Image.pth221 | SHORTCIRCUIT_SEED only (drop NULL); allow every post-GMD BB analytics enter; SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: respawned BB gets SEED shortcircuit → publish SAS + SURFACE+6001012. | out/logs/boot291 |
+| boot291 | Image.pth221 | SHORTCIRCUIT_SEED only (drop NULL); allow every post-GMD BB analytics enter; SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no BB kill/EXC; GMD; **0 stash** → no SHORTCIRCUIT; BAD_SKIP; **SURFACE+6001012+CA_MIG**; SAS null. Stable SURFACE path; SAS still blocked without analytics port. | out/logs/boot291 |
+
+## Chunk 241 (boot292: analytics BAD_SOFT_OK post-GMD)
+
+| boot292 | Image.pth222 | BAD_SKIP after GMD → x0=0 SOFT_OK (no shortcircuit body skip); SURFACE always; SEED shortcircuit if stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: soft-success analytics RET → BB publishes SAS with SURFACE+6001012. | out/logs/boot292 |
 
