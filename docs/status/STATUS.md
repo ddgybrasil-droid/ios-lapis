@@ -1441,5 +1441,9 @@ Image.pth74.
 
 ## Chunk 214 (boot265: HIDPROP ENTER stash + kernel prop verify)
 
-| boot265 | Image.pth195 | stash HIDPROP MIG args on enter; dump userspace buf; IOLog copyProperty verify; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: find real HID dict bytes / catch setProperty fail. | out/logs/boot265 |
+| boot265 | Image.pth195 | stash HIDPROP MIG args on enter; dump userspace buf; IOLog copyProperty verify; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: esp/plugin/vid live; HIDPROP_U has `PrimaryUsagePage`; SURFACE+6001012; SAS null; SB CFRunLoop (asl/syslog). | out/logs/boot265 |
+
+## Chunk 215 (boot266: BB frontboard.systemappservices keep)
+
+| boot266 | Image.pth196 | post_iomfb keep BB FB SAS null as x0=0 (no 0x9f); watch SAS publish; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB can publish system-app-server → SB past CFRunLoop toward CA. | out/logs/boot266 |
 

@@ -519,18 +519,28 @@ class _RetSite(gdb.Breakpoint):
                             else:
                                 nullish = True
                                 extra += ' ANALYTICS_ALWAYS_FORCE'
-                        # boot248: BB looks up frontboard.systemappservices
-                        # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
-                        # never retries — block FB↔BB system-app handshake.
-                        # Allow real port; force only true null (like analytics).
+                        # boot248/266: BB frontboard.systemappservices — forcing
+                        # 0x9f may block BB from publishing system-app-server
+                        # (boot265: HID props OK, SURFACE+6001012, SAS still null,
+                        # SB CFRunLoop). After SURFACE keep real; pre-SURFACE
+                        # still force only true null.
                         if ('proc=backboardd' in t
                                 and "name='com.apple.frontboard.systemappservices'"
                                 in t):
-                            if not nullish:
+                            if _mm2.get('rb_sel32') and not nullish:
+                                nullish = False
+                                extra += ' FB_SAS_POST_SURFACE_REAL'
+                            elif not nullish:
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
                             else:
-                                extra += ' FB_SAS_NULL_WILL_FORCE'
+                                # boot266: even null — do NOT 0x9f after GMD;
+                                # leave x0=0 so BB can retry / continue publish.
+                                if _mm2.get('post_iomfb'):
+                                    nullish = False
+                                    extra += ' FB_SAS_NULL_KEEP'
+                                else:
+                                    extra += ' FB_SAS_NULL_WILL_FORCE'
                         # boot256: do not 0x9f SpringBoard system-app-server
                         # (soft-null above; 0x9f → EXC in boot255).
                         if ('proc=SpringBoard' in t
