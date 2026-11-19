@@ -1553,5 +1553,9 @@ Image.pth74.
 
 ## Chunk 242 (boot293: force SB_RB null after SURFACE)
 
-| boot293 | Image.pth223 | SB_RB_NULL_POST_SURFACE_FORCE if no PORT_KEPT after rb_sel32; keep ANALYTICS_REAL path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: break 1073742628 spin → SAS after ANALYTICS_REAL+SURFACE. | out/logs/boot293 |
+| boot293 | Image.pth223 | SB_RB_NULL_POST_SURFACE_FORCE if no PORT_KEPT after rb_sel32; keep ANALYTICS_REAL path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT (no spin); stash→SEED_EARLY pre-GMD but **x7*=None**; GMD; SURFACE+6001012+CA_MIG; **SAS null**. POST_SURFACE_FORCE unused. | out/logs/boot293 |
+
+## Chunk 243 (boot294: shortcircuit seed anytime stash exists)
+
+| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable seeded analytics before SURFACE → SAS_PORT_REAL. | out/logs/boot294 |
 

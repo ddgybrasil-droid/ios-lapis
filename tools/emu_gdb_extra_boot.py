@@ -1270,15 +1270,14 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
-                # boot287: short-circuit with stashed tagged port + return via LR.
-                # boot290: SHORTCIRCUIT_NULL (no stash) → BB EXC + respawn;
-                # analytics_ok sticky then blocked SEED shortcircuit on the
-                # respawned BB. boot291: only SEED shortcircuit; no NULL path;
-                # allow every post-GMD BB analytics enter when stash exists.
+                # boot287/291: short-circuit with stashed tagged port via LR.
+                # boot293: SEED_EARLY on RET before GMD wrote port but
+                # x7*=None (did not stick) → SAS null despite stash.
+                # boot294: shortcircuit on any BB analytics enter once stash
+                # exists (do not wait for post_iomfb/GMD).
                 if (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
-                        and _mm2.get('analytics_port')
-                        and (_mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'))):
+                        and _mm2.get('analytics_port')):
                     try:
                         ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
                         if ap < 0x10000:
