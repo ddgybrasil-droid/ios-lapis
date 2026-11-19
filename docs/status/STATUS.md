@@ -1437,5 +1437,9 @@ Image.pth74.
 
 ## Chunk 213 (boot264: HIDPROP kbuf dump + BB_EXIT frames)
 
-| boot264 | Image.pth194 | dump HIDPROP x4 bytes; BB_EXIT_REGS/FRAMES on prepareexit; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: see HID dict payload; why BB exits pre-SURFACE. | out/logs/boot264 |
+| boot264 | Image.pth194 | dump HIDPROP x4 bytes; BB_EXIT_REGS/FRAMES on prepareexit; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HIDPROP_BUF_x4 **all zero**; BB BRK @unslide `0x1e261dd44` (same as boot262); 0 SURFACE. | out/logs/boot264 |
+
+## Chunk 214 (boot265: HIDPROP ENTER stash + kernel prop verify)
+
+| boot265 | Image.pth195 | stash HIDPROP MIG args on enter; dump userspace buf; IOLog copyProperty verify; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: find real HID dict bytes / catch setProperty fail. | out/logs/boot265 |
 

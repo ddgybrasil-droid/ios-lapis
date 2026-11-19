@@ -1363,6 +1363,23 @@ static void publish_one(struct lapis_mc *m, int hid_support)
 		set_u32(obj, "QueueSize", LAPIS_HID_QUEUE_SIZE);
 		set_hid_cfplugin_types(obj);
 		set_hid_identity_props(obj);
+		/* boot265: boot264 HIDPROP MIG x0=0 but out buf all-zero — verify
+		 * copyProperty sees the dict we just set (catch silent setProperty fail). */
+		{
+			void *esp = IORegistryEntry_copyProperty(
+				obj, "HIDEventServiceProperties");
+			void *plug = IORegistryEntry_copyProperty(
+				obj, "IOCFPlugInTypes");
+			void *vid = IORegistryEntry_copyProperty(obj, "VendorID");
+			IOLog("LAPIS iomfb: hid props esp=%p plugin=%p vid=%p\n",
+			      esp, plug, vid);
+			if (esp)
+				OSObject_release(esp);
+			if (plug)
+				OSObject_release(plug);
+			if (vid)
+				OSObject_release(vid);
+		}
 	}
 	/* IOMFB clients often look for a named framebuffer resource. */
 	if (m->name[0] == 'I' && m->name[1] == 'O' && m->name[2] == 'M') {

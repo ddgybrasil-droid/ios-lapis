@@ -221,38 +221,33 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
-            # boot263/264: HIDPROP x0=0 (success) x4=kbuf. Dump kbuf bytes once.
-            # boot263: BB exited pre-SURFACE (reason_seen=None) — sample PREPAREEXIT.
+            # boot265: dump stashed ENTER args (userspace buf) — RET x4 was zero.
             if (t.startswith('IOREGPROP_buf_RET')
                     and 'HIDEventServiceProperties' in t
                     and 'backboardd' in t
                     and _mm2.get('hid_prop_dump', 0) < 2):
                 _mm2['hid_prop_dump'] = _mm2.get('hid_prop_dump', 0) + 1
                 try:
-                    x4 = int(gdb.parse_and_eval('$x4')) & 0xffffffffffffffff
-                    x1 = int(gdb.parse_and_eval('$x1')) & 0xffffffffffffffff
-                    extra += ' HIDPROP_REGS x0=%#x x1=%#x x4=%#x' % (
-                        int(gdb.parse_and_eval('$x0')) & 0xffffffffffffffff,
-                        x1, x4)
-                    # Kernel buffer at x4 (boot263); also try x2 if looks like kva.
-                    for label, a in (('x4', x4),
-                                     ('x2', int(gdb.parse_and_eval('$x2'))
-                                      & 0xffffffffffffffff)):
-                        if not (a >> 40):
-                            continue
-                        try:
-                            raw = bytearray()
-                            for off in range(0, 64, 8):
-                                xs = gdb.execute(
-                                    'x/gx %#x' % (a + off), to_string=True)
-                                toks = [tt for tt in xs.replace(':', ' ').split()
-                                        if tt.startswith('0x') and len(tt) > 5]
-                                raw += int(toks[-1], 16).to_bytes(8, 'little')
-                            words = ' '.join('%08x' % int.from_bytes(
-                                raw[i:i+4], 'little') for i in range(0, 64, 4))
-                            extra += ' HIDPROP_BUF_%s=[%s]' % (label, words)
-                        except Exception as eb:
-                            extra += ' hidbuf_%s_err=%r' % (label, eb)
+                    x0 = int(gdb.parse_and_eval('$x0')) & 0xffffffffffffffff
+                    extra += ' HIDPROP_RET x0=%#x' % x0
+                    args = _mm2.get('hidprop_args') or ()
+                    for i, a in enumerate(args):
+                        # Userspace pointers (stack/heap in BB).
+                        if 0x100000000 <= a < 0x300000000:
+                            try:
+                                raw = bytearray()
+                                for off in range(0, 64, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (a + off), to_string=True)
+                                    toks = [tt for tt in xs.replace(':', ' ').split()
+                                            if tt.startswith('0x') and len(tt) > 5]
+                                    raw += int(toks[-1], 16).to_bytes(8, 'little')
+                                words = ' '.join('%08x' % int.from_bytes(
+                                    raw[i2:i2+4], 'little')
+                                    for i2 in range(0, 64, 4))
+                                extra += ' HIDPROP_U_x%d=%#x[%s]' % (i, a, words)
+                            except Exception as eb:
+                                extra += ' hidu_x%d_err=%r' % (i, eb)
                 except Exception as ep:
                     extra += ' hidprop_err=%r' % ep
             # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
@@ -1466,6 +1461,19 @@ def _mk_ioreg(tag):
                     return ''
             plane = _cstr_reg('x1'); key = _cstr_reg('x2') or _cstr_reg('x1')
             P('IOREGPROP_%s proc=%s key=%r plane=%r entry=%#x' % (tag, pn, key, plane, r('x0')))
+            # boot265: stash entry args — RET x4 was all-zero (clobbered).
+            if (tag == 'buf' and key == 'HIDEventServiceProperties'
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('hidprop_stash_n', 0) < 2):
+                _mm2['hidprop_stash_n'] = _mm2.get('hidprop_stash_n', 0) + 1
+                try:
+                    args = tuple(
+                        int(gdb.parse_and_eval('$x%d' % i)) & 0xffffffffffffffff
+                        for i in range(8))
+                    _mm2['hidprop_args'] = args
+                    P('HIDPROP_ENTER args=' + ' '.join('%#x' % a for a in args))
+                except Exception as es:
+                    P('HIDPROP_ENTER err=%r' % es)
             RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', key))
         except Exception as e:
             P('ERR ioreg_%s %s' % (tag, e))

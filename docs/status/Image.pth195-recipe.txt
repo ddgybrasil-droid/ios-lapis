@@ -1,0 +1,11 @@
+Image.pth195 = Image.pth194 + HIDPROP ENTER stash + lapis_iomfb hid prop verify
+  boot264: RET x4 HIDPROP buffer all-zero (clobbered); BB BRK 0x1e261dd44.
+  boot265: stash x0..x7 on HIDPROP enter; dump userspace ptrs on RET;
+           kernel IOLog copyProperty(esp/plugin/vid) after seed.
+  Build: (cd xnu/lapis-ramfs && ./build.sh)
+         python3 tools/patch_kernel_ramfs_replace.py Image.pth194 Image.pth195
+  T=3000.
+
+Build:
+  cp /tmp/Image.pth194 /tmp/Image.pth195  # already patched in-place above
+  # or: patch_kernel_ramfs_replace.py /tmp/Image.pth194 /tmp/Image.pth195
