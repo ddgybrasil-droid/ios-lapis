@@ -539,9 +539,11 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' ANALYTICS_POST_SURFACE_KEEP'
                                 else:
                                     extra += ' ANALYTICS_REAL_POST_IOMFB'
-                            elif (_mm2.get('post_iomfb')
-                                    and _mm2.get('analytics_port')
-                                    and x7):
+                            elif (_mm2.get('analytics_port') and x7):
+                                # boot276: BB analytics ALWAYS_FORCE pre-GMD
+                                # cleared a later-stashed port → SAS null.
+                                # boot239 SAS path kept REAL analytics.
+                                # boot277: seed stashed port even pre-post_iomfb.
                                 try:
                                     ap = int(_mm2['analytics_port']) & 0xffffffff
                                     gdb.execute(
@@ -551,7 +553,10 @@ class _RetSite(gdb.Breakpoint):
                                     gdb.execute('set $x0 = 0', to_string=True)
                                     x0 = 0
                                     nullish = False
-                                    extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
+                                    if _mm2.get('post_iomfb'):
+                                        extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
+                                    else:
+                                        extra += ' ANALYTICS_PORT_SEED_EARLY port=%#x' % ap
                                 except Exception as e:
                                     nullish = True
                                     extra += ' ANALYTICS_SEED_ERR=%r' % e

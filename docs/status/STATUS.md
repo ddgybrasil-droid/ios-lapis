@@ -1485,5 +1485,9 @@ Image.pth74.
 
 ## Chunk 225 (boot276: soft-keep SB_RB only until first real port)
 
-| boot276 | Image.pth206 | soft-keep null SB_RB until sb_rb_seen; then 0x9f; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: first PORT_KEPT→SURFACE; later null→0x9f → SAS/6001012 (boot271). | out/logs/boot276 |
+| boot276 | Image.pth206 | soft-keep null SB_RB until sb_rb_seen; then 0x9f; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SOFT→PORT_KEPT→POST_SEEN_FORCE; SURFACE+6001012+SAS_OBSERVE; analytics ALWAYS_FORCE (pre-GMD) → SAS null. | out/logs/boot276 |
+
+## Chunk 226 (boot277: seed analytics even pre-post_iomfb)
+
+| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early seed → boot239-like analytics REAL → SAS_PORT_REAL. | out/logs/boot277 |
 
