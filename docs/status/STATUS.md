@@ -1513,5 +1513,9 @@ Image.pth74.
 
 ## Chunk 232 (boot283: skip ALWAYS_FORCE analytics pre-SURFACE)
 
-| boot283 | Image.pth213 | ANALYTICS_ALWAYS_SKIP_NO_STASH; FB_SAS skip post-SURFACE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip ALWAYS_FORCE → late REAL like boot281 → SAS_PORT_REAL. | out/logs/boot283 |
+| boot283 | Image.pth213 | ANALYTICS_ALWAYS_SKIP_NO_STASH; FB_SAS skip post-SURFACE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SEED_BADPATH bare 0x1513 (x7*=None after); SURFACE+6001012+SAS null; W00T. Seed format wrong vs tagged 0x10000xxxx. | out/logs/boot283 |
+
+## Chunk 233 (boot284: seed analytics as tagged 0x10000xxxx)
+
+| boot284 | Image.pth214 | seed/stash tagged port form; keep ALWAYS_SKIP + FB_SAS skip; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: tagged seed → BB accepts analytics → SAS_PORT_REAL. | out/logs/boot284 |
 

@@ -551,7 +551,13 @@ class _RetSite(gdb.Breakpoint):
                                 # boot239 SAS path kept REAL analytics.
                                 # boot277: seed stashed port even pre-post_iomfb.
                                 try:
-                                    ap = int(_mm2['analytics_port']) & 0xffffffff
+                                    # boot283: bare low port (0x1513) seeded but
+                                    # natural analytics ports are tagged
+                                    # 0x10000xxxx — BB then W00T/SAS null.
+                                    # boot284: always seed tagged form.
+                                    ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                                    if ap < 0x10000:
+                                        ap = 0x100000000 | ap
                                     gdb.execute(
                                         'set {unsigned long long}%#x = %#x' % (
                                             x7, ap),
@@ -675,7 +681,10 @@ class _RetSite(gdb.Breakpoint):
                             # cleared ports → SAS null despite stash.
                             # boot278: seed stash here before any BAD_FORCE.
                             try:
-                                ap = int(_mm2['analytics_port']) & 0xffffffff
+                                # boot284: seed tagged 0x10000xxxx (see EARLY).
+                                ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                                if ap < 0x10000:
+                                    ap = 0x100000000 | ap
                                 gdb.execute(
                                     'set {unsigned long long}%#x = %#x' % (
                                         x7, ap),
@@ -742,7 +751,13 @@ class _RetSite(gdb.Breakpoint):
                                             # timed/others for BB seed.
                                             if ("name='com.apple.analyticsd'"
                                                     in t):
-                                                _mm2['analytics_port'] = low
+                                                # Prefer full tagged value when
+                                                # present (boot284 seed format).
+                                                if 0x100000000 < v < 0x300000000:
+                                                    _mm2['analytics_port'] = v
+                                                else:
+                                                    _mm2['analytics_port'] = (
+                                                        0x100000000 | low)
                                                 extra += ' ANALYTICS_PORT_STASH'
                             except Exception as e:
                                 try:
