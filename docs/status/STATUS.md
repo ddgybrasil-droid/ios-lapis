@@ -1541,5 +1541,9 @@ Image.pth74.
 
 ## Chunk 239 (boot290: analytics shortcircuit even without stash)
 
-| boot290 | Image.pth220 | SHORTCIRCUIT_NULL (success-null via LR) when no stash post-GMD; keep SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip analytics wait → BB publishes SAS before/with SURFACE+6001012. | out/logs/boot290 |
+| boot290 | Image.pth220 | SHORTCIRCUIT_NULL (success-null via LR) when no stash post-GMD; keep SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SHORTCIRCUIT_NULL → **BB EXC+respawn**; 2nd BB SEED (stash late) + SURFACE+6001012; **SAS null**. NULL shortcircuit harmful. | out/logs/boot290 |
+
+## Chunk 240 (boot291: SEED shortcircuit only; no NULL)
+
+| boot291 | Image.pth221 | SHORTCIRCUIT_SEED only (drop NULL); allow every post-GMD BB analytics enter; SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: respawned BB gets SEED shortcircuit → publish SAS + SURFACE+6001012. | out/logs/boot291 |
 

@@ -1251,44 +1251,30 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
-                # boot287: boot286 BB crashed mid-analytics LOOKUP (EXC
-                # BAD_ACCESS, no RET) after GMD — never SEED/REAL → SAS null.
-                # Short-circuit: seed stashed tagged port + return via LR.
-                # boot290: boot289 had SURFACE+6001012 but 0 stash → no
-                # shortcircuit → SAS_OBSERVE null (boot288 SAS may have been
-                # a stale port from killed BB). Even without stash, return
-                # success-null via LR so BB can finish init and publish SAS.
+                # boot287: short-circuit with stashed tagged port + return via LR.
+                # boot290: SHORTCIRCUIT_NULL (no stash) → BB EXC + respawn;
+                # analytics_ok sticky then blocked SEED shortcircuit on the
+                # respawned BB. boot291: only SEED shortcircuit; no NULL path;
+                # allow every post-GMD BB analytics enter when stash exists.
                 if (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
-                        and (_mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'))
-                        and not _mm2.get('analytics_ok')):
+                        and _mm2.get('analytics_port')
+                        and (_mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'))):
                     try:
+                        ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                        if ap < 0x10000:
+                            ap = 0x100000000 | ap
                         x7e = r('x7')
-                        ap = int(_mm2.get('analytics_port') or 0) & 0xffffffffffffffff
-                        tag = 'ANALYTICS_SHORTCIRCUIT_NULL'
-                        if ap:
-                            if ap < 0x10000:
-                                ap = 0x100000000 | ap
-                            if x7e:
-                                gdb.execute(
-                                    'set {unsigned long long}%#x = %#x' % (
-                                        x7e, ap),
-                                    to_string=True)
-                            tag = 'ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap
-                        elif x7e:
-                            # success-null: clear out-port so BB does not
-                            # chase a garbage value after skipped lookup.
-                            try:
-                                gdb.execute(
-                                    'set {unsigned long long}%#x = 0' % x7e,
-                                    to_string=True)
-                            except Exception:
-                                pass
+                        if x7e:
+                            gdb.execute(
+                                'set {unsigned long long}%#x = %#x' % (
+                                    x7e, ap),
+                                to_string=True)
                         gdb.execute('set $x0 = 0', to_string=True)
                         lr = r('x30')
                         gdb.execute('set $pc = %#x' % lr, to_string=True)
                         _mm2['analytics_ok'] = 1
-                        P(tag)
+                        P('ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap)
                         RetBP(lr,
                               "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
                                   pn, name, r('x4'), r('x6'), r('x7')))
