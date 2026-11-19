@@ -870,7 +870,10 @@ def _iok(tag,ma,cnt):
             _mm2['post_spin_uf'] = 0
             _mm2['post_uf'] = 0
             _mm2['w00t_n'] = 0
-            _mm2['n'] = 300
+            # boot261: n=300 immediately exceeded post_iomfb cap (180) and
+            # dropped ALL mach logs until SURFACE — plus early SB_RECV uframes
+            # dragged GDB so RB missed SURFACE. Reset to 0.
+            _mm2['n'] = 0
             P('MACHMSG2_WINDOW post-IOMFB reopen (at MATCH)')
     # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
     if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
@@ -1179,7 +1182,7 @@ def on_iosopen():
                 _mm2['post_spin_uf'] = 0
                 _mm2['post_uf'] = 0
                 _mm2['w00t_n'] = 0
-                _mm2['n'] = 300
+                _mm2['n'] = 0  # boot261: was 300 → instant mach-cap drop
                 P('MACHMSG2_WINDOW post-IOMFB reopen')
         # boot173/176: userspace frames on BB IOMFB open.
         if ('backboard' in pn0.lower() and _mm2.get('post_iomfb')
@@ -1539,9 +1542,13 @@ def on_mach_msg2():
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:
             _mm2['msg_6001012_buf'] = data_ptr
-            _mm2['post_6001012'] = 1  # arm recv-keep early (boot259)
+            # boot261: only arm SB_RECV after SURFACE — early arm + uframes
+            # delayed RB past SURFACE window (boot260).
+            if _mm2.get('rb_sel32'):
+                _mm2['post_6001012'] = 1
             if (_mm2.get('dump_6001012_send', 0) < 1
-                    and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')):
+                    and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                    and _mm2.get('rb_sel32')):
                 _mm2['dump_6001012_send'] = 1
                 try:
                     raw = bytearray()
@@ -1563,19 +1570,20 @@ def on_mach_msg2():
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
-        # boot259: after 6001012 SB went silent under recv-only drop — keep
-        # logging pure-recv SB mach so we see the post-FrontBoard wait.
+        # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
+        # (no flood — boot260 uframes pre-SURFACE stalled RB).
         _sb_recv_keep = (
             _mm2.get('post_6001012')
+            and _mm2.get('rb_sel32')
             and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
-            and _mm2.get('sb_recv_n', 0) < 40)
+            and _mm2.get('sb_recv_n', 0) < 12)
         if not sending and recving and _mm2['n'] > 40 and not _sb_recv_keep:
             return False
         if _sb_recv_keep and not sending and recving:
             _mm2['sb_recv_n'] = _mm2.get('sb_recv_n', 0) + 1
             P('SB_RECV_POST_CA proc=%s msgid=%d remote=%#x local=%#x rcv_name=%#x n=%d' % (
                 pn0, msgid, remote, local, rcv_name, _mm2['sb_recv_n']))
-            if _mm2['sb_recv_n'] <= 6:
+            if _mm2['sb_recv_n'] <= 2:
                 try:
                     _uframes('SB_RECV_POST_CA_U', 'n=%d msgid=%d' % (
                         _mm2['sb_recv_n'], msgid))

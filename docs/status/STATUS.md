@@ -1419,5 +1419,9 @@ Image.pth74.
 
 ## Chunk 209 (boot260: post-SURFACE analytics real + MIG dump)
 
-| boot260 | Image.pth190 | after rb_sel32 keep BB analytics real; dump SB 1011/12/18 buffers; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB publishes SAS / wakes SB; MIG ascii names the wait. | out/logs/boot260 |
+| boot260 | Image.pth190 | after rb_sel32 keep BB analytics real; dump SB 1011/12/18 buffers; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH set n=300 → mach-cap drop; early SB_RECV uframes → **0 SURFACE** (RB late). No POST_SURFACE analytics/MIG. | out/logs/boot260 |
+
+## Chunk 210 (boot261: MATCH n=0 + SB_RECV only post-SURFACE)
+
+| boot261 | Image.pth191 | MATCH/IOSOPEN n=0; arm SB_RECV only after rb_sel32+6001012; keep post-SURFACE analytics; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore SURFACE+6001012; then MIG dump + analytics real. | out/logs/boot261 |
 
