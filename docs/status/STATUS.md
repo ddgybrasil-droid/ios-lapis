@@ -1517,5 +1517,9 @@ Image.pth74.
 
 ## Chunk 233 (boot284: seed analytics as tagged 0x10000xxxx)
 
-| boot284 | Image.pth214 | seed/stash tagged port form; keep ALWAYS_SKIP + FB_SAS skip; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: tagged seed → BB accepts analytics → SAS_PORT_REAL. | out/logs/boot284 |
+| boot284 | Image.pth214 | seed/stash tagged port form; keep ALWAYS_SKIP + FB_SAS skip; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ALWAYS_SKIP then **REAL_FORCE** cleared pre-GMD port; SURFACE+6001012+SAS null; stash too late. | out/logs/boot284 |
+
+## Chunk 234 (boot285: keep real analytics ports pre-SURFACE)
+
+| boot285 | Image.pth215 | ANALYTICS_REAL_KEEP_PRE instead of REAL_FORCE; tagged seed; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: keep early real analytics → boot239 SAS path. | out/logs/boot285 |
 

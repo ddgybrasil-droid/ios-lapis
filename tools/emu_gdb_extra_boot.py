@@ -705,7 +705,17 @@ class _RetSite(gdb.Breakpoint):
                             else:
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
-                            need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
+                            # boot284: ALWAYS_SKIP then REAL_FORCE cleared a
+                            # pre-GMD real port (stash later unused) → SAS null.
+                            # boot285: keep real ports pre-SURFACE (boot239).
+                            extra += ' ANALYTICS_REAL_KEEP_PRE'
+                            if (x0 & 0xffffffff) != 0:
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += '+X0CLR'
+                                except Exception as e:
+                                    extra += ' x0clr_err=%r' % e
                         elif (x0 & 0xffffffff) == 0 and not has_port:
                             if not _mm2.get('rb_sel32'):
                                 extra += ' ANALYTICS_NULL_SKIP_NO_STASH'
