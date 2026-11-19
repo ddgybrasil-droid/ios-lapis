@@ -501,10 +501,9 @@ class _RetSite(gdb.Breakpoint):
                         # port was already seen (nullish already False).
                         # boot249: always force BB analytics pre-SURFACE.
                         # boot267/271: keep real after post_iomfb (boot239 SAS).
-                        # boot272: boot271 had timed analytics port but BB got
-                        # null+ALWAYS_FORCE mid-IOMFB; boot239's REAL spanned
-                        # MATCH→GMD. Soft-keep null after post_iomfb so BB can
-                        # retry (0x9f prevents retry — boot243).
+                        # boot272: soft-keep null → BB EXC/W00T mid-analytics.
+                        # boot273: if BB null after post_iomfb but we stashed a
+                        # port from timed/others, seed it into *out7 (boot239).
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
                             _keep = False
@@ -532,9 +531,22 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' ANALYTICS_POST_SURFACE_KEEP'
                                 else:
                                     extra += ' ANALYTICS_REAL_POST_IOMFB'
-                            elif _mm2.get('post_iomfb'):
-                                nullish = False
-                                extra += ' ANALYTICS_POST_IOMFB_NULL_KEEP'
+                            elif (_mm2.get('post_iomfb')
+                                    and _mm2.get('analytics_port')
+                                    and x7):
+                                try:
+                                    ap = int(_mm2['analytics_port']) & 0xffffffff
+                                    gdb.execute(
+                                        'set {unsigned long long}%#x = %#x' % (
+                                            x7, ap),
+                                        to_string=True)
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    nullish = False
+                                    extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
+                                except Exception as e:
+                                    nullish = True
+                                    extra += ' ANALYTICS_SEED_ERR=%r' % e
                             else:
                                 nullish = True
                                 extra += ' ANALYTICS_ALWAYS_FORCE'
@@ -627,10 +639,7 @@ class _RetSite(gdb.Breakpoint):
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port:
-                            if _mm2.get('post_iomfb'):
-                                extra += ' ANALYTICS_NULL_POST_IOMFB_KEEP'
-                            else:
-                                need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                            need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -667,6 +676,12 @@ class _RetSite(gdb.Breakpoint):
                                         low = v & 0xffffffff
                                         if low and low < 0x10000:
                                             extra += '(port?%#x)' % low
+                                            # boot273: stash analytics ports from
+                                            # timed/others for BB seed.
+                                            if ("name='com.apple.analyticsd'"
+                                                    in t):
+                                                _mm2['analytics_port'] = low
+                                                extra += ' ANALYTICS_PORT_STASH'
                             except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))

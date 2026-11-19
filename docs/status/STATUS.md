@@ -1469,5 +1469,9 @@ Image.pth74.
 
 ## Chunk 221 (boot272: soft-keep null analytics after post_iomfb)
 
-| boot272 | Image.pth202 | post_iomfb analytics null → keep x0=0 (no 0x9f); allow retry like boot239 long lookup; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: 0x9f blocks retry (boot243); soft-keep → later REAL → SAS publish. | out/logs/boot272 |
+| boot272 | Image.pth202 | post_iomfb analytics null → keep x0=0 (no 0x9f); allow retry like boot239 long lookup; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: 1st BB BRK; 2nd BB GMD_FORCE + analytics lookup → **EXC/W00T** (no RET); SURFACE+6001012; soft-keep harmful. | out/logs/boot272 |
+
+## Chunk 222 (boot273: seed stashed analytics port into BB)
+
+| boot273 | Image.pth203 | stash analytics port from timed; on BB null post_iomfb write into *out7; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: ANALYTICS_PORT_SEED → boot239-like REAL → SAS publish. | out/logs/boot273 |
 
