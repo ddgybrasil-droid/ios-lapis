@@ -594,33 +594,11 @@ class _RetSite(gdb.Breakpoint):
                                 else:
                                     extra += ' ANALYTICS_REAL_POST_IOMFB'
                             elif (_mm2.get('analytics_port') and x7):
-                                # boot276: BB analytics ALWAYS_FORCE pre-GMD
-                                # cleared a later-stashed port → SAS null.
-                                # boot239 SAS path kept REAL analytics.
-                                # boot277: seed stashed port even pre-post_iomfb.
-                                try:
-                                    # boot283: bare low port (0x1513) seeded but
-                                    # natural analytics ports are tagged
-                                    # 0x10000xxxx — BB then W00T/SAS null.
-                                    # boot284: always seed tagged form.
-                                    ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
-                                    if ap < 0x10000:
-                                        ap = 0x100000000 | ap
-                                    gdb.execute(
-                                        'set {unsigned long long}%#x = %#x' % (
-                                            x7, ap),
-                                        to_string=True)
-                                    gdb.execute('set $x0 = 0', to_string=True)
-                                    x0 = 0
-                                    nullish = False
-                                    _mm2['analytics_ok'] = 1
-                                    if _mm2.get('post_iomfb'):
-                                        extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
-                                    else:
-                                        extra += ' ANALYTICS_PORT_SEED_EARLY port=%#x' % ap
-                                except Exception as e:
-                                    nullish = True
-                                    extra += ' ANALYTICS_SEED_ERR=%r' % e
+                                # boot297: do not seed stashed analytics —
+                                # boot296 SAS_PORT_REAL came with NULL_SKIP
+                                # (0 stash); boot295 SEED → SAS null.
+                                nullish = False
+                                extra += ' ANALYTICS_SEED_SKIP_FOR_SAS'
                             else:
                                 # boot282: ALWAYS_FORCE pre-SURFACE (no stash)
                                 # cleared analytics → no post-SURFACE REAL
@@ -727,26 +705,20 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' x0clr_err=%r' % e
                         elif (_mm2.get('analytics_port') and x7
                                 and ((x0 & 0xffffffff) != 0 or not has_port)):
-                            # boot277: BB analytics arrived with x0!=0 →
-                            # BAD_FORCE skipped SEED_EARLY (x0==0 block) and
-                            # cleared ports → SAS null despite stash.
-                            # boot278: seed stash here before any BAD_FORCE.
-                            try:
-                                # boot284: seed tagged 0x10000xxxx (see EARLY).
-                                ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
-                                if ap < 0x10000:
-                                    ap = 0x100000000 | ap
-                                gdb.execute(
-                                    'set {unsigned long long}%#x = %#x' % (
-                                        x7, ap),
-                                    to_string=True)
-                                gdb.execute('set $x0 = 0', to_string=True)
-                                x0 = 0
-                                _mm2['analytics_ok'] = 1
-                                extra += ' ANALYTICS_PORT_SEED_BADPATH port=%#x' % ap
-                            except Exception as e:
-                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
-                                extra += ' ANALYTICS_SEED_BAD_ERR=%r' % e
+                            # boot297: SEED_BADPATH (boot295) stuck tagged port
+                            # but SAS stayed null; boot296 NULL_SKIP (0 stash)
+                            # got SAS_PORT_REAL. Do not seed — soft-skip like
+                            # no-stash path so BB can publish system-app-server.
+                            extra += ' ANALYTICS_SEED_SKIP_FOR_SAS'
+                            if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += ' ANALYTICS_BAD_SOFT_OK'
+                                except Exception as e:
+                                    extra += ' bad_soft_err=%r' % e
+                            else:
+                                extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
                         elif (x0 & 0xffffffff) != 0:
                             # boot280: no stash all boot (timed/ReportCrash
                             # x7*=None) → BAD_FORCE cleared BB analytics →
@@ -1307,40 +1279,15 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
-                # boot287/291: short-circuit with stashed tagged port via LR.
-                # boot293: SEED_EARLY on RET before GMD wrote port but
-                # x7*=None (did not stick) → SAS null despite stash.
-                # boot294: shortcircuit anytime stash exists → SURFACE ok but
-                # SB never looked up runningboard (0 PORT_KEPT/6001012/SAS).
-                # Early BB analytics success races ahead; SB stalls on 11602.
-                # boot295: shortcircuit only AFTER sb_rb_seen (PORT_KEPT), so
-                # SB reaches RB/SURFACE/6001012 first; then seed analytics for
-                # the boot288 SAS_PORT_REAL window without pre-RB race.
-                if (pn == 'backboardd'
+                # boot297: boot296 got SAS_PORT_REAL with 0 analytics stash
+                # (NULL_SKIP). boot295 SEED_BADPATH stuck port but SAS null.
+                # Disable SHORTCIRCUIT_SEED entirely — fake analytics blocks
+                # BB from publishing system-app-server.
+                if False and (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
                         and _mm2.get('analytics_port')
                         and _mm2.get('sb_rb_seen')):
-                    try:
-                        ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
-                        if ap < 0x10000:
-                            ap = 0x100000000 | ap
-                        x7e = r('x7')
-                        if x7e:
-                            gdb.execute(
-                                'set {unsigned long long}%#x = %#x' % (
-                                    x7e, ap),
-                                to_string=True)
-                        gdb.execute('set $x0 = 0', to_string=True)
-                        lr = r('x30')
-                        gdb.execute('set $pc = %#x' % lr, to_string=True)
-                        _mm2['analytics_ok'] = 1
-                        P('ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap)
-                        RetBP(lr,
-                              "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
-                                  pn, name, r('x4'), r('x6'), r('x7')))
-                        return False
-                    except Exception as e:
-                        P('ANALYTICS_SHORTCIRCUIT_ERR=%r' % e)
+                    pass
                 RetBP(r('x30'),
                       "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
                           pn, name, r('x4'), r('x6'), r('x7')))

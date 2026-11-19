@@ -1565,5 +1565,9 @@ Image.pth74.
 
 ## Chunk 245 (boot296: SURFACE defer + RB rematch after GMD)
 
-| boot296 | Image.pth226 | Restore SURFACE_DEFER_PRE_BB_GMD NotReady; after GMD arm `RB_REMATCH_KILL` so sel32 retries; keep sb_rb_seen shortcircuit gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot288 SAS window (defer) + forced RB rematch → SURFACE+6001012+SAS_PORT_REAL. | out/logs/boot296 |
+| boot296 | Image.pth226 | Restore SURFACE_DEFER_PRE_BB_GMD NotReady; after GMD arm `RB_REMATCH_KILL` so sel32 retries; keep sb_rb_seen shortcircuit gate; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BREAKTHROUGH**: GMD before SURFACE → **0 DEFER/REMATCH**; **SAS_PORT_REAL `0x2f13` tagged** + SURFACE + 6001012×4 + CA_MIG(asl/syslog) + HIDPROP + IOMFB + SB_RECV_POST_CA. **0 analytics stash** (NULL_SKIP) — unlike boot295 SEED→SAS null. Next: stabilize SAS without seed; push past asl CA_MIG toward real render. | out/logs/boot296 |
+
+## Chunk 246 (boot297: disable analytics SEED to stabilize SAS)
+
+| boot297 | Image.pth227 | Disable SEED_BADPATH + SHORTCIRCUIT (boot296 SAS had 0 stash); keep SURFACE defer/rematch safety; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: fake analytics seed blocks SAS publish; natural NULL_SKIP path → reproducible SAS_PORT_REAL + SURFACE + CA. | out/logs/boot297 |
 
