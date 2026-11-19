@@ -1489,5 +1489,73 @@ Image.pth74.
 
 ## Chunk 226 (boot277: seed analytics even pre-post_iomfb)
 
-| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early seed → boot239-like analytics REAL → SAS_PORT_REAL. | out/logs/boot277 |
+| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS_OBSERVE; SEED_EARLY skipped — BB analytics x0!=0 → **ANALYTICS_BAD_FORCE** cleared stash. | out/logs/boot277 |
+
+## Chunk 227 (boot278: seed analytics on BAD_FORCE path)
+
+| boot278 | Image.pth208 | ANALYTICS_PORT_SEED_BADPATH before BAD_FORCE; SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **PANIC**: `vnode_put iocount < 1` pre-GMD (~5m); no analytics/SURFACE. Flaky. | out/logs/boot278 |
+
+## Chunk 228 (boot279: retry SEED_BADPATH after vnode_put panic)
+
+| boot279 | Image.pth209 | same SEED_BADPATH as boot278; T=3000 | qemu11 43G lva=off | **PANIC**: same `vnode_put iocount < 1` pre-GMD (SB early mach / RB spawn). Flaky (also boot200/278). | out/logs/boot279 |
+
+## Chunk 229 (boot280: retry SEED_BADPATH again)
+
+| boot280 | Image.pth210 | same SEED_BADPATH; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS_OBSERVE; **0 STASH** (analyticsd silent) → BAD_FORCE → SAS null. | out/logs/boot280 |
+
+## Chunk 230 (boot281: skip BAD_FORCE when no analytics stash)
+
+| boot281 | Image.pth211 | ANALYTICS_BAD_SKIP_NO_STASH pre-SURFACE; SEED_BADPATH if stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; 1st BB analytics hung; post-SURFACE **ANALYTICS_REAL 0x570b**; SAS garbage low=0x2; FB_SAS still 0x9f post-SURFACE. | out/logs/boot281 |
+
+## Chunk 231 (boot282: skip FB_SAS null post-SURFACE + tagged SAS observe)
+
+| boot282 | Image.pth212 | FB_SAS_NULL_SKIP_POST_SURFACE; accept tagged SAS low; keep analytics skip; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS null; **ALWAYS_FORCE** pre-SURFACE (no stash) → no post-SURFACE analytics REAL; no FB_SAS post-SURFACE hit. | out/logs/boot282 |
+
+## Chunk 232 (boot283: skip ALWAYS_FORCE analytics pre-SURFACE)
+
+| boot283 | Image.pth213 | ANALYTICS_ALWAYS_SKIP_NO_STASH; FB_SAS skip post-SURFACE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SEED_BADPATH bare 0x1513 (x7*=None after); SURFACE+6001012+SAS null; W00T. Seed format wrong vs tagged 0x10000xxxx. | out/logs/boot283 |
+
+## Chunk 233 (boot284: seed analytics as tagged 0x10000xxxx)
+
+| boot284 | Image.pth214 | seed/stash tagged port form; keep ALWAYS_SKIP + FB_SAS skip; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ALWAYS_SKIP then **REAL_FORCE** cleared pre-GMD port; SURFACE+6001012+SAS null; stash too late. | out/logs/boot284 |
+
+## Chunk 234 (boot285: keep real analytics ports pre-SURFACE)
+
+| boot285 | Image.pth215 | ANALYTICS_REAL_KEEP_PRE instead of REAL_FORCE; tagged seed; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: STASH `0x160f`; SB_RB PORT_KEPT; **BB SIGKILL** pre-GMD (`[backboardd: killed] signal 9`) → respawn; SURFACE+SAS_OBSERVE **before** respawn GMD; FB_SAS_NULL_SKIP; late SEED_BADPATH tagged `0x10000160f` after GMD — **0 SAS_PORT_REAL** (SB no retry). | out/logs/boot285 |
+
+## Chunk 235 (boot286: defer SURFACE until BB_GMD)
+
+| boot286 | Image.pth216 | SURFACE_DEFER_PRE_BB_GMD (sel32→NotReady until bb_gmd_ok); keep REAL_KEEP_PRE+tagged seed; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB SIGKILL×1; respawn GMD_OK; **no SURFACE_DEFER** (post_iomfb already set); analytics LOOKUP then **EXC/exit (no RET)**; SURFACE+SAS_OBSERVE null; 3rd BB spawn after SAS — **0 SAS_PORT_REAL**. | out/logs/boot286 |
+
+## Chunk 236 (boot287: analytics short-circuit + SURFACE gate)
+
+| boot287 | Image.pth217 | ANALYTICS_SHORTCIRCUIT_SEED on BB enter; SURFACE_DEFER_PRE_ANALYTICS until analytics_ok; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no BB kill; GMD_OK; **0 stash** (timed/RC null) → no SHORTCIRCUIT; analytics BAD_SKIP; SURFACE_DEFER_PRE_ANALYTICS n=1 → **RB never retried** sel32 — SURFACE stuck. Gate harmful. | out/logs/boot287 |
+
+## Chunk 237 (boot288: restore GMD SURFACE gate; keep shortcircuit)
+
+| boot288 | Image.pth218 | SURFACE gate on bb_gmd_ok only (revert analytics_ok NotReady); keep SHORTCIRCUIT when stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: STASH `0x1413`; BB kill→respawn; SURFACE_DEFER_PRE_BB_GMD n=1 stuck; **SAS_PORT_REAL `0xc0b` tagged** (before GMD!); then GMD+SHORTCIRCUIT; **0×6001012** (no SURFACE success). Breakthrough SAS, defer still harmful. | out/logs/boot288 |
+
+## Chunk 238 (boot289: allow SURFACE always; keep shortcircuit)
+
+| boot289 | Image.pth219 | no NotReady SURFACE defer (log PRE_BB_GMD only); keep SHORTCIRCUIT; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB kill→respawn; **SURFACE x0=0** + **6001012** + CA_MIG 1012/1018; **0 stash** → no SHORTCIRCUIT; analytics NULL_SKIP; **SAS_OBSERVE null**; BB W00T/SPIN. SURFACE path fixed; SAS still missing. | out/logs/boot289 |
+
+## Chunk 239 (boot290: analytics shortcircuit even without stash)
+
+| boot290 | Image.pth220 | SHORTCIRCUIT_NULL (success-null via LR) when no stash post-GMD; keep SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SHORTCIRCUIT_NULL → **BB EXC+respawn**; 2nd BB SEED (stash late) + SURFACE+6001012; **SAS null**. NULL shortcircuit harmful. | out/logs/boot290 |
+
+## Chunk 240 (boot291: SEED shortcircuit only; no NULL)
+
+| boot291 | Image.pth221 | SHORTCIRCUIT_SEED only (drop NULL); allow every post-GMD BB analytics enter; SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no BB kill/EXC; GMD; **0 stash** → no SHORTCIRCUIT; BAD_SKIP; **SURFACE+6001012+CA_MIG**; SAS null. Stable SURFACE path; SAS still blocked without analytics port. | out/logs/boot291 |
+
+## Chunk 241 (boot292: analytics BAD_SOFT_OK post-GMD)
+
+| boot292 | Image.pth222 | BAD_SKIP after GMD → x0=0 SOFT_OK (no shortcircuit body skip); SURFACE always; SEED shortcircuit if stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **ANALYTICS_REAL `0x4013`** (no SOFT_OK needed); SURFACE ok; first SB_RB null → **SOFT_KEEP forever** → **1073742628 spin** → **0 SAS/6001012**. Analytics win; SB_RB soft-keep without PORT_KEPT harmful post-SURFACE. | out/logs/boot292 |
+
+## Chunk 242 (boot293: force SB_RB null after SURFACE)
+
+| boot293 | Image.pth223 | SB_RB_NULL_POST_SURFACE_FORCE if no PORT_KEPT after rb_sel32; keep ANALYTICS_REAL path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT (no spin); stash→SEED_EARLY pre-GMD but **x7*=None**; GMD; SURFACE+6001012+CA_MIG; **SAS null**. POST_SURFACE_FORCE unused. | out/logs/boot293 |
+
+## Chunk 243 (boot294: shortcircuit seed anytime stash exists)
+
+| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable seeded analytics before SURFACE → SAS_PORT_REAL. | out/logs/boot294 |
 

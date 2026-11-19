@@ -47,6 +47,9 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
+            # boot289: boot288 got SAS_PORT_REAL but SURFACE_DEFER NotReady
+            # (PRE_BB_GMD n=1) stuck — RB never retried → 0×6001012. Drop
+            # NotReady mutation; PRE_BB_GMD is log-only (see sel==32).
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -352,8 +355,14 @@ class _RetSite(gdb.Breakpoint):
                         raw = v & 0xffffffffffffffff
                         low = raw & 0xffffffff
                         high = (raw >> 32) & 0xffffffff
-                        if high == 0 and 0 < low < 0x10000:
+                        # boot254: high==0 only. boot253 kept tagged low32.
+                        # boot281: garbage low=0x2 with high tag — not a port.
+                        # boot282: observe tagged ports with plausible low
+                        # (0x100..0x10000); still observe-only (no mutate).
+                        if 0x100 < low < 0x10000:
                             extra += ' SAS_PORT_REAL port=%#x' % low
+                            if high:
+                                extra += '(tagged)'
                             _mm2['sas_ok'] = 1
                         else:
                             extra += ' SAS_OBSERVE v=%#x' % raw
@@ -494,8 +503,15 @@ class _RetSite(gdb.Breakpoint):
                                 _mm2['sb_rb_seen'] = True
                                 extra += ' SB_RB_PORT_KEPT'
                             elif not _mm2.get('sb_rb_seen'):
-                                nullish = False
-                                extra += ' SB_RB_NULL_SOFT_KEEP'
+                                # boot293: boot292 ANALYTICS_REAL+SURFACE but
+                                # first SB_RB was null → soft-keep forever →
+                                # 1073742628 spin, 0 SAS/6001012. After SURFACE
+                                # stop soft-keeping even without PORT_KEPT.
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' SB_RB_NULL_POST_SURFACE_FORCE'
+                                else:
+                                    nullish = False
+                                    extra += ' SB_RB_NULL_SOFT_KEEP'
                             else:
                                 extra += ' SB_RB_NULL_POST_SEEN_FORCE'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
@@ -535,6 +551,7 @@ class _RetSite(gdb.Breakpoint):
                                         pass
                             if _keep:
                                 nullish = False
+                                _mm2['analytics_ok'] = 1
                                 if _mm2.get('rb_sel32'):
                                     extra += ' ANALYTICS_POST_SURFACE_KEEP'
                                 else:
@@ -545,7 +562,13 @@ class _RetSite(gdb.Breakpoint):
                                 # boot239 SAS path kept REAL analytics.
                                 # boot277: seed stashed port even pre-post_iomfb.
                                 try:
-                                    ap = int(_mm2['analytics_port']) & 0xffffffff
+                                    # boot283: bare low port (0x1513) seeded but
+                                    # natural analytics ports are tagged
+                                    # 0x10000xxxx — BB then W00T/SAS null.
+                                    # boot284: always seed tagged form.
+                                    ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                                    if ap < 0x10000:
+                                        ap = 0x100000000 | ap
                                     gdb.execute(
                                         'set {unsigned long long}%#x = %#x' % (
                                             x7, ap),
@@ -553,6 +576,7 @@ class _RetSite(gdb.Breakpoint):
                                     gdb.execute('set $x0 = 0', to_string=True)
                                     x0 = 0
                                     nullish = False
+                                    _mm2['analytics_ok'] = 1
                                     if _mm2.get('post_iomfb'):
                                         extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
                                     else:
@@ -561,8 +585,16 @@ class _RetSite(gdb.Breakpoint):
                                     nullish = True
                                     extra += ' ANALYTICS_SEED_ERR=%r' % e
                             else:
-                                nullish = True
-                                extra += ' ANALYTICS_ALWAYS_FORCE'
+                                # boot282: ALWAYS_FORCE pre-SURFACE (no stash)
+                                # cleared analytics → no post-SURFACE REAL
+                                # (unlike boot281 BAD_SKIP path). Skip force
+                                # until SURFACE so BB can get a late port.
+                                if not _mm2.get('rb_sel32'):
+                                    nullish = False
+                                    extra += ' ANALYTICS_ALWAYS_SKIP_NO_STASH'
+                                else:
+                                    nullish = True
+                                    extra += ' ANALYTICS_ALWAYS_FORCE'
                         # boot267: FB_SAS_NULL_KEEP (x0=0) → SURFACE ok but SB
                         # never reached RB/SAS/6001012 (stuck pre-SURFACE 11602).
                         # boot268: restore 0x9f on null (boot265 path); keep real.
@@ -575,6 +607,13 @@ class _RetSite(gdb.Breakpoint):
                             elif not nullish:
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
+                            elif _mm2.get('rb_sel32'):
+                                # boot281: post-SURFACE analytics REAL but SAS
+                                # still garbage (SB looked up before BB finished
+                                # analytics). Don't 0x9f BB↔FB so SB FrontBoard
+                                # can publish system-app-server for a retry.
+                                nullish = False
+                                extra += ' FB_SAS_NULL_SKIP_POST_SURFACE'
                             else:
                                 extra += ' FB_SAS_NULL_WILL_FORCE'
                         # boot256: do not 0x9f SpringBoard system-app-server
@@ -637,8 +676,10 @@ class _RetSite(gdb.Breakpoint):
                         # x0!=0) — boot239 SAS needs REAL kept. Prefer port
                         # keep after post_iomfb over BAD_FORCE.
                         if clean_port:
+                            _mm2['analytics_ok'] = 1
                             extra += ' ANALYTICS_POST_SURFACE_REAL'
                         elif has_port and _mm2.get('post_iomfb'):
+                            _mm2['analytics_ok'] = 1
                             extra += ' ANALYTICS_REAL_POST_IOMFB'
                             if (x0 & 0xffffffff) != 0:
                                 try:
@@ -647,12 +688,67 @@ class _RetSite(gdb.Breakpoint):
                                     extra += '+X0CLR'
                                 except Exception as e:
                                     extra += ' x0clr_err=%r' % e
+                        elif (_mm2.get('analytics_port') and x7
+                                and ((x0 & 0xffffffff) != 0 or not has_port)):
+                            # boot277: BB analytics arrived with x0!=0 →
+                            # BAD_FORCE skipped SEED_EARLY (x0==0 block) and
+                            # cleared ports → SAS null despite stash.
+                            # boot278: seed stash here before any BAD_FORCE.
+                            try:
+                                # boot284: seed tagged 0x10000xxxx (see EARLY).
+                                ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                                if ap < 0x10000:
+                                    ap = 0x100000000 | ap
+                                gdb.execute(
+                                    'set {unsigned long long}%#x = %#x' % (
+                                        x7, ap),
+                                    to_string=True)
+                                gdb.execute('set $x0 = 0', to_string=True)
+                                x0 = 0
+                                _mm2['analytics_ok'] = 1
+                                extra += ' ANALYTICS_PORT_SEED_BADPATH port=%#x' % ap
+                            except Exception as e:
+                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                                extra += ' ANALYTICS_SEED_BAD_ERR=%r' % e
                         elif (x0 & 0xffffffff) != 0:
-                            need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                            # boot280: no stash all boot (timed/ReportCrash
+                            # x7*=None) → BAD_FORCE cleared BB analytics →
+                            # SAS null. Skip force so BB can retry when
+                            # analyticsd publishes (boot239 REAL path).
+                            # boot292: boot291 SURFACE+6001012 but analytics
+                            # BAD_SKIP (x0=1, 0 stash) → SAS null. Soft-clear
+                            # x0=0 after GMD (natural RET, not SHORTCIRCUIT_NULL
+                            # which EXC'd BB in boot290) so BB can publish SAS.
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
+                                if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
+                                    try:
+                                        gdb.execute('set $x0 = 0', to_string=True)
+                                        x0 = 0
+                                        _mm2['analytics_ok'] = 1
+                                        extra += ' ANALYTICS_BAD_SOFT_OK'
+                                    except Exception as e:
+                                        extra += ' bad_soft_err=%r' % e
+                            else:
+                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
-                            need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
+                            # boot284: ALWAYS_SKIP then REAL_FORCE cleared a
+                            # pre-GMD real port (stash later unused) → SAS null.
+                            # boot285: keep real ports pre-SURFACE (boot239).
+                            _mm2['analytics_ok'] = 1
+                            extra += ' ANALYTICS_REAL_KEEP_PRE'
+                            if (x0 & 0xffffffff) != 0:
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += '+X0CLR'
+                                except Exception as e:
+                                    extra += ' x0clr_err=%r' % e
                         elif (x0 & 0xffffffff) == 0 and not has_port:
-                            need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_NULL_SKIP_NO_STASH'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)
@@ -693,7 +789,13 @@ class _RetSite(gdb.Breakpoint):
                                             # timed/others for BB seed.
                                             if ("name='com.apple.analyticsd'"
                                                     in t):
-                                                _mm2['analytics_port'] = low
+                                                # Prefer full tagged value when
+                                                # present (boot284 seed format).
+                                                if 0x100000000 < v < 0x300000000:
+                                                    _mm2['analytics_port'] = v
+                                                else:
+                                                    _mm2['analytics_port'] = (
+                                                        0x100000000 | low)
                                                 extra += ' ANALYTICS_PORT_STASH'
                             except Exception as e:
                                 try:
@@ -1168,6 +1270,35 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
+                # boot287/291: short-circuit with stashed tagged port via LR.
+                # boot293: SEED_EARLY on RET before GMD wrote port but
+                # x7*=None (did not stick) → SAS null despite stash.
+                # boot294: shortcircuit on any BB analytics enter once stash
+                # exists (do not wait for post_iomfb/GMD).
+                if (pn == 'backboardd'
+                        and name == 'com.apple.analyticsd'
+                        and _mm2.get('analytics_port')):
+                    try:
+                        ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                        if ap < 0x10000:
+                            ap = 0x100000000 | ap
+                        x7e = r('x7')
+                        if x7e:
+                            gdb.execute(
+                                'set {unsigned long long}%#x = %#x' % (
+                                    x7e, ap),
+                                to_string=True)
+                        gdb.execute('set $x0 = 0', to_string=True)
+                        lr = r('x30')
+                        gdb.execute('set $pc = %#x' % lr, to_string=True)
+                        _mm2['analytics_ok'] = 1
+                        P('ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap)
+                        RetBP(lr,
+                              "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
+                                  pn, name, r('x4'), r('x6'), r('x7')))
+                        return False
+                    except Exception as e:
+                        P('ANALYTICS_SHORTCIRCUIT_ERR=%r' % e)
                 RetBP(r('x30'),
                       "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
                           pn, name, r('x4'), r('x6'), r('x7')))
@@ -1397,10 +1528,14 @@ def on_external_method():
             if sel == 13 and stout_p:
                 tag += ' stoutp=%#x' % stout_p
             if sel == 32:
-                _mm2['rb_sel32'] = 1
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
+                # boot289: always allow SURFACE (boot288 NotReady stuck RB).
+                # Log PRE_BB_GMD when early, but never mutate x0.
+                _mm2['rb_sel32'] = 1
+                if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                    tag += ' PRE_BB_GMD'
                 # boot255: reopen SB/BB mach window at SURFACE itself
                 # (boot254: no SB/BB msg after SURFACE → never reopened;
                 # SB was quiet, 0×6001012).
