@@ -1549,5 +1549,9 @@ Image.pth74.
 
 ## Chunk 241 (boot292: analytics BAD_SOFT_OK post-GMD)
 
-| boot292 | Image.pth222 | BAD_SKIP after GMD → x0=0 SOFT_OK (no shortcircuit body skip); SURFACE always; SEED shortcircuit if stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: soft-success analytics RET → BB publishes SAS with SURFACE+6001012. | out/logs/boot292 |
+| boot292 | Image.pth222 | BAD_SKIP after GMD → x0=0 SOFT_OK (no shortcircuit body skip); SURFACE always; SEED shortcircuit if stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **ANALYTICS_REAL `0x4013`** (no SOFT_OK needed); SURFACE ok; first SB_RB null → **SOFT_KEEP forever** → **1073742628 spin** → **0 SAS/6001012**. Analytics win; SB_RB soft-keep without PORT_KEPT harmful post-SURFACE. | out/logs/boot292 |
+
+## Chunk 242 (boot293: force SB_RB null after SURFACE)
+
+| boot293 | Image.pth223 | SB_RB_NULL_POST_SURFACE_FORCE if no PORT_KEPT after rb_sel32; keep ANALYTICS_REAL path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: break 1073742628 spin → SAS after ANALYTICS_REAL+SURFACE. | out/logs/boot293 |
 

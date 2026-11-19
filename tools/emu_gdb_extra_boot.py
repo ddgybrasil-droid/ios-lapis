@@ -503,8 +503,15 @@ class _RetSite(gdb.Breakpoint):
                                 _mm2['sb_rb_seen'] = True
                                 extra += ' SB_RB_PORT_KEPT'
                             elif not _mm2.get('sb_rb_seen'):
-                                nullish = False
-                                extra += ' SB_RB_NULL_SOFT_KEEP'
+                                # boot293: boot292 ANALYTICS_REAL+SURFACE but
+                                # first SB_RB was null → soft-keep forever →
+                                # 1073742628 spin, 0 SAS/6001012. After SURFACE
+                                # stop soft-keeping even without PORT_KEPT.
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' SB_RB_NULL_POST_SURFACE_FORCE'
+                                else:
+                                    nullish = False
+                                    extra += ' SB_RB_NULL_SOFT_KEEP'
                             else:
                                 extra += ' SB_RB_NULL_POST_SEEN_FORCE'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
