@@ -1561,5 +1561,9 @@ Image.pth74.
 
 ## Chunk 244 (boot295: shortcircuit only after SB_RB PORT_KEPT)
 
-| boot295 | Image.pth225 | SHORTCIRCUIT_SEED only when `sb_rb_seen`; keep SURFACE always + POST_SURFACE SB_RB force; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot293 SURFACE+6001012+PORT_KEPT, then seed analytics for SAS_PORT_REAL (boot288) without pre-RB race. | out/logs/boot295 |
+| boot295 | Image.pth225 | SHORTCIRCUIT_SEED only when `sb_rb_seen`; keep SURFACE always + POST_SURFACE SB_RB force; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+GMD+SURFACE+6001012×4; SEED_BADPATH `0x10000120f` stuck (x7* ok); **0 SHORTCIRCUIT** (no BB analytics after PORT_KEPT); **SAS_OBSERVE null**. Gate restored UI path; seed≠SAS. | out/logs/boot295 |
+
+## Chunk 245 (boot296: SURFACE defer + RB rematch after GMD)
+
+| boot296 | Image.pth226 | Restore SURFACE_DEFER_PRE_BB_GMD NotReady; after GMD arm `RB_REMATCH_KILL` so sel32 retries; keep sb_rb_seen shortcircuit gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot288 SAS window (defer) + forced RB rematch → SURFACE+6001012+SAS_PORT_REAL. | out/logs/boot296 |
 
