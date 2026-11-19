@@ -481,12 +481,17 @@ class _RetSite(gdb.Breakpoint):
                                     break
                             except Exception:
                                 pass
-                        # After GMD: only deny when we truly have no port.
+                        # After GMD: keep real RB ports; boot269 also keep null
+                        # (x0=0) so SB retries instead of 0x9f-racing past a
+                        # late RB (boot268: SB_RB NULLPORT → SAS/6001012 before
+                        # RB exec → RB 11602 sans IOGPU → 0 SURFACE).
                         if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
-                                and "name='com.apple.runningboard'" in t
-                                and saw_port):
+                                and "name='com.apple.runningboard'" in t):
                             nullish = False
-                            extra += ' SB_RB_PORT_KEPT'
+                            if saw_port:
+                                extra += ' SB_RB_PORT_KEPT'
+                            else:
+                                extra += ' SB_RB_NULL_KEEP'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
                         # spun on msgid 1073742628 — never reached SAS/6001012.
                         # Reverted sticky; force 0x9f on true null again.

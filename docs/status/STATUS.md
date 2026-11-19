@@ -1453,5 +1453,9 @@ Image.pth74.
 
 ## Chunk 217 (boot268: revert FB_SAS force; keep analytics REAL post_iomfb)
 
-| boot268 | Image.pth198 | restore FB_SAS null→0x9f; keep analytics REAL after post_iomfb; W00T_U n=1; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot265 SURFACE+6001012 path + boot239 analytics REAL for SAS publish. | out/logs/boot268 |
+| boot268 | Image.pth198 | restore FB_SAS null→0x9f; keep analytics REAL after post_iomfb; W00T_U n=1; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: WILL_FORCE+GETSIZE+SAS null+6001012; analytics pre-MATCH ALWAYS_FORCE; **late RB** (#176) → 11602 **sans IOGPU** → **0 SURFACE** (~31m). | out/logs/boot268 |
+
+## Chunk 218 (boot269: SB_RB null keep after GMD)
+
+| boot269 | Image.pth199 | after GMD keep SB↔RB null as x0=0 (no 0x9f); FB_SAS force; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB waits/retries for late RB → early IOGPU/SURFACE like boot265/267; then SAS. | out/logs/boot269 |
 
