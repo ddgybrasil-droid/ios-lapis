@@ -468,12 +468,28 @@ class _RetSite(gdb.Breakpoint):
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
                         # boot249: always force BB analytics pre-SURFACE.
-                        # boot261b: POST_SURFACE_NOFORCE left x0=1+sentinel
-                        # 0x100000000 — still force that. Only keep a clean port.
+                        # boot262: after SURFACE keep only clean small port;
+                        # otherwise force (boot261b sentinel must not pass).
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
-                            nullish = True
-                            extra += ' ANALYTICS_ALWAYS_FORCE'
+                            _keep = False
+                            if _mm2.get('rb_sel32') and not nullish:
+                                for ptr in (x4, x6, x7):
+                                    if not ptr:
+                                        continue
+                                    try:
+                                        v = m64(ptr) & 0xffffffffffffffff
+                                        if 0 < v < 0x10000:
+                                            _keep = True
+                                            break
+                                    except Exception:
+                                        pass
+                            if _keep:
+                                nullish = False
+                                extra += ' ANALYTICS_POST_SURFACE_KEEP'
+                            else:
+                                nullish = True
+                                extra += ' ANALYTICS_ALWAYS_FORCE'
                         # boot248: BB looks up frontboard.systemappservices
                         # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
                         # never retries — block FB↔BB system-app handshake.
