@@ -352,8 +352,14 @@ class _RetSite(gdb.Breakpoint):
                         raw = v & 0xffffffffffffffff
                         low = raw & 0xffffffff
                         high = (raw >> 32) & 0xffffffff
-                        if high == 0 and 0 < low < 0x10000:
+                        # boot254: high==0 only. boot253 kept tagged low32.
+                        # boot281: garbage low=0x2 with high tag — not a port.
+                        # boot282: observe tagged ports with plausible low
+                        # (0x100..0x10000); still observe-only (no mutate).
+                        if 0x100 < low < 0x10000:
                             extra += ' SAS_PORT_REAL port=%#x' % low
+                            if high:
+                                extra += '(tagged)'
                             _mm2['sas_ok'] = 1
                         else:
                             extra += ' SAS_OBSERVE v=%#x' % raw
@@ -575,6 +581,13 @@ class _RetSite(gdb.Breakpoint):
                             elif not nullish:
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
+                            elif _mm2.get('rb_sel32'):
+                                # boot281: post-SURFACE analytics REAL but SAS
+                                # still garbage (SB looked up before BB finished
+                                # analytics). Don't 0x9f BB↔FB so SB FrontBoard
+                                # can publish system-app-server for a retry.
+                                nullish = False
+                                extra += ' FB_SAS_NULL_SKIP_POST_SURFACE'
                             else:
                                 extra += ' FB_SAS_NULL_WILL_FORCE'
                         # boot256: do not 0x9f SpringBoard system-app-server

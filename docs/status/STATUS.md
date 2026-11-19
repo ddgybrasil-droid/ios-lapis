@@ -1505,5 +1505,9 @@ Image.pth74.
 
 ## Chunk 230 (boot281: skip BAD_FORCE when no analytics stash)
 
-| boot281 | Image.pth211 | ANALYTICS_BAD_SKIP_NO_STASH pre-SURFACE; SEED_BADPATH if stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip force → BB retry → REAL analytics → SAS. | out/logs/boot281 |
+| boot281 | Image.pth211 | ANALYTICS_BAD_SKIP_NO_STASH pre-SURFACE; SEED_BADPATH if stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; 1st BB analytics hung; post-SURFACE **ANALYTICS_REAL 0x570b**; SAS garbage low=0x2; FB_SAS still 0x9f post-SURFACE. | out/logs/boot281 |
+
+## Chunk 231 (boot282: skip FB_SAS null post-SURFACE + tagged SAS observe)
+
+| boot282 | Image.pth212 | FB_SAS_NULL_SKIP_POST_SURFACE; accept tagged SAS low; keep analytics skip; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: BB↔FB soft after SURFACE → SB republishes SAS → SAS_PORT_REAL. | out/logs/boot282 |
 
