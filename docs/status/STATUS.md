@@ -1521,5 +1521,9 @@ Image.pth74.
 
 ## Chunk 234 (boot285: keep real analytics ports pre-SURFACE)
 
-| boot285 | Image.pth215 | ANALYTICS_REAL_KEEP_PRE instead of REAL_FORCE; tagged seed; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: keep early real analytics → boot239 SAS path. | out/logs/boot285 |
+| boot285 | Image.pth215 | ANALYTICS_REAL_KEEP_PRE instead of REAL_FORCE; tagged seed; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: STASH `0x160f`; SB_RB PORT_KEPT; **BB SIGKILL** pre-GMD (`[backboardd: killed] signal 9`) → respawn; SURFACE+SAS_OBSERVE **before** respawn GMD; FB_SAS_NULL_SKIP; late SEED_BADPATH tagged `0x10000160f` after GMD — **0 SAS_PORT_REAL** (SB no retry). | out/logs/boot285 |
+
+## Chunk 235 (boot286: defer SURFACE until BB_GMD)
+
+| boot286 | Image.pth216 | SURFACE_DEFER_PRE_BB_GMD (sel32→NotReady until bb_gmd_ok); keep REAL_KEEP_PRE+tagged seed; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot239 order GMD→analytics→SURFACE→SAS even after BB kill/respawn. | out/logs/boot286 |
 
