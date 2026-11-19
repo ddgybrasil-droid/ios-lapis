@@ -1533,5 +1533,9 @@ Image.pth74.
 
 ## Chunk 237 (boot288: restore GMD SURFACE gate; keep shortcircuit)
 
-| boot288 | Image.pth218 | SURFACE gate on bb_gmd_ok only (revert analytics_ok NotReady); keep SHORTCIRCUIT when stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: allow SURFACE after GMD even without analytics port; shortcircuit when stash appears. | out/logs/boot288 |
+| boot288 | Image.pth218 | SURFACE gate on bb_gmd_ok only (revert analytics_ok NotReady); keep SHORTCIRCUIT when stash; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: STASH `0x1413`; BB kill→respawn; SURFACE_DEFER_PRE_BB_GMD n=1 stuck; **SAS_PORT_REAL `0xc0b` tagged** (before GMD!); then GMD+SHORTCIRCUIT; **0×6001012** (no SURFACE success). Breakthrough SAS, defer still harmful. | out/logs/boot288 |
+
+## Chunk 238 (boot289: allow SURFACE always; keep shortcircuit)
+
+| boot289 | Image.pth219 | no NotReady SURFACE defer (log PRE_BB_GMD only); keep SHORTCIRCUIT; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SURFACE+SAS_PORT_REAL+6001012 together (boot288 SAS without SURFACE). | out/logs/boot289 |
 
