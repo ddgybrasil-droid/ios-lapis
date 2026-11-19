@@ -666,11 +666,21 @@ class _RetSite(gdb.Breakpoint):
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                                 extra += ' ANALYTICS_SEED_BAD_ERR=%r' % e
                         elif (x0 & 0xffffffff) != 0:
-                            need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                            # boot280: no stash all boot (timed/ReportCrash
+                            # x7*=None) → BAD_FORCE cleared BB analytics →
+                            # SAS null. Skip force so BB can retry when
+                            # analyticsd publishes (boot239 REAL path).
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port:
-                            need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_NULL_SKIP_NO_STASH'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
                         if need_force:
                             try:
                                 gdb.execute('set $x0 = 0x9f', to_string=True)

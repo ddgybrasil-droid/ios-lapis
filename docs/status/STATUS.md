@@ -1501,5 +1501,9 @@ Image.pth74.
 
 ## Chunk 229 (boot280: retry SEED_BADPATH again)
 
-| boot280 | Image.pth210 | same SEED_BADPATH; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: flake clears → SEED_BADPATH → SAS_PORT_REAL. | out/logs/boot280 |
+| boot280 | Image.pth210 | same SEED_BADPATH; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+SAS_OBSERVE; **0 STASH** (analyticsd silent) → BAD_FORCE → SAS null. | out/logs/boot280 |
+
+## Chunk 230 (boot281: skip BAD_FORCE when no analytics stash)
+
+| boot281 | Image.pth211 | ANALYTICS_BAD_SKIP_NO_STASH pre-SURFACE; SEED_BADPATH if stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip force → BB retry → REAL analytics → SAS. | out/logs/boot281 |
 
