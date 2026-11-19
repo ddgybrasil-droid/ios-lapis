@@ -1477,5 +1477,9 @@ Image.pth74.
 
 ## Chunk 223 (boot274: retry ANALYTICS_PORT_SEED)
 
-| boot274 | Image.pth204 | same seed as boot273; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean boot past SMP → STASH+SEED → SAS. | out/logs/boot274 |
+| boot274 | Image.pth204 | same seed as boot273; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ANALYTICS_REAL+STASH (0x400b, no SEED needed); SB_RB early null→0x9f; SAS null+6001012; **0 SURFACE** (RB never IOCoreSurfaceRoot). | out/logs/boot274 |
+
+## Chunk 224 (boot275: SB_RB null soft-keep after GMD)
+
+| boot275 | Image.pth205 | soft-keep null SB↔RB post-GMD (retry); keep analytics REAL/SEED; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: soft-keep → late RB port → SURFACE like boot239/271. | out/logs/boot275 |
 

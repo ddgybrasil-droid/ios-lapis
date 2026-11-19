@@ -481,15 +481,20 @@ class _RetSite(gdb.Breakpoint):
                                     break
                             except Exception:
                                 pass
-                        # After GMD: keep real RB ports only.
-                        # boot269: null-keep → SURFACE+PORT_KEPT but SB spun on
-                        # msgid 1073742628 (boot247 mode) → 0 SAS/6001012.
+                        # After GMD: keep real RB ports; soft-keep null so SB
+                        # can retry when RB publishes late.
+                        # boot269: sticky null-keep → SURFACE then 1073742628 spin.
                         # boot270: restore 0x9f on null (boot265 path).
+                        # boot274: early SB_RB null→0x9f while RB late → 0
+                        # SURFACE (boot239/271 kept real port on first lookup).
+                        # boot275: soft-keep null (x0=0) until a real port.
                         if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
-                                and "name='com.apple.runningboard'" in t
-                                and saw_port):
+                                and "name='com.apple.runningboard'" in t):
                             nullish = False
-                            extra += ' SB_RB_PORT_KEPT'
+                            if saw_port:
+                                extra += ' SB_RB_PORT_KEPT'
+                            else:
+                                extra += ' SB_RB_NULL_SOFT_KEEP'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
                         # spun on msgid 1073742628 — never reached SAS/6001012.
                         # Reverted sticky; force 0x9f on true null again.
