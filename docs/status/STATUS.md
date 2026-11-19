@@ -1461,5 +1461,9 @@ Image.pth74.
 
 ## Chunk 219 (boot270: restore SB_RB null force; probe analyticsd)
 
-| boot270 | Image.pth200 | restore SB_RB null→0x9f; log analyticsd spawn vs BB lookup; keep analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot265 SURFACE+SAS+6001012 restored; watch whether analyticsd is up for REAL→SAS publish. | out/logs/boot270 |
+| boot270 | Image.pth200 | restore SB_RB null→0x9f; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: post-GMD analytics **BAD_FORCE** (x0!=0 beat has_port); SAS null; RB Allow then **0 mach** → **0 SURFACE/6001012** (~30m). timed had analytics port earlier. | out/logs/boot270 |
+
+## Chunk 220 (boot271: analytics REAL before BAD_FORCE)
+
+| boot271 | Image.pth201 | post_iomfb analytics has_port → keep REAL (+x0=0) before BAD_FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot239 ANALYTICS_REAL→SAS; boot270 destroyed port via BAD_FORCE order. | out/logs/boot271 |
 

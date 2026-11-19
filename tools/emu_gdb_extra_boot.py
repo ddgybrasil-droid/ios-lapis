@@ -602,13 +602,23 @@ class _RetSite(gdb.Breakpoint):
                                         break
                                 except Exception:
                                     pass
+                        # boot270: BAD_FORCE ran before has_port check and
+                        # cleared a post-GMD analytics lookup (handle odd,
+                        # x0!=0) — boot239 SAS needs REAL kept. Prefer port
+                        # keep after post_iomfb over BAD_FORCE.
                         if clean_port:
                             extra += ' ANALYTICS_POST_SURFACE_REAL'
+                        elif has_port and _mm2.get('post_iomfb'):
+                            extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            if (x0 & 0xffffffff) != 0:
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += '+X0CLR'
+                                except Exception as e:
+                                    extra += ' x0clr_err=%r' % e
                         elif (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
-                        elif has_port and _mm2.get('post_iomfb'):
-                            # boot267/239: real analytics after IOMFB → SAS
-                            extra += ' ANALYTICS_REAL_POST_IOMFB'
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
                         elif (x0 & 0xffffffff) == 0 and not has_port:
