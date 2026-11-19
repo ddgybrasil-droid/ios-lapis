@@ -481,20 +481,23 @@ class _RetSite(gdb.Breakpoint):
                                     break
                             except Exception:
                                 pass
-                        # After GMD: keep real RB ports; soft-keep null so SB
-                        # can retry when RB publishes late.
-                        # boot269: sticky null-keep → SURFACE then 1073742628 spin.
-                        # boot270: restore 0x9f on null (boot265 path).
-                        # boot274: early SB_RB null→0x9f while RB late → 0
-                        # SURFACE (boot239/271 kept real port on first lookup).
-                        # boot275: soft-keep null (x0=0) until a real port.
+                        # After GMD: keep real RB ports; soft-keep null only
+                        # until the first real port, then force 0x9f again.
+                        # boot269/275: sticky soft-keep after PORT_KEPT →
+                        # SURFACE then endless msgid 1073742628 → 0 SAS/6001012.
+                        # boot274: early null→0x9f while RB late → 0 SURFACE.
+                        # boot276: soft-keep until sb_rb_seen, then 0x9f (boot271).
                         if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
                                 and "name='com.apple.runningboard'" in t):
-                            nullish = False
                             if saw_port:
+                                nullish = False
+                                _mm2['sb_rb_seen'] = True
                                 extra += ' SB_RB_PORT_KEPT'
-                            else:
+                            elif not _mm2.get('sb_rb_seen'):
+                                nullish = False
                                 extra += ' SB_RB_NULL_SOFT_KEEP'
+                            else:
+                                extra += ' SB_RB_NULL_POST_SEEN_FORCE'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
                         # spun on msgid 1073742628 — never reached SAS/6001012.
                         # Reverted sticky; force 0x9f on true null again.

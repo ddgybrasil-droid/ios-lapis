@@ -1481,5 +1481,9 @@ Image.pth74.
 
 ## Chunk 224 (boot275: SB_RB null soft-keep after GMD)
 
-| boot275 | Image.pth205 | soft-keep null SB↔RB post-GMD (retry); keep analytics REAL/SEED; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: soft-keep → late RB port → SURFACE like boot239/271. | out/logs/boot275 |
+| boot275 | Image.pth205 | soft-keep null SB↔RB post-GMD (retry); keep analytics REAL/SEED; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE ok; sticky soft-keep → **1073742628 spin** (133+) → 0 SAS/6001012 (boot269 mode). | out/logs/boot275 |
+
+## Chunk 225 (boot276: soft-keep SB_RB only until first real port)
+
+| boot276 | Image.pth206 | soft-keep null SB_RB until sb_rb_seen; then 0x9f; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: first PORT_KEPT→SURFACE; later null→0x9f → SAS/6001012 (boot271). | out/logs/boot276 |
 
