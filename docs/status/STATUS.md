@@ -1529,5 +1529,9 @@ Image.pth74.
 
 ## Chunk 236 (boot287: analytics short-circuit + SURFACE gate)
 
-| boot287 | Image.pth217 | ANALYTICS_SHORTCIRCUIT_SEED on BB enter; SURFACE_DEFER_PRE_ANALYTICS until analytics_ok; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip crashy analytics LOOKUP body; gate SURFACE on seeded analytics → SAS. | out/logs/boot287 |
+| boot287 | Image.pth217 | ANALYTICS_SHORTCIRCUIT_SEED on BB enter; SURFACE_DEFER_PRE_ANALYTICS until analytics_ok; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: no BB kill; GMD_OK; **0 stash** (timed/RC null) → no SHORTCIRCUIT; analytics BAD_SKIP; SURFACE_DEFER_PRE_ANALYTICS n=1 → **RB never retried** sel32 — SURFACE stuck. Gate harmful. | out/logs/boot287 |
+
+## Chunk 237 (boot288: restore GMD SURFACE gate; keep shortcircuit)
+
+| boot288 | Image.pth218 | SURFACE gate on bb_gmd_ok only (revert analytics_ok NotReady); keep SHORTCIRCUIT when stash; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: allow SURFACE after GMD even without analytics port; shortcircuit when stash appears. | out/logs/boot288 |
 
