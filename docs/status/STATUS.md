@@ -1457,5 +1457,9 @@ Image.pth74.
 
 ## Chunk 218 (boot269: SB_RB null keep after GMD)
 
-| boot269 | Image.pth199 | after GMD keep SB↔RB null as x0=0 (no 0x9f); FB_SAS force; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SB waits/retries for late RB → early IOGPU/SURFACE like boot265/267; then SAS. | out/logs/boot269 |
+| boot269 | Image.pth199 | after GMD keep SB↔RB null as x0=0 (no 0x9f); FB_SAS force; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: early RB+#SURFACE+`SB_RB_PORT_KEPT`; then **1073742628 spin** (boot247) → **0 SAS/6001012**. Null-keep harmful. | out/logs/boot269 |
+
+## Chunk 219 (boot270: restore SB_RB null force; probe analyticsd)
+
+| boot270 | Image.pth200 | restore SB_RB null→0x9f; log analyticsd spawn vs BB lookup; keep analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot265 SURFACE+SAS+6001012 restored; watch whether analyticsd is up for REAL→SAS publish. | out/logs/boot270 |
 
