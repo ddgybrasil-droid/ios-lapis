@@ -1,0 +1,7 @@
+Image.pth89 = Image.pth88 kernel + GDB without get_property* hooks
+  boot158: pulse restored but BB still BRK after NOTE64; kernel sha matches
+  surviving pth86, so new IOREGPROP plain/bytes/rec breakpoints suspected.
+  Drop those BPs; keep w00t filter + frontboard force + HID pulse.
+
+Build:
+  cp Image.pth88 → Image.pth89 (kernel unchanged)

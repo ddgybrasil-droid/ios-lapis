@@ -1,0 +1,11 @@
+Image.pth79 = Image.pth78 + lapis_iomfb.c:
+  - HID stub IOCFPlugInTypes maps HID type UUIDs → IOHIDFamily.kext/PlugIns/IOHIDLib.plugin
+
+Also (fullroot): seed
+  System/Library/HIDPlugins/ServicePlugins/IOHIDEventServicePlugin.plugin
+  usr/appleinternal/lib/HIDPlugins/ServicePlugins/IOHIDEventServicePlugin.plugin
+  from IPSW apfs-mnt.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth78 /tmp/Image.pth79

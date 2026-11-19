@@ -1,0 +1,10 @@
+Image.pth126 = Image.pth125 (same kernel) + DSC reload out*/obj before str
+  boot195: early GMD WxH ok; BB Open ok but GMD_OUT_NULL (x21 clobbered).
+  - str out* to [sp,#0] after mov x19; str obj to [sp,#0x18] after malloc
+  - before publish: ldr x19,[sp]; ldr x21,[sp,#0x18]; str x21,[x19]
+  - GDB: GMD_STR bp at cave+0x178
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth125 /tmp/Image.pth126

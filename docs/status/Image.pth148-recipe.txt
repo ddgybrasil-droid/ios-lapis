@@ -1,0 +1,6 @@
+Image.pth148 = Image.pth147 (same kernel+DSC)
+  boot217: PEEK_FAIL×3 → BB respawn/w00t; oscard x0=3.
+  boot218: drop PEEK_FAIL; force oscard 0x9f; T=1800.
+
+Build:
+  cp /tmp/Image.pth147 /tmp/Image.pth148

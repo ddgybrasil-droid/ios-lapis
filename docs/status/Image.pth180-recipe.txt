@@ -1,0 +1,9 @@
+Image.pth180 = Image.pth179 + SB real FB systemappservices + CA probe
+  boot249: analytics force restored SURFACE+6001012 BKS→FB; SAS null;
+  quiet after FrontBoard.
+  boot250: stop forcing SB frontboard.systemappservices; dump 6001012
+  reply; sample POST_CA_U frames after 6001012. T=3000.
+
+Build:
+  cp /tmp/Image.pth179 /tmp/Image.pth180
+  # DSC unchanged; GDB only

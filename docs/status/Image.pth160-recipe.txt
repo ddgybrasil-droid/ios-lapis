@@ -1,0 +1,10 @@
+Image.pth160 = Image.pth159 + WRAP CallMethod stack ABI
+  boot229: GMD_BODY_RET+BB_GMD_OK; BB sel8 0xe00002bf (no IOEXT).
+  Cause: WRAP private [sp]/[sp,#8] held outputCnt/scalars; CallMethod
+  reads those slots as outputStruct/outputStructCnt → Unsupported.
+  boot230: stp xzr,xzr,[sp]; scalars@+0x10; cnt@+0x20; save x21+x30; T=1800.
+
+Build:
+  cp /tmp/Image.pth159 /tmp/Image.pth160
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

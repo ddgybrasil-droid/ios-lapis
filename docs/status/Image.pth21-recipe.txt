@@ -1,0 +1,11 @@
+Image.pth21 reproducible recipe
+================================
+Base: Image.pth20 sha256 fbf2658a8752e6e8aeae29e76d3df0e0f60ce8d317e2b06fde2c228a3a401aac
+Blob: xnu/lapis-ramfs with lapis_iomfb.c (IOMobileFramebuffer / IOSurfaceRoot /
+      IOHIDEventService metaclasses) linked into ramfs.bin (12144 bytes,
+      sha256 7706e95abcf81fd8…).
+
+  cd xnu/lapis-ramfs && KSYMS=../../tpro-fix/ksyms.txt ./build.sh
+  python3 tools/patch_kernel_ramfs_replace.py Image.pth20 Image.pth21
+
+Expect Image.pth21 sha256 dadf335bd763001aec31610a8ca11564a7694d2c3f687f76a77da811dd256bc7

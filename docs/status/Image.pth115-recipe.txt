@@ -1,0 +1,9 @@
+Image.pth115 = Image.pth114 kernel + IOSOPEN stub fully reverted
+  boot184: no FAR=0; FDR GMD_RET x0=0; BB open+XPC388 then quiet after analytics force.
+  - DSC: restore .45 IOSOPEN stub ADRP/ADD/BR; NOP wrap cave; keep Open sel5
+  - GDB: analyticsd forced only pre-IOMFB; BB_SURFACE_MATCH log
+
+Build:
+  cp /tmp/Image.pth114 /tmp/Image.pth115
+  python3 tools/patch_dsc_iosopen_sel8.py --image /tmp/fullroot-mnt2.img --write --force
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

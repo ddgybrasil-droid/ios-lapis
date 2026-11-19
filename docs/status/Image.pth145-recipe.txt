@@ -1,0 +1,6 @@
+Image.pth145 = Image.pth144 (same kernel+DSC)
+  boot214: real analyticsd → w00t/SPIN/respawn; 3228=mach_port_peek.
+  boot215: restore analytics force; PEEK_FAIL after GMD on msgid 3228.
+
+Build:
+  cp /tmp/Image.pth144 /tmp/Image.pth145

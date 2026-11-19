@@ -1,0 +1,9 @@
+Image.pth170 = Image.pth169 + post-SURFACE SB/BB mach window
+  boot239: GETSIZE+ANALYTICS_REAL+SURFACE+system-app-server real —
+  first combo. Post-SURFACE throttle hid all SB/BB MACHMSG2.
+  boot240: after rb_sel32 keep backboardd/SpringBoard; reset n once
+  for another 180-msg window; T=2400.
+
+Build:
+  cp /tmp/Image.pth169 /tmp/Image.pth170
+  # DSC unchanged; GDB only

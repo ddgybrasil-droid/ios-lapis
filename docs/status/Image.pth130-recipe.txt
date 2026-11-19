@@ -1,0 +1,9 @@
+Image.pth130 = Image.pth129 (same kernel) + DSC isa restore after *out
+  boot199: BB *out WxH with no cave insn bps; isa=0; 0 SURFACE.
+  - Stash typed_malloc isa in x23; full wipe; Open; str *out; str isa
+  - Still no GDB breakpoints inside the cave
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth129 /tmp/Image.pth130

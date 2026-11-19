@@ -1,0 +1,63 @@
+96:CON LAPIS iomfb: registered Ð~ÓbþÿÿZ metaclass
+97:CON LAPIS iomfb: registered Ð~ÓbþÿÿZ metaclass
+98:CON LAPIS iomfb: registered  Óbþÿÿ oº metaclass
+1667:CON Creating /.b/8//keybags/
+1668:NAMEI_FAIL err=2 path='/.b/8//keybags' proc=['mount']
+1669:NAMEI_FAIL err=2 path='._keybags' proc=['mount']
+1724:CON Creating /private/var/keybags/
+1725:NAMEI_FAIL err=2 path='/private/var/keybags' proc=['mount']
+2478:CON ****** IN UMD_INIT ****
+2482:NAMEI_FAIL err=2 path='/private/var//keybags/usersession.kb' proc=['usermanagerd']
+2483:NAMEI_FAIL err=2 path='/private/var//keybags/usersession.kb.writing' proc=['usermanagerd']
+2485:NAMEI_FAIL err=2 path='/private/var/keybags/nextsession.kb' proc=['usermanagerd']
+2486:NAMEI_FAIL err=2 path='/private/var/keybags/persona.kb' proc=['usermanagerd']
+2487:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2488:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2489:NAMEI_FAIL err=2 path='/private/var/keybags/persona.kb.writing' proc=['usermanagerd']
+2493:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2494:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2495:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2501:CON ****** DONE UMD_INIT ****
+2735:CON [System Event] [60095950354] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2739:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+3070:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_bics_daemon) <Error>: Could not import service from caller: path = /System/Library/LaunchDaemons/com.apple.iomfb_bics_daemon.plist, caller = launchd[1], error = 138: Service cannot be loaded on this hardware
+3073:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system) <Notice>: pending spawn, domain in on-demand-only mode: com.apple.iomfb_fdr_loader
+4654:SPAWN #188 path='/usr/libexec/lsd'
+5215:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5281:SPAWN #210 path='/usr/libexec/lsd'
+5322:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5339:SPAWN #213 path='/usr/libexec/lsd'
+5351:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5369:SPAWN #215 path='/usr/libexec/lsd'
+5378:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5405:SPAWN #217 path='/usr/libexec/lsd'
+5412:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5429:SPAWN #219 path='/usr/libexec/lsd'
+5450:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5466:SPAWN #222 path='/usr/libexec/lsd'
+5480:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5500:SPAWN #224 path='/usr/libexec/lsd'
+5516:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5536:SPAWN #227 path='/usr/libexec/lsd'
+5550:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5568:SPAWN #229 path='/usr/libexec/lsd'
+5589:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5607:SPAWN #231 path='/usr/libexec/lsd'
+5619:SIGABRT_PTHREAD_KILL proc=C pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5636:SPAWN #233 path='/usr/libexec/lsd'
+5650:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5675:SPAWN #235 path='/usr/libexec/lsd'
+5695:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5714:SPAWN #237 path='/usr/libexec/lsd'
+5725:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5740:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system) <Error>: Failed to bootstrap path: path = /System/Library/LaunchDaemons/com.apple.iomfb_bics_daemon.plist, error = 138: Service cannot be loaded on this hardware
+5760:SPAWN #240 path='/usr/libexec/lsd'
+5838:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: internal event: WILL_SPAWN, code = 0
+5839:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: service state: spawn scheduled
+5840:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: service state: spawning
+5843:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: launching: speculative
+5844:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: xpcproxy spawned with pid 93
+5847:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x2514791d0 lr=0x20185b7dc  FRAMES 0x2514791d0 0x20185b7dc 0x1ae2d1c98 0x1a09bd358 0x1a09c33e4 0x1dcb591e4 0x1dcb4f2e0 0x1a08f5c5c 0x1a08f5b00 0x1a09bd8c4 0x1a0a2f2e4 0x19f359c1c
+5861:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: internal event: SPAWNED, code = 0
+5864:SPAWN #245 path='/usr/libexec/lsd'
+5867:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: service state: xpcproxy

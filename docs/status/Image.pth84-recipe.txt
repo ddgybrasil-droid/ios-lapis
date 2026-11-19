@@ -1,0 +1,8 @@
+Image.pth84 = Image.pth83 + digitizer surface dims + device_type
+  boot153: HID identity ok; IOMFB open with 0 post-open IOCONN; BB CPU burn
+  after open (main-display digitizer matching). Seed DigitizerSurfaceWidth/
+  Height=2420x1668 and device_type/compatible on IOMFB + AppleParavirtGPU.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth84

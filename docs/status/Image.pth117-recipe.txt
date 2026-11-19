@@ -1,0 +1,7 @@
+Image.pth117 = Image.pth116 kernel + GDB SB RB force + GMD *out dump
+  boot186: BB GMD_BODY_RET x0=0; SB runningboard null port; 0 SURFACE.
+  - GDB: force runningboard/frontboard/analyticsd 0x9f for SpringBoard
+  - GDB: GMD_BODY_RET logs *out and size@+0x30/+0x34
+
+Build:
+  cp /tmp/Image.pth116 /tmp/Image.pth117

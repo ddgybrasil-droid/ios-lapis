@@ -1,0 +1,6 @@
+Image.pth139 = Image.pth138 (same kernel+DSC)
+  boot208: SURFACE connect then zero further IOEXT (POST_SEL32=0).
+  boot209: force sel32 scalar_out[0]=1 at RET (SEL32_SCALAR1).
+
+Build:
+  cp /tmp/Image.pth138 /tmp/Image.pth139

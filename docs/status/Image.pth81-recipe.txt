@@ -1,0 +1,10 @@
+Image.pth81 = Image.pth80 + HID shared-queue map fix
+  + QueueSize=0x4000 on HID service / UC
+  + lapis_client_memory_for_type type0 → IOSharedDataQueue::getMemoryDescriptor
+    (plain withCapacity hit vm_map_remap_extract kernel_object in boot150)
+  + lapis_register_notification_port → IODataQueue::setNotificationPort
+  + withOptions(kIODirectionOutIn|kIOMemoryKernelUserShared) fallback
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth81

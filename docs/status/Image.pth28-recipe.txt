@@ -1,0 +1,5 @@
+Image.pth28 = Image.pth27 + tools/patch_kernel_cs_invalid_always_allow.py
+  (early cbnz@0x…31ac → fallthrough; deny-block@0x…379c → allow;
+   soft-entry + late sites retained)
+
+Also: lapisfs_replace /usr/lib/dyld from IPSW 23F77 (refreshed copy).

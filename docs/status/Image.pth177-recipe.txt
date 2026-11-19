@@ -1,0 +1,9 @@
+Image.pth177 = Image.pth176 + sticky SB↔RB port
+  boot246: msgid 6001012 frames = BackBoardServices → FrontBoard → SB;
+  SAS null (second SB_RB was FORCED_NULLPORT).
+  boot247: after first post-GMD SB_RB port kept, sticky-skip NULLPORT
+  on later SB↔RB; keep 6001012 uframes; T=3000.
+
+Build:
+  cp /tmp/Image.pth176 /tmp/Image.pth177
+  # DSC unchanged; GDB only

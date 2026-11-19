@@ -844,6 +844,7 @@ static const struct vfsops r_vfsops = {
 
 /* bsd_init's mountroot call lands here: register "tmpfs", then lapisfs register+mountroot. */
 extern void lapis_iomedia_register(void);
+extern void lapis_iomfb_register(void);
 extern void lapis_sandbox_register(void);
 int lapis_ramfs_wrap(void)
 {
@@ -860,6 +861,7 @@ int lapis_ramfs_wrap(void)
 		if (vfs_fsadd(&vfe, &h)) IOLog("LAPIS ramfs: vfs_fsadd FAILED\n");
 		else IOLog("LAPIS ramfs: registered tmpfs\n");
 		lapis_iomedia_register();
+		lapis_iomfb_register();
 		lapis_sandbox_register();
 	}
 	return lapis_mountroot_wrap_target();

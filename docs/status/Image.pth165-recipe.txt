@@ -1,0 +1,9 @@
+Image.pth165 = Image.pth164 + revert OBJ_SUBINIT
+  boot234: no BB GMD (respawn/11602); SUBINIT suspect.
+  boot235: WRAP back to boot230 GETSIZE-only (zero arg9/10, save
+  x21+x30); keep smart SB RB NULLPORT; T=1800.
+
+Build:
+  cp /tmp/Image.pth164 /tmp/Image.pth165
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

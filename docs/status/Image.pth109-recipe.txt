@@ -1,0 +1,7 @@
+Image.pth109 = Image.pth108 kernel + GDB skip all cfprefs NULLPORT
+  boot178: cfprefs.system NULLPORT → BRK; IOMFB open then quiet (0 W00T).
+  - GDB: skip ALL cfprefsd from NULLPORT (restore boot176)
+  - Keep: proc=? forces, IOMFB-match WINDOW, 0x40000388 W00T_FAKE
+
+Build:
+  cp /tmp/Image.pth108 /tmp/Image.pth109

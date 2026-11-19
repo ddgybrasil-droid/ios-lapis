@@ -1,0 +1,8 @@
+Image.pth85 = Image.pth84 + HID queue pulse after NOTE64
+  boot154: DigitizerSurface never queried; BB+cfprefsd CPU burn; 0 IOMFB IOCONN.
+  After setNotificationPort, enqueue 8 zero bytes into LapisHIDQ so the
+  mach notification wakes IODataQueuePeek/Dequeue (empty-queue spin).
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth85

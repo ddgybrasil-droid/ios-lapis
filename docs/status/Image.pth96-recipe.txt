@@ -1,0 +1,8 @@
+Image.pth96 = Image.pth95 + HID re-pulse + post-IOMFB XPC/SPIN logging
+  boot165: CLEARED ok; post-IOMFB SPIN = xpc/pthread wait; 0 IOCONN.
+  - Delayed HID digitizer re-enqueue (4× / 250ms) after NOTE64
+  - GDB: log all BB XPC after post_iomfb; POST_IOMFB_SPIN_U frames
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth96

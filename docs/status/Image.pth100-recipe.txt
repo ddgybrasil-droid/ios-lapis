@@ -1,0 +1,8 @@
+Image.pth100 = Image.pth99 + force locationd deny + wake log fix
+  boot169: POST_IOMFB_SPIN ok; locationd x0=0/null port pre-IOMFB; 0 IOCONN.
+  - GDB: force com.apple.locationd.registration → 0x9f + CLEARED (like frontboard)
+  - Wake: immediates + fixed IOLog strings (no %x)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth100

@@ -1,0 +1,8 @@
+Image.pth82 = Image.pth80 + HID shared-queue (no BSS) + QueueSize
+  boot151 Image.pth81 panicked: static g_hid_shared_queue write into
+  RX-only ramfs .text ("Unexpected fault in kernel static region").
+  Stash IOSharedDataQueue on UC via LapisHIDQ property instead.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth82

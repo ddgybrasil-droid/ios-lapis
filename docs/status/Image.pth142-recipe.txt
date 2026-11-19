@@ -1,0 +1,6 @@
+Image.pth142 = Image.pth141 (same kernel+DSC)
+  boot211: HID_CONFORMS_FORCE→NOTE64; BB_GMD_OK; SURFACE sel32; BB msgid 3228 spin.
+  boot212: IOHIDDevice CONFORMS force; real analyticsd after BB_GMD_OK; BB_MSG3228.
+
+Build:
+  cp /tmp/Image.pth141 /tmp/Image.pth142

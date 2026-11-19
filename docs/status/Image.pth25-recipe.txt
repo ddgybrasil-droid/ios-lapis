@@ -1,0 +1,6 @@
+Image.pth25 = Image.pth24 + tools/patch_kernel_platform_binary.py
+  (OR CS_VALID|CS_SIGNED|CS_PLATFORM_BINARY on proc_getcsflags return)
+
+Why: boot78 SpringBoard SBStaticInitializer asserts platformBinary because
+cs_invalid_page soft-allow clears CS_VALID (final status 0x24000000).
+SecTaskGetCodeSignStatus requires (status & 0xfc000001) == 0x04000001.

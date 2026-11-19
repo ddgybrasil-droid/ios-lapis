@@ -1,0 +1,6 @@
+Image.pth153 = Image.pth152 (same kernel+DSC cave FLAG98)
+  boot222: stable no W00T; 0 SURFACE / 0 IOMFB IOEXT.
+  boot223: post-GMD IOCONN any-proc sample; T=1800.
+
+Build:
+  cp /tmp/Image.pth152 /tmp/Image.pth153

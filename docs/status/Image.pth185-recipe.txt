@@ -1,0 +1,8 @@
+Image.pth185 = Image.pth184 + reopen mach at SURFACE + SB 11602 frames
+  boot254: SURFACE restored; SB never reached SAS/RB/6001012; mach
+  window never reopened (no SB/BB msg after SURFACE).
+  boot255: reopen-at-sel32; sample SB_11602_U after post_iomfb. T=3000.
+
+Build:
+  cp /tmp/Image.pth184 /tmp/Image.pth185
+  # DSC unchanged; GDB only

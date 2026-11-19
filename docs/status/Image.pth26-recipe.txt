@@ -1,0 +1,7 @@
+Image.pth26 = Image.pth25
+  + rebuild xnu/lapis-ramfs (IOGPU + AppleCLCD IOService stubs)
+    via tools/patch_kernel_ramfs_replace.py
+  + tools/patch_kernel_cs_invalid_always_allow.py
+    (soft cs_invalid_page always allow; clears UserEventAgent dyld SIGKILL)
+
+Also: tools/apply_springboard_seeds.sh on fullroot-mnt2.img

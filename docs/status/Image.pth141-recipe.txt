@@ -1,0 +1,6 @@
+Image.pth141 = Image.pth140 (same kernel+DSC)
+  boot210: BB GMD returned zeroed *out; no BB/SB IOSurfaceRoot; HID CONFORMS=0.
+  boot211: GDB BB_GMD_FORCE WxH+isa+flags; HID_CONFORMS_FORCE; T=1400.
+
+Build:
+  cp /tmp/Image.pth140 /tmp/Image.pth141

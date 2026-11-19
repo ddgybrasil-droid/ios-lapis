@@ -1,0 +1,6 @@
+Image.pth75 = Image.pth74 + lapis_iomfb.c HIDServiceSupport property-match resolve
+  (IOPropertyMatch → IOHIDEventService stub in CMS/GMS/CES) via patch_kernel_ramfs_replace.py
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth74 /tmp/Image.pth75

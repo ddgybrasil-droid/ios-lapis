@@ -1,0 +1,9 @@
+Image.pth178 = Image.pth177 + real BB frontboard.systemappservices
+  boot247: sticky SB_RB null → spin; no SAS/6001012.
+  boot248: revert sticky; stop forcing BB frontboard.systemappservices
+  pre-MATCH (never retried); allow real port / force only null.
+  T=3000.
+
+Build:
+  cp /tmp/Image.pth177 /tmp/Image.pth178
+  # DSC unchanged; GDB only

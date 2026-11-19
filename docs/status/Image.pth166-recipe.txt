@@ -1,0 +1,8 @@
+Image.pth166 = Image.pth165 + real analyticsd post-GMD
+  boot235: GETSIZE+SURFACE; XPC388_FAKE → analytics FORCED → BB quiet;
+  system-app-server null.
+  boot236: stop forcing analyticsd once post_iomfb; T=1800.
+
+Build:
+  cp /tmp/Image.pth165 /tmp/Image.pth166
+  # DSC unchanged; GDB: emu_gdb_extra_boot.py

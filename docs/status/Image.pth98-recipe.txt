@@ -1,0 +1,10 @@
+Image.pth98 = Image.pth97 + real frontboard + missing HID/IOMFB props
+  boot167: deferred wake/repulse ok; SPIN_HDR = MACH_SEND_NOTIFY send=2 → 0x7c03;
+           still 0 IOMFB IOCONN. Forced frontboard may skip SB/CA.
+  - GDB: force ACCHW+RB only (frontboard real)
+  - Seed IOClassNameOverride/Hidden/ProtectedAccess/SensorPropertySupported
+  - IOMFB IOClassNameOverride=IOMobileFramebuffer
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth98

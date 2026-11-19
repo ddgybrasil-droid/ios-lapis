@@ -1,0 +1,9 @@
+Image.pth129 = Image.pth128 (same kernel) + DSC boot190 cave + no cave insn bps
+  boot198: after-str still *out=0; gdb cannot write caller out*.
+  - Exact boot190 408-byte cave (no stack reload)
+  - Remove GMD_STR / GMD_AFTER_STR breakpoints
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth128 /tmp/Image.pth129

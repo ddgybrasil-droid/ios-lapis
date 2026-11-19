@@ -1,0 +1,8 @@
+Image.pth161 = Image.pth160 + XPC388_ERR
+  boot230: BB sel=8 IOMFB_GETSIZE x0=0; then XPC388_FAKE(x0=0) → W00T.
+  boot231: short-circuit 0x40000388 with x0=0x10004004 (boot176 real); T=1800.
+
+Build:
+  cp /tmp/Image.pth160 /tmp/Image.pth161
+  # DSC unchanged (WRAP ABI already in fullroot-mnt2.img)
+  # GDB: tools/emu_gdb_extra_boot.py XPC388_ERR

@@ -1,0 +1,8 @@
+Image.pth193 = Image.pth192 + HID prop dump + BB EXC frames
+  boot262: CA_MIG named asl/syslog/iohideventsystem.available; HID path
+           open+cmap+NOTE64 then BB BRK abort (far~0x20a264010) → SB exit.
+  boot263: dump HIDEventServiceProperties MIG regs/size; BB EXC uframes.
+  T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth192 /tmp/Image.pth193

@@ -1,0 +1,8 @@
+Image.pth121 = Image.pth120 kernel + DSC GMD cave isa preserve
+  boot190: GMD *out 2420×1668 restored; obj40 isa=0; 0 SURFACE.
+  - DSC cave: zero loop starts at obj+0x10 (keep typed-malloc isa/refcount)
+  - GDB: dump isa + flags @0x838/@0xc08 on GMD_BODY_RET
+
+Build:
+  cp /tmp/Image.pth120 /tmp/Image.pth121
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write

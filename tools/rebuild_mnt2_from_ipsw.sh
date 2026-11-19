@@ -273,6 +273,16 @@ bash "$ROOT/tools/apply_icu_data.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_appprotection_framework.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_cf_foundation_frameworks.sh" "$OUT" "$META"
 bash "$ROOT/tools/apply_coreservices_frameworks.sh" "$OUT" "$META"
+bash "$ROOT/tools/apply_usermanagement.sh" "$OUT" "$META"
+
+# libramrod (lockdownd) — sibling restore DMG, not system APFS root
+RAMROD="${RAMROD:-$ROOT/bringup/libramrod.dylib}"
+if [ -f "$RAMROD" ]; then
+  echo "== add libramrod.dylib =="
+  python3 "$ROOT/tools/lapisfs_add.py" "$OUT" \
+    /usr/lib/libramrod.dylib="$RAMROD" \
+    /System/Cryptexes/OS/usr/lib/libramrod.dylib="$RAMROD"
+fi
 
 # log dirs for launchd + ramdisk mountpoints (mount -P 2 looks for /.b/8/
 # then /private/system_data before template=/private/var/)
@@ -317,6 +327,8 @@ echo "== DSC bring-up patches (host mnt2 parity) =="
 #   DISPATCH_CLIENT_CRASH and --nop-brk1 turns that into FAR=0x4000001e SEGV.
 python3 "$ROOT/tools/patch_fullroot_container_init.py" "$OUT"
 python3 "$ROOT/tools/patch_fullroot_pac_strip.py" --nop-brk1 "$OUT"
+# Keep ADT ephemeral-storage for keybagd; force usermanagerd UMD_INIT past it.
+python3 "$ROOT/tools/patch_fullroot_usermanagerd_ephemeral.py" "$OUT"
 python3 - "$ROOT" "$PRISTINE" "$OUT" <<'PY'
 import os, sys, tempfile
 root, pristine, out = sys.argv[1:4]

@@ -1,0 +1,11 @@
+Image.pth92 = Image.pth91 fix — 4-byte CLEARED + boot160 digitizer pulse
+  boot161: HID entitlement/Unregistered x0=0, then BB EXC after 8-byte CLEARED
+  on frontboard force (FAR=0x1536050); never reached IOMFB.
+  - Keep HIDServiceAccessEntitlement + Unregistered=0
+  - Keep IOMFB messageClients(property change) after NUC
+  - Revert digitizer pulse to boot160 (len=64, type=11)
+  - GDB: CLEARED writes 4 bytes again (boot139)
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth92

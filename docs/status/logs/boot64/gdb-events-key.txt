@@ -1,0 +1,74 @@
+96:CON LAPIS iomfb: registered Ð~(ÓþÿÿZ metaclass
+97:CON LAPIS iomfb: registered Ð~(ÓþÿÿZ metaclass
+98:CON LAPIS iomfb: registered  (Óþÿÿ oº metaclass
+2452:CON ****** IN UMD_INIT ****
+2456:NAMEI_FAIL err=2 path='/private/var//keybags/usersession.kb' proc=['usermanagerd']
+2457:NAMEI_FAIL err=2 path='/private/var//keybags/usersession.kb.writing' proc=['usermanagerd']
+2458:NAMEI_FAIL err=2 path='/private/var/keybags/nextsession.kb' proc=['usermanagerd']
+2459:NAMEI_FAIL err=2 path='/private/var/keybags/persona.kb' proc=['usermanagerd']
+2460:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2461:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2462:NAMEI_FAIL err=2 path='/private/var/keybags/persona.kb.writing' proc=['usermanagerd']
+2465:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2466:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2467:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2472:CON ****** DONE UMD_INIT ****
+2701:CON [System Event] [59463590542] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2706:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+3036:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_bics_daemon) <Error>: Could not import service from caller: path = /System/Library/LaunchDaemons/com.apple.iomfb_bics_daemon.plist, caller = launchd[1], error = 138: Service cannot be loaded on this hardware
+3037:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system) <Notice>: pending spawn, domain in on-demand-only mode: com.apple.iomfb_fdr_loader
+4439:SPAWN #165 path='/usr/libexec/lsd'
+4760:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+4803:SPAWN #180 path='/usr/libexec/lsd'
+5025:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5052:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5067:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5089:SPAWN #193 path='/usr/libexec/lsd'
+5111:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5127:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5145:SPAWN #197 path='/usr/libexec/lsd'
+5152:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5169:SPAWN #199 path='/usr/libexec/lsd'
+5203:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5221:SPAWN #201 path='/usr/libexec/lsd'
+5227:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5245:SPAWN #203 path='/usr/libexec/lsd'
+5256:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5274:SPAWN #206 path='/usr/libexec/lsd'
+5283:SIGABRT_PTHREAD_KILL proc=C pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5301:SPAWN #208 path='/usr/libexec/lsd'
+5320:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5340:SPAWN #214 path='/usr/libexec/lsd'
+5342:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5373:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5392:SPAWN #216 path='/usr/libexec/lsd'
+5400:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5419:SPAWN #219 path='/usr/libexec/lsd'
+5429:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5455:SPAWN #222 path='/usr/libexec/lsd'
+5465:SIGABRT_PTHREAD_KILL proc=C pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5512:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5525:SPAWN #227 path='/usr/libexec/lsd'
+5533:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5618:SPAWN #232 path='/usr/libexec/lsd'
+5634:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5666:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5717:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5752:SPAWN #242 path='/usr/libexec/lsd'
+5763:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+5817:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+5987:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+6142:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+6171:SPAWN #266 path='/usr/libexec/lsd'
+6179:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23857d1d0 lr=0x1e895f7dc  FRAMES 0x23857d1d0 0x1e895f7dc 0x1953d5c98 0x187ac1358 0x187ac73e4 0x1c3c5d1e4 0x1c3c532e0 0x1879f9c5c 0x1879f9b00 0x187ac18c4 0x187b332e4 0x18645dc1c
+6230:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system) <Error>: Failed to bootstrap path: path = /System/Library/LaunchDaemons/com.apple.iomfb_bics_daemon.plist, error = 138: Service cannot be loaded on this hardware
+6240:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+6261:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: internal event: WILL_SPAWN, code = 0
+6262:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: service state: spawn scheduled
+6263:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: service state: spawning
+6264:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader) <Notice>: launching: speculative
+6268:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: xpcproxy spawned with pid 93
+6270:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: internal event: SPAWNED, code = 0
+6271:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (system/com.apple.iomfb_fdr_loader [93]) <Notice>: service state: xpcproxy
+6375:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'
+6566:ABORT_WITH_PAYLOAD reason_string='Daemon failed to load persona manifest.'

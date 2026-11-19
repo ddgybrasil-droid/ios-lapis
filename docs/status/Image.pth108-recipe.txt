@@ -1,0 +1,6 @@
+Image.pth108 = Image.pth107 kernel + GDB force names for proc=?
+  boot177: BB early XPC logged proc=? — force gate missed → real RB hang.
+  - GDB: force-name list + NULLPORT apply when proc=backboardd OR proc=?
+
+Build:
+  cp /tmp/Image.pth107 /tmp/Image.pth108

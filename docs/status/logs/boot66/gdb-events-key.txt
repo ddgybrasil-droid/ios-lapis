@@ -1,0 +1,200 @@
+95:CON LAPIS iomfb: registered built-in ÐþÃ?bþÿÿZ metaclass
+96:CON LAPIS iomfb: registered built-in ÐþÃ?bþÿÿZ metaclass
+97:CON LAPIS iomfb: registered built-in  ÿÃ?bþÿÿ oº metaclass
+319:DSC_SLIDE start=0x18bf40000 slide=0xbf40000
+358:PERSONA op=6 proc=['launchd', 'launchd']
+1196:CON Copying /private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist -> /.b/8//mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist
+1197:NAMEI_FAIL err=2 path='/.b/8//mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist' proc=C
+1200:NAMEI_FAIL err=2 path='._com.apple.LaunchServices.plist' proc=C
+1399:CON Creating /.b/8//mobile/Containers/
+1400:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers' proc=C
+1401:NAMEI_FAIL err=2 path='._Containers' proc=C
+1404:CON Creating /.b/8//mobile/Containers/Temp/
+1405:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Temp' proc=C
+1413:CON Creating /.b/8//mobile/Containers/Data/
+1414:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Data' proc=C
+1418:CON Creating /.b/8//mobile/Containers/Data/Application/
+1419:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Data/Application' proc=C
+1427:CON Creating /.b/8//mobile/Containers/Data/TempDir/
+1428:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Data/TempDir' proc=C
+1436:CON Creating /.b/8//mobile/Containers/Data/XPCService/
+1437:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Data/XPCService' proc=C
+1449:CON Creating /.b/8//mobile/Containers/Bundle/
+1450:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Bundle' proc=C
+1454:CON Creating /.b/8//mobile/Containers/Bundle/Application/
+1455:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Bundle/Application' proc=C
+1466:CON Creating /.b/8//mobile/Containers/Shared/
+1467:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Shared' proc=C
+1471:CON Creating /.b/8//mobile/Containers/Shared/AppGroup/
+1472:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Shared/AppGroup' proc=C
+1484:CON Creating /.b/8//mobile/Containers/Staging/
+1485:NAMEI_FAIL err=2 path='/.b/8//mobile/Containers/Staging' proc=C
+2009:CON Creating /private/var/mobile/Containers/
+2010:NAMEI_FAIL err=2 path='/private/var/mobile/Containers' proc=C
+2013:CON Creating /private/var/mobile/Containers/Staging/
+2014:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging' proc=C
+2017:CON Creating /private/var/mobile/Containers/Shared/
+2018:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Shared' proc=C
+2021:CON Creating /private/var/mobile/Containers/Shared/AppGroup/
+2022:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Shared/AppGroup' proc=C
+2025:CON Creating /private/var/mobile/Containers/Bundle/
+2026:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Bundle' proc=C
+2029:CON Creating /private/var/mobile/Containers/Bundle/Application/
+2030:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Bundle/Application' proc=C
+2033:CON Creating /private/var/mobile/Containers/Data/
+2034:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data' proc=C
+2037:CON Creating /private/var/mobile/Containers/Data/XPCService/
+2038:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/XPCService' proc=C
+2041:CON Creating /private/var/mobile/Containers/Data/TempDir/
+2042:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/TempDir' proc=C
+2045:CON Creating /private/var/mobile/Containers/Data/Application/
+2046:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/Application' proc=C
+2049:CON Creating /private/var/mobile/Containers/Temp/
+2050:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Temp' proc=C
+2150:CON Copying /.b/8/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist -> /private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist
+2151:NAMEI_FAIL err=2 path='/private/var/mobile/Library/Preferences/com.apple.MobileCoreServices/com.apple.LaunchServices.plist' proc=C
+2613:PERSONA op=6 proc=['MobileAssetEarly', 'MobileAssetEarlyBootTask']
+2655:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist' proc=['MobileAssetEarly']
+2682:CON ****** IN UMD_INIT ****
+2691:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2692:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2695:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2696:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2697:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2698:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2699:PERSONA op=1 proc=['usermanagerd', 'usermanagerd']
+2701:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2702:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2703:PERSONA op=5 proc=['usermanagerd', 'usermanagerd']
+2705:CON ****** DONE UMD_INIT ****
+2775:PERSONA op=6 proc=['init_featureflag', 'init_featureflags']
+2940:CON [System Event] [65549975489] [INFO] [Subsystem: launchd] [Event: boot] Early boot complete. Continuing system boot.
+2941:PERSONA op=6 proc=['launchd', 'launchd']
+2945:CON com.apple.xpc.launchd|1969-12-31 16:00:00.000000 (boot) <Notice>: Early boot complete. Continuing system boot.
+2981:PERSONA op=9 proc=['launchd', 'launchd']
+2982:PERSONA op=5 proc=['launchd', 'launchd']
+3096:NAMEI_FAIL err=2 path='/System/Library/FeatureFlags/Unified/Domain/LaunchServices.plist' proc=['launchd']
+3097:NAMEI_FAIL err=2 path='/Library/Preferences/FeatureFlags/Domain/LaunchServices.plist' proc=['launchd']
+3245:PERSONA op=9 proc=['launchd', 'launchd']
+3246:PERSONA op=5 proc=['launchd', 'launchd']
+3247:PERSONA op=9 proc=['launchd', 'launchd']
+3248:PERSONA op=5 proc=['launchd', 'launchd']
+3250:PERSONA op=9 proc=['launchd', 'launchd']
+3251:PERSONA op=5 proc=['launchd', 'launchd']
+3253:SPAWN #29 path='/System/Library/CoreServices/SpringBoard.app/SpringBoard'
+3269:PERSONA op=9 proc=['launchd', 'launchd']
+3270:PERSONA op=5 proc=['launchd', 'launchd']
+3284:PERSONA op=9 proc=['launchd', 'launchd']
+3285:PERSONA op=5 proc=['launchd', 'launchd']
+3303:PERSONA op=9 proc=['launchd', 'launchd']
+3304:PERSONA op=5 proc=['launchd', 'launchd']
+3312:PERSONA op=9 proc=['launchd', 'launchd']
+3313:PERSONA op=5 proc=['launchd', 'launchd']
+3325:PERSONA op=9 proc=['launchd', 'launchd']
+3326:PERSONA op=5 proc=['launchd', 'launchd']
+3340:PERSONA op=9 proc=['launchd', 'launchd']
+3341:PERSONA op=5 proc=['launchd', 'launchd']
+3351:PERSONA op=9 proc=['launchd', 'launchd']
+3352:PERSONA op=5 proc=['launchd', 'launchd']
+3357:PERSONA op=9 proc=['launchd', 'launchd']
+3358:PERSONA op=5 proc=['launchd', 'launchd']
+3372:PERSONA op=9 proc=['launchd', 'launchd']
+3373:PERSONA op=5 proc=['launchd', 'launchd']
+3379:PERSONA op=9 proc=['launchd', 'launchd']
+3380:PERSONA op=5 proc=['launchd', 'launchd']
+3395:PERSONA op=9 proc=['launchd', 'launchd']
+3396:PERSONA op=5 proc=['launchd', 'launchd']
+3411:PERSONA op=9 proc=['launchd', 'launchd']
+3412:PERSONA op=5 proc=['launchd', 'launchd']
+3423:PERSONA op=9 proc=['launchd', 'launchd']
+3424:PERSONA op=5 proc=['launchd', 'launchd']
+3430:PERSONA op=9 proc=['launchd', 'launchd']
+3431:PERSONA op=5 proc=['launchd', 'launchd']
+3445:PERSONA op=9 proc=['launchd', 'launchd']
+3446:PERSONA op=5 proc=['launchd', 'launchd']
+3455:PERSONA op=9 proc=['launchd', 'launchd']
+3456:PERSONA op=5 proc=['launchd', 'launchd']
+3466:PERSONA op=9 proc=['launchd', 'launchd']
+3467:PERSONA op=5 proc=['launchd', 'launchd']
+3478:PERSONA op=9 proc=['launchd', 'launchd']
+3479:PERSONA op=5 proc=['launchd', 'launchd']
+3495:PERSONA op=9 proc=['launchd', 'launchd']
+3496:PERSONA op=5 proc=['launchd', 'launchd']
+3723:SPAWN #106 path='/usr/libexec/backboardd'
+3747:SPAWN #121 path='/usr/bin/IOMFB_FDR_Loader'
+3778:CON Allowing spawn of iOS binary IOMFB_FDR_Loader since it has com.apple.private.security.no-sandbox entitlement or unentitled_ios_sim_launch boot-arg set to true
+3813:NAMEI_FAIL err=2 path='/usr/bin/Info.plist' proc=['IOMFB_FDR_Loader']
+3831:CSOPS proc=['IOMFB_FDR_Loader'] pid=93 ops=0 usize=4
+3863:CSOPS proc=['IOMFB_FDR_Loader'] pid=93 ops=16 usize=1032
+3864:CSOPS proc=['IOMFB_FDR_Loader'] pid=93 ops=16 usize=1032
+4519:NAMEI_FAIL err=2 path='/private/var/root/Library/MobileContainerManager/containers.sqlite3' proc=['containermanager']
+4566:NAMEI_FAIL err=2 path='/System/Library/Frameworks/CoreMedia.framework/CoreMedia' proc=['IOMFB_FDR_Loader']
+4614:SPAWN #156 path='/usr/libexec/lsd'
+4630:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework/MediaToolbox' proc=['IOMFB_FDR_Loader']
+4631:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework/Lenovo Yoga Pad Pro 12.7' proc=['IOMFB_FDR_Loader']
+4637:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist.rebuild' proc=['MobileGestaltHel']
+4671:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/InternalDaemon' proc=['containermanager']
+4681:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/PluginKitPlugin' proc=['containermanager']
+4691:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF' proc=['containermanager']
+4701:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/Library' proc=['containermanager']
+4703:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/Library/Preferences' proc=['containermanager']
+4704:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/Library/Caches' proc=['containermanager']
+4705:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/Documents' proc=['containermanager']
+4707:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/SystemData' proc=['containermanager']
+4709:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/61605252-F51D-48D8-8AC9-930B89B5A3BF/tmp' proc=['containermanager']
+4717:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB' proc=['containermanager']
+4730:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/Library' proc=['containermanager']
+4732:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//en.lproj/Default' proc=['IOMFB_FDR_Loader']
+4733:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//Base.lproj/Default' proc=['IOMFB_FDR_Loader']
+4734:NAMEI_FAIL err=2 path='/System/Library/Frameworks/MediaToolbox.framework//English.lproj/Default' proc=['IOMFB_FDR_Loader']
+4735:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/Library/Preferences' proc=['containermanager']
+4736:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/Library/Caches' proc=['containermanager']
+4737:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/Documents' proc=['containermanager']
+4738:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/SystemData' proc=['containermanager']
+4739:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/A613F617-1ACA-4463-A8AC-6B041E6BF9FB/tmp' proc=['containermanager']
+4748:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8' proc=['containermanager']
+4753:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/Library' proc=['containermanager']
+4754:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/Library/Preferences' proc=['containermanager']
+4755:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/Library/Caches' proc=['containermanager']
+4757:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/Documents' proc=['containermanager']
+4760:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/SystemData' proc=['containermanager']
+4764:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/AB399318-8149-4F02-B2C2-E5C4480CABB8/tmp' proc=['containermanager']
+4770:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1' proc=['containermanager']
+4776:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/Library' proc=['containermanager']
+4777:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/Library/Preferences' proc=['containermanager']
+4778:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/Library/Caches' proc=['containermanager']
+4779:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/Documents' proc=['containermanager']
+4780:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/SystemData' proc=['containermanager']
+4795:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/482D5009-9247-4F0F-81C4-4EA9F033E4B1/tmp' proc=['containermanager']
+4822:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4' proc=['containermanager']
+4838:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/Library' proc=['containermanager']
+4839:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/Library/Preferences' proc=['containermanager']
+4840:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/Library/Caches' proc=['containermanager']
+4841:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/Documents' proc=['containermanager']
+4842:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/SystemData' proc=['containermanager']
+4843:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/4CAB7FE9-56FF-4125-B50E-A4D7EB7DFDF4/tmp' proc=['containermanager']
+4857:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170' proc=['containermanager']
+4859:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/Library' proc=['containermanager']
+4860:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/Library/Preferences' proc=['containermanager']
+4861:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/Library/Caches' proc=['containermanager']
+4862:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/Documents' proc=['containermanager']
+4863:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/SystemData' proc=['containermanager']
+4864:NAMEI_FAIL err=2 path='._containers' proc=C
+4865:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Staging/0EDADE68-158D-420E-9845-5EB9E56A1170/tmp' proc=['containermanager']
+4866:NAMEI_FAIL err=2 path='/private/var/containers/Data/System' proc=C
+4867:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup' proc=C
+4881:NAMEI_FAIL err=2 path='/private/var/mobile/Containers/Data/VPNPlugin' proc=['containermanager']
+4882:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/Application' proc=C
+4886:NAMEI_FAIL err=2 path='/private/var/root/Library/Backup/SystemContainers' proc=C
+4895:NAMEI_FAIL err=2 path='/private/var/containers/Temp' proc=C
+4907:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/PluginKitPlugin' proc=C
+4908:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/VPNPlugin' proc=C
+4909:NAMEI_FAIL err=2 path='/private/var/containers/Bundle/Framework' proc=C
+4917:SIGABRT_PTHREAD_KILL proc=['roxy'] pc=0x23e1811d0 lr=0x1ee5637dc  FRAMES 0x23e1811d0 0x1ee5637dc 0x19afd9c98 0x18c10afd4 0x18c10cb90 0x18c00b868 0x18c1171f8 0x18c118e18 0x18c105360 0x18c00938c 0x18d6c4e8c 0x18d6cb3e4 0x1c98611e4 0x1c98572e0
+4942:NAMEI_FAIL err=2 path='/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.configurationprofiles/Library/ConfigurationProfiles/PublicInfo/MCMeta.plist' proc=['AppleCredentialM']
+4966:NAMEI_FAIL err=2 path='/System/Cryptexes/App/System/Library/Preferences/Logging/Subsystems/com.apple.coremedia.plist' proc=['IOMFB_FDR_Loader']
+4967:NAMEI_FAIL err=2 path='/System/Cryptexes/OS/System/Library/Preferences/Logging/Subsystems/com.apple.coremedia.plist' proc=['IOMFB_FDR_Loader']
+4968:NAMEI_FAIL err=2 path='/System/Library/Preferences/Logging/Subsystems/com.apple.coremedia.plist' proc=['IOMFB_FDR_Loader']
+4969:NAMEI_FAIL err=2 path='/Library/Preferences/Logging/Subsystems/com.apple.coremedia.plist' proc=['IOMFB_FDR_Loader']
+5184:SPAWN #181 path='/usr/libexec/lsd'
+5231:IOKMATCH notify proc=['IOMFB_FDR_Loader'] ['IOProviderClass', 'IOMobileFramebuffer']

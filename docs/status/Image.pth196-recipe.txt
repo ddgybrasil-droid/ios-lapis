@@ -1,0 +1,9 @@
+Image.pth196 = Image.pth195 + BB frontboard.systemappservices keep
+  boot265: HID props confirmed (PrimaryUsagePage in userspace buf);
+           SURFACE+6001012; SAS still null; SB CFRunLoop on asl/syslog.
+  boot266: after post_iomfb do not 0x9f BB's frontboard.systemappservices
+           (null keep x0=0) so BB can publish system-app-server.
+  T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth195 /tmp/Image.pth196

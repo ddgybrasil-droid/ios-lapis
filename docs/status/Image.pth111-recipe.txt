@@ -1,0 +1,12 @@
+Image.pth111 = Image.pth110 kernel + fixed DSC IOSOPEN→sel8 wrap
+  boot180: IOMFB open then quiet (0 XPC388); 0 sel8.
+  - DSC: patch_dsc_iosopen_sel8.py --force --write
+      wrap ABI: inputCnt=0, outputCnt=2 (fix boot173 FAR=0)
+      Open-wrap movz w1,#5 → #8
+  - dsc_cd_rehash.py on .44+.45
+  - GDB: always-force analyticsd again; XPC388_FAKE only (no w00t fake)
+
+Build:
+  cp /tmp/Image.pth110 /tmp/Image.pth111
+  python3 tools/patch_dsc_iosopen_sel8.py --image /tmp/fullroot-mnt2.img --write --force
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write
