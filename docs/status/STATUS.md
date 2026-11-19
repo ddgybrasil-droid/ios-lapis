@@ -1497,5 +1497,9 @@ Image.pth74.
 
 ## Chunk 228 (boot279: retry SEED_BADPATH after vnode_put panic)
 
-| boot279 | Image.pth209 | same SEED_BADPATH as boot278; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean boot → SEED_BADPATH → SAS_PORT_REAL. | out/logs/boot279 |
+| boot279 | Image.pth209 | same SEED_BADPATH as boot278; T=3000 | qemu11 43G lva=off | **PANIC**: same `vnode_put iocount < 1` pre-GMD (SB early mach / RB spawn). Flaky (also boot200/278). | out/logs/boot279 |
+
+## Chunk 229 (boot280: retry SEED_BADPATH again)
+
+| boot280 | Image.pth210 | same SEED_BADPATH; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: flake clears → SEED_BADPATH → SAS_PORT_REAL. | out/logs/boot280 |
 
