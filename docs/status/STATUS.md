@@ -1493,5 +1493,9 @@ Image.pth74.
 
 ## Chunk 227 (boot278: seed analytics on BAD_FORCE path)
 
-| boot278 | Image.pth208 | ANALYTICS_PORT_SEED_BADPATH before BAD_FORCE; SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: seed on x0!=0 path → analytics REAL → SAS_PORT_REAL. | out/logs/boot278 |
+| boot278 | Image.pth208 | ANALYTICS_PORT_SEED_BADPATH before BAD_FORCE; SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **PANIC**: `vnode_put iocount < 1` pre-GMD (~5m); no analytics/SURFACE. Flaky. | out/logs/boot278 |
+
+## Chunk 228 (boot279: retry SEED_BADPATH after vnode_put panic)
+
+| boot279 | Image.pth209 | same SEED_BADPATH as boot278; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean boot → SEED_BADPATH → SAS_PORT_REAL. | out/logs/boot279 |
 
