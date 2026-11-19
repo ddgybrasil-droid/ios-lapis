@@ -1525,5 +1525,9 @@ Image.pth74.
 
 ## Chunk 235 (boot286: defer SURFACE until BB_GMD)
 
-| boot286 | Image.pth216 | SURFACE_DEFER_PRE_BB_GMD (sel32→NotReady until bb_gmd_ok); keep REAL_KEEP_PRE+tagged seed; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot239 order GMD→analytics→SURFACE→SAS even after BB kill/respawn. | out/logs/boot286 |
+| boot286 | Image.pth216 | SURFACE_DEFER_PRE_BB_GMD (sel32→NotReady until bb_gmd_ok); keep REAL_KEEP_PRE+tagged seed; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB SIGKILL×1; respawn GMD_OK; **no SURFACE_DEFER** (post_iomfb already set); analytics LOOKUP then **EXC/exit (no RET)**; SURFACE+SAS_OBSERVE null; 3rd BB spawn after SAS — **0 SAS_PORT_REAL**. | out/logs/boot286 |
+
+## Chunk 236 (boot287: analytics short-circuit + SURFACE gate)
+
+| boot287 | Image.pth217 | ANALYTICS_SHORTCIRCUIT_SEED on BB enter; SURFACE_DEFER_PRE_ANALYTICS until analytics_ok; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: skip crashy analytics LOOKUP body; gate SURFACE on seeded analytics → SAS. | out/logs/boot287 |
 

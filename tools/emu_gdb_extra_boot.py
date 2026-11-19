@@ -47,32 +47,31 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
-            # boot286: boot285 BB SIGKILL pre-GMD → RB SURFACE+SB SAS before
-            # respawned BB GMD/analytics → SAS null (boot239 needs
-            # GMD→analytics→SURFACE→SAS). Defer sel32 until bb_gmd_ok so
-            # RB retries after BB publishes system-app-server.
+            # boot286: defer SURFACE until BB GMD. boot287: boot286 still
+            # raced SAS — BB crashed mid-analytics LOOKUP (no RET/SEED) while
+            # post_iomfb already allowed SURFACE. Gate on analytics_ok.
             if (t.startswith('IOEXTMETHOD_RET') and 'SURFACE_CONNECT' in t
-                    and 'PRE_BB_GMD' in t):
+                    and 'PRE_ANALYTICS' in t):
                 _mm2['surf_defer_n'] = _mm2.get('surf_defer_n', 0) + 1
-                if (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')
-                        or _mm2.get('surf_defer_n', 0) > 12):
+                if (_mm2.get('analytics_ok')
+                        or _mm2.get('surf_defer_n', 0) > 16):
                     _mm2['rb_sel32'] = 1
                     if not _mm2.get('post_surf_mach'):
                         _mm2['post_surf_mach'] = 1
                         _mm2['n'] = 0
                         P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                    if _mm2.get('surf_defer_n', 0) > 12 and not (
-                            _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                    if (_mm2.get('surf_defer_n', 0) > 16
+                            and not _mm2.get('analytics_ok')):
                         extra += ' SURFACE_DEFER_EXHAUSTED n=%d' % (
                             _mm2['surf_defer_n'],)
                     else:
-                        extra += ' SURFACE_AFTER_BB_GMD'
+                        extra += ' SURFACE_AFTER_ANALYTICS'
                 else:
                     try:
                         # kIOReturnNotReady — RB/IOKit clients typically retry.
                         gdb.execute('set $x0 = 0xe00002d7', to_string=True)
                         x0 = 0xe00002d7
-                        extra += ' SURFACE_DEFER_PRE_BB_GMD n=%d' % (
+                        extra += ' SURFACE_DEFER_PRE_ANALYTICS n=%d' % (
                             _mm2['surf_defer_n'],)
                     except Exception as ed:
                         extra += ' surf_defer_err=%r' % ed
@@ -570,6 +569,7 @@ class _RetSite(gdb.Breakpoint):
                                         pass
                             if _keep:
                                 nullish = False
+                                _mm2['analytics_ok'] = 1
                                 if _mm2.get('rb_sel32'):
                                     extra += ' ANALYTICS_POST_SURFACE_KEEP'
                                 else:
@@ -594,6 +594,7 @@ class _RetSite(gdb.Breakpoint):
                                     gdb.execute('set $x0 = 0', to_string=True)
                                     x0 = 0
                                     nullish = False
+                                    _mm2['analytics_ok'] = 1
                                     if _mm2.get('post_iomfb'):
                                         extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
                                     else:
@@ -693,8 +694,10 @@ class _RetSite(gdb.Breakpoint):
                         # x0!=0) — boot239 SAS needs REAL kept. Prefer port
                         # keep after post_iomfb over BAD_FORCE.
                         if clean_port:
+                            _mm2['analytics_ok'] = 1
                             extra += ' ANALYTICS_POST_SURFACE_REAL'
                         elif has_port and _mm2.get('post_iomfb'):
+                            _mm2['analytics_ok'] = 1
                             extra += ' ANALYTICS_REAL_POST_IOMFB'
                             if (x0 & 0xffffffff) != 0:
                                 try:
@@ -720,6 +723,7 @@ class _RetSite(gdb.Breakpoint):
                                     to_string=True)
                                 gdb.execute('set $x0 = 0', to_string=True)
                                 x0 = 0
+                                _mm2['analytics_ok'] = 1
                                 extra += ' ANALYTICS_PORT_SEED_BADPATH port=%#x' % ap
                             except Exception as e:
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
@@ -737,6 +741,7 @@ class _RetSite(gdb.Breakpoint):
                             # boot284: ALWAYS_SKIP then REAL_FORCE cleared a
                             # pre-GMD real port (stash later unused) → SAS null.
                             # boot285: keep real ports pre-SURFACE (boot239).
+                            _mm2['analytics_ok'] = 1
                             extra += ' ANALYTICS_REAL_KEEP_PRE'
                             if (x0 & 0xffffffff) != 0:
                                 try:
@@ -1271,6 +1276,37 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
+                # boot287: boot286 BB crashed mid-analytics LOOKUP (EXC
+                # BAD_ACCESS, no RET) after GMD — never SEED/REAL → SAS null.
+                # Short-circuit: seed stashed tagged port + return via LR.
+                if (pn == 'backboardd'
+                        and name == 'com.apple.analyticsd'
+                        and _mm2.get('analytics_port')
+                        and (_mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'))
+                        and not _mm2.get('analytics_ok')):
+                    try:
+                        ap = int(_mm2['analytics_port']) & 0xffffffffffffffff
+                        if ap < 0x10000:
+                            ap = 0x100000000 | ap
+                        x7e = r('x7')
+                        if x7e:
+                            gdb.execute(
+                                'set {unsigned long long}%#x = %#x' % (
+                                    x7e, ap),
+                                to_string=True)
+                        gdb.execute('set $x0 = 0', to_string=True)
+                        lr = r('x30')
+                        gdb.execute('set $pc = %#x' % lr, to_string=True)
+                        _mm2['analytics_ok'] = 1
+                        P('ANALYTICS_SHORTCIRCUIT_SEED port=%#x' % ap)
+                        # Still arm RET at LR in case we land there again;
+                        # primary path continues at return site now.
+                        RetBP(lr,
+                              "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
+                                  pn, name, r('x4'), r('x6'), r('x7')))
+                        return False
+                    except Exception as e:
+                        P('ANALYTICS_SHORTCIRCUIT_ERR=%r' % e)
                 RetBP(r('x30'),
                       "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
                           pn, name, r('x4'), r('x6'), r('x7')))
@@ -1503,10 +1539,9 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
-                # boot286: gate SURFACE on BB GMD (see RetBP SURFACE_DEFER).
-                # Do not arm rb_sel32 / mach window until bb_gmd_ok (or
-                # defer exhausted) so SB cannot race SAS before analytics.
-                if _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb'):
+                # boot287: gate SURFACE on analytics_ok (boot286: post_iomfb
+                # allowed SURFACE while BB analytics LOOKUP crashed → SAS null).
+                if _mm2.get('analytics_ok'):
                     _mm2['rb_sel32'] = 1
                     # boot255: reopen SB/BB mach window at SURFACE itself
                     # (boot254: no SB/BB msg after SURFACE → never reopened;
@@ -1516,7 +1551,7 @@ def on_external_method():
                         _mm2['n'] = 0
                         P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
                 else:
-                    tag += ' PRE_BB_GMD'
+                    tag += ' PRE_ANALYTICS'
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
