@@ -221,6 +221,35 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' HID_CONFORMS_FORCE'
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
+            # boot265: dump stashed ENTER args (userspace buf) — RET x4 was zero.
+            if (t.startswith('IOREGPROP_buf_RET')
+                    and 'HIDEventServiceProperties' in t
+                    and 'backboardd' in t
+                    and _mm2.get('hid_prop_dump', 0) < 2):
+                _mm2['hid_prop_dump'] = _mm2.get('hid_prop_dump', 0) + 1
+                try:
+                    x0 = int(gdb.parse_and_eval('$x0')) & 0xffffffffffffffff
+                    extra += ' HIDPROP_RET x0=%#x' % x0
+                    args = _mm2.get('hidprop_args') or ()
+                    for i, a in enumerate(args):
+                        # Userspace pointers (stack/heap in BB).
+                        if 0x100000000 <= a < 0x300000000:
+                            try:
+                                raw = bytearray()
+                                for off in range(0, 64, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (a + off), to_string=True)
+                                    toks = [tt for tt in xs.replace(':', ' ').split()
+                                            if tt.startswith('0x') and len(tt) > 5]
+                                    raw += int(toks[-1], 16).to_bytes(8, 'little')
+                                words = ' '.join('%08x' % int.from_bytes(
+                                    raw[i2:i2+4], 'little')
+                                    for i2 in range(0, 64, 4))
+                                extra += ' HIDPROP_U_x%d=%#x[%s]' % (i, a, words)
+                            except Exception as eb:
+                                extra += ' hidu_x%d_err=%r' % (i, eb)
+                except Exception as ep:
+                    extra += ' hidprop_err=%r' % ep
             # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
             # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
@@ -250,15 +279,17 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
-            # boot251/252: dump 6001012 userspace mach_msg buffer on RET.
+            # boot251/252/259: dump 6001012 reply + RET FP walk (boot258
+            # quiet after BKS→FrontBoard; need where SB goes next).
             if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
                     and 'SpringBoard' in t and _mm2.get('dump_6001012', 0) < 1):
                 _mm2['dump_6001012'] = 1
+                _mm2['post_6001012'] = 1
                 try:
                     buf = int(_mm2.get('msg_6001012_buf') or 0)
                     raw = bytearray()
-                    if buf and 0x100000000 <= (buf & 0xffffffffffffffff) < 0x300000000:
-                        for off in range(0, 80, 8):
+                    if buf:
+                        for off in range(0, 96, 8):
                             try:
                                 xs = gdb.execute(
                                     'x/gx %#x' % (buf + off), to_string=True)
@@ -269,12 +300,36 @@ class _RetSite(gdb.Breakpoint):
                                 raw += b'\x00' * 8
                     if any(raw):
                         words = ' '.join('%08x' % int.from_bytes(
-                            raw[i:i+4], 'little') for i in range(0, 80, 4))
+                            raw[i:i+4], 'little') for i in range(0, len(raw), 4))
                         extra += ' buf=%#x [%s]' % (buf, words)
                     else:
                         extra += ' buf=%#x unreadable' % (buf or 0)
                 except Exception as e6:
                     extra += ' buf_err=%r' % e6
+                try:
+                    fps = []
+                    fp = int(gdb.parse_and_eval('$x29')) & 0xffffffffffffffff
+                    lr0 = int(gdb.parse_and_eval('$x30')) & 0xffffffffffffffff
+                    fps.append(lr0)
+                    for _ in range(20):
+                        if not (0x100000000 <= fp < 0x300000000):
+                            break
+                        xs = gdb.execute('x/2gx %#x' % fp, to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        if len(toks) < 2:
+                            break
+                        nfp = int(toks[-2], 16) & 0xffffffffffffffff
+                        nlr = int(toks[-1], 16) & 0xffffffffffffffff
+                        fps.append(nlr)
+                        if nfp <= fp:
+                            break
+                        fp = nfp
+                    if fps:
+                        extra += ' RET_FRAMES ' + ' '.join(
+                            '%#x' % x for x in fps[:16])
+                except Exception as ef:
+                    extra += ' ret_fr_err=%r' % ef
             # boot258: ANY SAS mutation crashes SB (keep/0x9f/soft-null all
             # EXC far=0x100000000). boot249 left the lookup untouched
             # (x0=0 x7*=None) and reached SURFACE+6001012. Observe only.
@@ -426,12 +481,23 @@ class _RetSite(gdb.Breakpoint):
                                     break
                             except Exception:
                                 pass
-                        # After GMD: only deny when we truly have no port.
+                        # After GMD: keep real RB ports; soft-keep null only
+                        # until the first real port, then force 0x9f again.
+                        # boot269/275: sticky soft-keep after PORT_KEPT →
+                        # SURFACE then endless msgid 1073742628 → 0 SAS/6001012.
+                        # boot274: early null→0x9f while RB late → 0 SURFACE.
+                        # boot276: soft-keep until sb_rb_seen, then 0x9f (boot271).
                         if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
-                                and "name='com.apple.runningboard'" in t
-                                and saw_port):
-                            nullish = False
-                            extra += ' SB_RB_PORT_KEPT'
+                                and "name='com.apple.runningboard'" in t):
+                            if saw_port:
+                                nullish = False
+                                _mm2['sb_rb_seen'] = True
+                                extra += ' SB_RB_PORT_KEPT'
+                            elif not _mm2.get('sb_rb_seen'):
+                                nullish = False
+                                extra += ' SB_RB_NULL_SOFT_KEEP'
+                            else:
+                                extra += ' SB_RB_NULL_POST_SEEN_FORCE'
                         # boot248: boot247 sticky-kept null SB_RB (x0=0) and
                         # spun on msgid 1073742628 — never reached SAS/6001012.
                         # Reverted sticky; force 0x9f on true null again.
@@ -441,21 +507,72 @@ class _RetSite(gdb.Breakpoint):
                         # (unconditional nullish=False) → x0=0+null → W00T/slow
                         # BB, RB timed out pre-SURFACE. Only keep real when a
                         # port was already seen (nullish already False).
-                        # boot249: boot248 ANALYTICS_REAL (x0=0+port) → W00T/SPIN
-                        # and no SURFACE. boot245/246 forced analytics and got
-                        # SURFACE+SAS. Always treat BB analytics as force-null.
+                        # boot249: always force BB analytics pre-SURFACE.
+                        # boot267/271: keep real after post_iomfb (boot239 SAS).
+                        # boot272: soft-keep null → BB EXC/W00T mid-analytics.
+                        # boot273: if BB null after post_iomfb but we stashed a
+                        # port from timed/others, seed it into *out7 (boot239).
                         if ('proc=backboardd' in t
                                 and "name='com.apple.analyticsd'" in t):
-                            nullish = True
-                            extra += ' ANALYTICS_ALWAYS_FORCE'
-                        # boot248: BB looks up frontboard.systemappservices
-                        # before IOMFB MATCH (boot245/247 FORCED_XPCERR) and
-                        # never retries — block FB↔BB system-app handshake.
-                        # Allow real port; force only true null (like analytics).
+                            _keep = False
+                            if not nullish and (
+                                    _mm2.get('rb_sel32')
+                                    or _mm2.get('post_iomfb')):
+                                for ptr in (x4, x6, x7):
+                                    if not ptr:
+                                        continue
+                                    try:
+                                        v = m64(ptr) & 0xffffffffffffffff
+                                        if 0 < v < 0x10000:
+                                            _keep = True
+                                            break
+                                        if (v
+                                                and v != 0x100000000
+                                                and 0x100000000 < v < 0x300000000):
+                                            _keep = True
+                                            break
+                                    except Exception:
+                                        pass
+                            if _keep:
+                                nullish = False
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' ANALYTICS_POST_SURFACE_KEEP'
+                                else:
+                                    extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            elif (_mm2.get('analytics_port') and x7):
+                                # boot276: BB analytics ALWAYS_FORCE pre-GMD
+                                # cleared a later-stashed port → SAS null.
+                                # boot239 SAS path kept REAL analytics.
+                                # boot277: seed stashed port even pre-post_iomfb.
+                                try:
+                                    ap = int(_mm2['analytics_port']) & 0xffffffff
+                                    gdb.execute(
+                                        'set {unsigned long long}%#x = %#x' % (
+                                            x7, ap),
+                                        to_string=True)
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    nullish = False
+                                    if _mm2.get('post_iomfb'):
+                                        extra += ' ANALYTICS_PORT_SEED port=%#x' % ap
+                                    else:
+                                        extra += ' ANALYTICS_PORT_SEED_EARLY port=%#x' % ap
+                                except Exception as e:
+                                    nullish = True
+                                    extra += ' ANALYTICS_SEED_ERR=%r' % e
+                            else:
+                                nullish = True
+                                extra += ' ANALYTICS_ALWAYS_FORCE'
+                        # boot267: FB_SAS_NULL_KEEP (x0=0) → SURFACE ok but SB
+                        # never reached RB/SAS/6001012 (stuck pre-SURFACE 11602).
+                        # boot268: restore 0x9f on null (boot265 path); keep real.
                         if ('proc=backboardd' in t
                                 and "name='com.apple.frontboard.systemappservices'"
                                 in t):
-                            if not nullish:
+                            if _mm2.get('rb_sel32') and not nullish:
+                                nullish = False
+                                extra += ' FB_SAS_POST_SURFACE_REAL'
+                            elif not nullish:
                                 nullish = False
                                 extra += ' FB_SAS_REAL_BB'
                             else:
@@ -497,9 +614,40 @@ class _RetSite(gdb.Breakpoint):
                         # boot249: always force BB analytics (REAL→W00T boot248).
                         # Pre-MATCH real port → hang (boot214); force 0x9f.
                         # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
+                        # boot262: boot261b NOFORCE kept x0=1+0x100000000 — bad.
+                        # boot267: after post_iomfb keep a real analytics port
+                        # (boot239 SURFACE+SAS); still BAD_FORCE sentinel;
+                        # pre-IOMFB still force real/null.
                         need_force = False
                         tag = ''
-                        if (x0 & 0xffffffff) != 0:
+                        clean_port = False
+                        if _mm2.get('rb_sel32') and has_port:
+                            for ptr in (x4, x6, x7):
+                                if not ptr:
+                                    continue
+                                try:
+                                    v = m64(ptr) & 0xffffffffffffffff
+                                    if 0 < v < 0x10000:
+                                        clean_port = True
+                                        break
+                                except Exception:
+                                    pass
+                        # boot270: BAD_FORCE ran before has_port check and
+                        # cleared a post-GMD analytics lookup (handle odd,
+                        # x0!=0) — boot239 SAS needs REAL kept. Prefer port
+                        # keep after post_iomfb over BAD_FORCE.
+                        if clean_port:
+                            extra += ' ANALYTICS_POST_SURFACE_REAL'
+                        elif has_port and _mm2.get('post_iomfb'):
+                            extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            if (x0 & 0xffffffff) != 0:
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += '+X0CLR'
+                                except Exception as e:
+                                    extra += ' x0clr_err=%r' % e
+                        elif (x0 & 0xffffffff) != 0:
                             need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
                             need_force, tag = True, ' ANALYTICS_REAL_FORCE_0x9f'
@@ -541,6 +689,12 @@ class _RetSite(gdb.Breakpoint):
                                         low = v & 0xffffffff
                                         if low and low < 0x10000:
                                             extra += '(port?%#x)' % low
+                                            # boot273: stash analytics ports from
+                                            # timed/others for BB seed.
+                                            if ("name='com.apple.analyticsd'"
+                                                    in t):
+                                                _mm2['analytics_port'] = low
+                                                extra += ' ANALYTICS_PORT_STASH'
                             except Exception as e:
                                 try:
                                     extra += ' %s*=w:%#x' % (label, m32(ptr))
@@ -836,7 +990,10 @@ def _iok(tag,ma,cnt):
             _mm2['post_spin_uf'] = 0
             _mm2['post_uf'] = 0
             _mm2['w00t_n'] = 0
-            _mm2['n'] = 300
+            # boot261: n=300 immediately exceeded post_iomfb cap (180) and
+            # dropped ALL mach logs until SURFACE — plus early SB_RECV uframes
+            # dragged GDB so RB missed SURFACE. Reset to 0.
+            _mm2['n'] = 0
             P('MACHMSG2_WINDOW post-IOMFB reopen (at MATCH)')
     # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
     if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
@@ -1145,7 +1302,7 @@ def on_iosopen():
                 _mm2['post_spin_uf'] = 0
                 _mm2['post_uf'] = 0
                 _mm2['w00t_n'] = 0
-                _mm2['n'] = 300
+                _mm2['n'] = 0  # boot261: was 300 → instant mach-cap drop
                 P('MACHMSG2_WINDOW post-IOMFB reopen')
         # boot173/176: userspace frames on BB IOMFB open.
         if ('backboard' in pn0.lower() and _mm2.get('post_iomfb')
@@ -1371,6 +1528,19 @@ def _mk_ioreg(tag):
                     return ''
             plane = _cstr_reg('x1'); key = _cstr_reg('x2') or _cstr_reg('x1')
             P('IOREGPROP_%s proc=%s key=%r plane=%r entry=%#x' % (tag, pn, key, plane, r('x0')))
+            # boot265: stash entry args — RET x4 was all-zero (clobbered).
+            if (tag == 'buf' and key == 'HIDEventServiceProperties'
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('hidprop_stash_n', 0) < 2):
+                _mm2['hidprop_stash_n'] = _mm2.get('hidprop_stash_n', 0) + 1
+                try:
+                    args = tuple(
+                        int(gdb.parse_and_eval('$x%d' % i)) & 0xffffffffffffffff
+                        for i in range(8))
+                    _mm2['hidprop_args'] = args
+                    P('HIDPROP_ENTER args=' + ' '.join('%#x' % a for a in args))
+                except Exception as es:
+                    P('HIDPROP_ENTER err=%r' % es)
             RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', key))
         except Exception as e:
             P('ERR ioreg_%s %s' % (tag, e))
@@ -1470,30 +1640,107 @@ def on_mach_msg2():
         rcv_name = (dc_rn >> 32) & 0xffffffff
         rcv_sz = rs_pr & 0xffffffff
         sending = bool(opt64 & 1); recving = bool(opt64 & 2)
+        # boot260/262: dump 1011/1012/1018 buffers (SB or BB) after SURFACE —
+        # boot261b: SB skipped MIG; BB did 1012/1018. Need ascii service names.
+        if (msgid in (1011, 1012, 1018)
+                and data_ptr
+                and _mm2.get('rb_sel32')
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard'
+                     or 'backboard' in pn0.lower())
+                and _mm2.get('dump_ca_mig', 0) < 8):
+            _mm2['dump_ca_mig'] = _mm2.get('dump_ca_mig', 0) + 1
+            try:
+                raw = bytearray()
+                for off in range(0, 96, 8):
+                    try:
+                        xs = gdb.execute(
+                            'x/gx %#x' % (data_ptr + off), to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        raw += int(toks[-1], 16).to_bytes(8, 'little')
+                    except Exception:
+                        raw += b'\x00' * 8
+                ascii_s = ''
+                try:
+                    ascii_s = ''.join(
+                        chr(b) if 32 <= b < 127 else '.' for b in raw)
+                except Exception:
+                    pass
+                words = ' '.join('%08x' % int.from_bytes(
+                    raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
+                P('CA_MIG proc=%s msgid=%d remote=%#x buf=%#x [%s] ascii=%r' % (
+                    pn0, msgid, remote, data_ptr, words, ascii_s[:80]))
+            except Exception as em:
+                P('CA_MIG err=%r' % em)
         # boot251: stash userspace buffer for 6001012 reply dump (boot250
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:
             _mm2['msg_6001012_buf'] = data_ptr
+            # boot261: only arm SB_RECV after SURFACE — early arm + uframes
+            # delayed RB past SURFACE window (boot260).
+            if _mm2.get('rb_sel32'):
+                _mm2['post_6001012'] = 1
+            if (_mm2.get('dump_6001012_send', 0) < 1
+                    and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                    and _mm2.get('rb_sel32')):
+                _mm2['dump_6001012_send'] = 1
+                try:
+                    raw = bytearray()
+                    for off in range(0, 64, 8):
+                        try:
+                            xs = gdb.execute(
+                                'x/gx %#x' % (data_ptr + off), to_string=True)
+                            toks = [tt for tt in xs.replace(':', ' ').split()
+                                    if tt.startswith('0x') and len(tt) > 5]
+                            raw += int(toks[-1], 16).to_bytes(8, 'little')
+                        except Exception:
+                            raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 64, 4))
+                        P('MSG_6001012_SEND buf=%#x [%s]' % (data_ptr, words))
+                except Exception as es:
+                    P('MSG_6001012_SEND err=%r' % es)
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
-        if not sending and recving and _mm2['n'] > 40:
+        # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
+        # (no flood — boot260 uframes pre-SURFACE stalled RB).
+        _sb_recv_keep = (
+            _mm2.get('post_6001012')
+            and _mm2.get('rb_sel32')
+            and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+            and _mm2.get('sb_recv_n', 0) < 12)
+        if not sending and recving and _mm2['n'] > 40 and not _sb_recv_keep:
             return False
+        if _sb_recv_keep and not sending and recving:
+            _mm2['sb_recv_n'] = _mm2.get('sb_recv_n', 0) + 1
+            P('SB_RECV_POST_CA proc=%s msgid=%d remote=%#x local=%#x rcv_name=%#x n=%d' % (
+                pn0, msgid, remote, local, rcv_name, _mm2['sb_recv_n']))
+            if _mm2['sb_recv_n'] <= 2:
+                try:
+                    _uframes('SB_RECV_POST_CA_U', 'n=%d msgid=%d' % (
+                        _mm2['sb_recv_n'], msgid))
+                except Exception as e:
+                    P('SB_RECV_U err=%r' % e)
         # boot156: uncapped BB logging drowned the run in w00t/0x40000000
         # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
         # Drop those two; keep real IOKit/XPC-sized traffic.
         # boot179: W00T_FAKE on w00t/0x40000000 after 0x40000388 → BB respawn.
         # boot180: fake ONLY 0x40000388/384 (the post-open error); log others.
         if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            # boot267: uframes only on first W00T — boot266's 4× W00T_U
+            # stalled RB past IOGPU/IOCoreSurfaceRoot (0 SURFACE).
             if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
                     and _mm2.get('w00t_n', 0) < 4):
                 _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
                 P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
                     pn0, msgid, remote, _mm2['w00t_n']))
-                try:
-                    _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
-                except Exception as e:
-                    P('W00T_U err=%r' % e)
+                if _mm2['w00t_n'] == 1:
+                    try:
+                        _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                    except Exception as e:
+                        P('W00T_U err=%r' % e)
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():

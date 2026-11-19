@@ -1411,5 +1411,83 @@ Image.pth74.
 
 ## Chunk 207 (boot258: SAS observe-only)
 
-| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: match boot249 untouched SAS → SB lives past 6001012 toward CA. | out/logs/boot258 |
+| boot258 | Image.pth188 | no SAS mutate (observe only); keep real-BB MATCH arm; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_OBSERVE v=None → **no SB EXC**; SURFACE+**6001012 x0=0** (BKS→FrontBoard). SB quiet after (recv-only blind). | out/logs/boot258 |
+
+## Chunk 208 (boot259: post-6001012 recv + RET frames)
+
+| boot259 | Image.pth189 | keep SAS observe; log SB recv after 6001012; RET FP walk + send/reply dump; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS v=0; 6001012 ok; then msgid **1012/1011/1018→0xe0f** + **SB_RECV** CFRunLoop on `rcv=0x1a03`. Reply buf unreadable. | out/logs/boot259 |
+
+## Chunk 209 (boot260: post-SURFACE analytics real + MIG dump)
+
+| boot260 | Image.pth190 | after rb_sel32 keep BB analytics real; dump SB 1011/12/18 buffers; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: MATCH set n=300 → mach-cap drop; early SB_RECV uframes → **0 SURFACE** (RB late). No POST_SURFACE analytics/MIG. | out/logs/boot260 |
+
+## Chunk 210 (boot261: MATCH n=0 + SB_RECV only post-SURFACE)
+
+| boot261 | Image.pth191 | MATCH/IOSOPEN n=0; arm SB_RECV only after rb_sel32+6001012; keep post-SURFACE analytics; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **initproc panic** (exit 0xa) — flaky like boot238. Relaunch → boot261b. | out/logs/boot261 |
+
+| boot261b | Image.pth191 | same as boot261; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012 restored; analytics NOFORCE → **x0=1+sentinel**; SB 3240+recv; BB did 1012/1018 (no SB_CA_MIG). | out/logs/boot261b |
+
+## Chunk 211 (boot262: force bad analytics; dump BB CA_MIG)
+
+| boot262 | Image.pth192 | force analytics unless clean port post-SURFACE; dump BB/SB 1012 MIG; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; CA_MIG=`asl.remote`/`iohideventsystem.available`; HID open+map+NOTE64 then **BB BRK abort** → SB exit. | out/logs/boot262 |
+
+## Chunk 212 (boot263: HID prop buf + BB EXC frames)
+
+| boot263 | Image.pth193 | dump HIDEventServiceProperties bin_buf outs; BB EXC uframes; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HIDPROP x0=0 x1=0x10001 x4=kbuf; BB **PREPAREEXIT reason=None** after GETSIZE → **0 SURFACE**. | out/logs/boot263 |
+
+## Chunk 213 (boot264: HIDPROP kbuf dump + BB_EXIT frames)
+
+| boot264 | Image.pth194 | dump HIDPROP x4 bytes; BB_EXIT_REGS/FRAMES on prepareexit; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HIDPROP_BUF_x4 **all zero**; BB BRK @unslide `0x1e261dd44` (same as boot262); 0 SURFACE. | out/logs/boot264 |
+
+## Chunk 214 (boot265: HIDPROP ENTER stash + kernel prop verify)
+
+| boot265 | Image.pth195 | stash HIDPROP MIG args on enter; dump userspace buf; IOLog copyProperty verify; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: esp/plugin/vid live; HIDPROP_U has `PrimaryUsagePage`; SURFACE+6001012; SAS null; SB CFRunLoop (asl/syslog). | out/logs/boot265 |
+
+## Chunk 215 (boot266: BB frontboard.systemappservices keep)
+
+| boot266 | Image.pth196 | post_iomfb keep BB FB SAS null as x0=0 (no 0x9f); watch SAS publish; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: FB lookup **pre-MATCH** → only `FB_SAS_NULL_WILL_FORCE` (KEEP never fired); GETSIZE+GMD+SAS null+6001012; **W00T×4 uframes**; RB late → **11602 before IOGPU/IOCore** → **0 SURFACE** (~40m). | out/logs/boot266 |
+
+## Chunk 216 (boot267: always FB_SAS keep + analytics REAL post_iomfb)
+
+| boot267 | Image.pth197 | always `FB_SAS_NULL_KEEP`; keep analytics REAL after post_iomfb; W00T_U only n=1; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: `FB_SAS_NULL_KEEP`+GETSIZE+SURFACE+sel32; analytics pre-MATCH ALWAYS_FORCE; **SB quiet** — no RB/SAS/6001012 (vs boot265). KEEP harmful. | out/logs/boot267 |
+
+## Chunk 217 (boot268: revert FB_SAS force; keep analytics REAL post_iomfb)
+
+| boot268 | Image.pth198 | restore FB_SAS null→0x9f; keep analytics REAL after post_iomfb; W00T_U n=1; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: WILL_FORCE+GETSIZE+SAS null+6001012; analytics pre-MATCH ALWAYS_FORCE; **late RB** (#176) → 11602 **sans IOGPU** → **0 SURFACE** (~31m). | out/logs/boot268 |
+
+## Chunk 218 (boot269: SB_RB null keep after GMD)
+
+| boot269 | Image.pth199 | after GMD keep SB↔RB null as x0=0 (no 0x9f); FB_SAS force; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: early RB+#SURFACE+`SB_RB_PORT_KEPT`; then **1073742628 spin** (boot247) → **0 SAS/6001012**. Null-keep harmful. | out/logs/boot269 |
+
+## Chunk 219 (boot270: restore SB_RB null force; probe analyticsd)
+
+| boot270 | Image.pth200 | restore SB_RB null→0x9f; analytics REAL post_iomfb; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: post-GMD analytics **BAD_FORCE** (x0!=0 beat has_port); SAS null; RB Allow then **0 mach** → **0 SURFACE/6001012** (~30m). timed had analytics port earlier. | out/logs/boot270 |
+
+## Chunk 220 (boot271: analytics REAL before BAD_FORCE)
+
+| boot271 | Image.pth201 | post_iomfb analytics has_port → keep REAL (+x0=0) before BAD_FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: boot265 path restored — early RB+PORT_KEPT+SURFACE+SAS null+6001012; CA_MIG asl/syslog; analytics mid-IOMFB **ALWAYS_FORCE** null (timed had port). | out/logs/boot271 |
+
+## Chunk 221 (boot272: soft-keep null analytics after post_iomfb)
+
+| boot272 | Image.pth202 | post_iomfb analytics null → keep x0=0 (no 0x9f); allow retry like boot239 long lookup; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: 1st BB BRK; 2nd BB GMD_FORCE + analytics lookup → **EXC/W00T** (no RET); SURFACE+6001012; soft-keep harmful. | out/logs/boot272 |
+
+## Chunk 222 (boot273: seed stashed analytics port into BB)
+
+| boot273 | Image.pth203 | stash analytics port from timed; on BB null post_iomfb write into *out7; T=3000 | qemu11 43G lva=off | **ЗАВИС**: 14m stuck at LapisGICv3 first lines (no launchd); QEMU 100% CPU. Flaky early SMP hang — same Image as pth202. | out/logs/boot273 |
+
+## Chunk 223 (boot274: retry ANALYTICS_PORT_SEED)
+
+| boot274 | Image.pth204 | same seed as boot273; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ANALYTICS_REAL+STASH (0x400b, no SEED needed); SB_RB early null→0x9f; SAS null+6001012; **0 SURFACE** (RB never IOCoreSurfaceRoot). | out/logs/boot274 |
+
+## Chunk 224 (boot275: SB_RB null soft-keep after GMD)
+
+| boot275 | Image.pth205 | soft-keep null SB↔RB post-GMD (retry); keep analytics REAL/SEED; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE ok; sticky soft-keep → **1073742628 spin** (133+) → 0 SAS/6001012 (boot269 mode). | out/logs/boot275 |
+
+## Chunk 225 (boot276: soft-keep SB_RB only until first real port)
+
+| boot276 | Image.pth206 | soft-keep null SB_RB until sb_rb_seen; then 0x9f; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SOFT→PORT_KEPT→POST_SEEN_FORCE; SURFACE+6001012+SAS_OBSERVE; analytics ALWAYS_FORCE (pre-GMD) → SAS null. | out/logs/boot276 |
+
+## Chunk 226 (boot277: seed analytics even pre-post_iomfb)
+
+| boot277 | Image.pth207 | ANALYTICS_PORT_SEED_EARLY when stash exists; keep SB_RB seen-gate; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early seed → boot239-like analytics REAL → SAS_PORT_REAL. | out/logs/boot277 |
 

@@ -1,0 +1,8 @@
+Image.pth189 = Image.pth188 + post-6001012 visibility
+  boot258: SAS observe → SURFACE+6001012 no EXC; SB quiet after
+           (recv-only drop hid wait).
+  boot259: after 6001012 log SB pure-recv; RET FP frames; send/reply dump.
+  T=3000. DSC/GDB only.
+
+Build:
+  cp /tmp/Image.pth188 /tmp/Image.pth189
