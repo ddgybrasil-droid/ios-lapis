@@ -1645,5 +1645,9 @@ Image.pth74.
 
 ## Chunk 265 (boot316: SPIN → MACH_SEND_TIMED_OUT after HID+GMD)
 
-| boot316 | Image.pth246 | Keep boot315 path; after hid+gmd+surface return SPIN as 0x10000004 TIMED_OUT×8 (not success); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: success-fake EXC'd; timeout lets BB retry/advance CA past notify-wait SPIN. | out/logs/boot316 |
+| boot316 | Image.pth246 | Keep boot315 path; after hid+gmd+surface return SPIN as 0x10000004 TIMED_OUT×8 (not success); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS_PORT_REAL `0x2d07`**+SURFACE+6001012+early GMD; hid-gated TIMEOUT never fired → **0 HID**/stuck SPIN_POST_SAS. | out/logs/boot316 |
+
+## Chunk 266 (boot317: SPIN_TIMEOUT after surface+(sas|post_iomfb))
+
+| boot317 | Image.pth247 | Drop hid gate on SPIN_TIMEOUT; arm after surface+(sas\|post_iomfb)×12; keep boot315 analytics/kill; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: unstick early-GMD SPIN so BB can reach iohidevent and CA past notify-wait. | out/logs/boot317 |
 

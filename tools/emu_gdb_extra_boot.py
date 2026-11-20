@@ -1994,18 +1994,20 @@ def on_mach_msg2():
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
             # boot303/313: SPIN_FAKE x0=0 success → BB EXC far=0x4.
-            # boot315: SPINs fire during GMD (post_iomfb) before bb_gmd_ok.
-            # boot316: after hid+surface+(gmd|post_iomfb), return
-            # MACH_SEND_TIMED_OUT (0x10000004) so callers retry.
-            if (_mm2.get('hid_evt_seen') and _mm2.get('surface_ok')
-                    and (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb'))
-                    and _mm2.get('spin_timeout_n', 0) < 8):
+            # boot316: hid gate → early-GMD SPIN before HID never timed out;
+            # BB stuck, 0 iohidevent despite SAS_PORT_REAL.
+            # boot317: after surface+(sas|post_iomfb), TIMED_OUT (no hid req).
+            if (_mm2.get('surface_ok')
+                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
+                    and _mm2.get('spin_timeout_n', 0) < 12):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
                 try:
                     gdb.execute('set $x0 = 0x10000004', to_string=True)
                     gdb.execute('set $pc = $x30', to_string=True)
-                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x' % (
-                        _mm2['spin_timeout_n'], remote))
+                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x sas=%s hid=%s' % (
+                        _mm2['spin_timeout_n'], remote,
+                        bool(_mm2.get('sas_ok')),
+                        bool(_mm2.get('hid_evt_seen'))))
                 except Exception as ef:
                     P('POST_SAS_SPIN_TIMEOUT_ERR=%r' % ef)
             return False
