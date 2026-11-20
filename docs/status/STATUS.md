@@ -1657,5 +1657,9 @@ Image.pth74.
 
 ## Chunk 268 (boot319: soft-complete W00T after HID+GMD)
 
-| boot319 | Image.pth249 | Keep boot318 path; after hid+gmd+surface fake-return W00T (0x77303074) success×8; raise SPIN_TIMEOUT×24; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SPIN is notify-wait for W00T MIG to FB (port 0x52db); completing W00T may unblock CA past asl. | out/logs/boot319 |
+| boot319 | Image.pth249 | Keep boot318 path; after hid+gmd+surface fake-return W00T (0x77303074) success×8; raise SPIN_TIMEOUT×24; T=3000 | qemu11 43G lva=off | **ЧАСТИЧНО**: PRE_SURFACE kill + **SAS_PORT_REAL `0x1b07`**+SURFACE+6001012; gdb killed before HID/W00T_FAKE. Retry boot320. | out/logs/boot319 |
+
+## Chunk 269 (boot320: retry W00T_FAKE full window)
+
+| boot320 | Image.pth250 | Same as boot319 (W00T_FAKE+SPIN_TIMEOUT×24+PRE_SURFACE kill); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: complete HID→W00T_FAKE window that boot319 truncated. | out/logs/boot320 |
 
