@@ -1685,5 +1685,9 @@ Image.pth74.
 
 ## Chunk 275 (boot326: zero 3240 reply 0x2e after SAS)
 
-| boot326 | Image.pth256 | On 3240 RET after sas_ok, patch reply+0x20 0x2e→0; keep BEST+++ path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: 0x2e in 3240 reply keeps SB polling; zero → more SAS_MACH / CA. | out/logs/boot326 |
+| boot326 | Image.pth256 | On 3240 RET after sas_ok, patch reply+0x20 0x2e→0; keep BEST+++ path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS null** → ZERO never armed; 3240 reply still 0x2e. Kill early. | out/logs/boot326 |
+
+## Chunk 276 (boot327: always ZERO 3240 0x2e)
+
+| boot327 | Image.pth257 | Zero 3240+0x20 0x2e always (not only post-SAS); retry SAS race; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early 3240 zero + SAS race may unlock past poll. | out/logs/boot327 |
 

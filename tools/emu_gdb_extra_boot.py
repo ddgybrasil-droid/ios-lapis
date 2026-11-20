@@ -324,18 +324,21 @@ class _RetSite(gdb.Breakpoint):
                             for i in range(0, len(raw), 4))
                         extra += ' SB_3240_REPLY n=%d [%s]' % (
                             _mm2['dump_3240_ret'], words)
-                        if (_mm2.get('sas_ok') and buf and len(raw) >= 0x24
+                        # boot326 gated on sas_ok → miss when SAS null.
+                        # boot327: always zero 0x2e (pre- and post-SAS).
+                        if (buf and len(raw) >= 0x24
                                 and int.from_bytes(raw[0x20:0x24], 'little')
                                 == 0x2e
-                                and _mm2.get('fix_3240_2e', 0) < 8):
+                                and _mm2.get('fix_3240_2e', 0) < 12):
                             try:
                                 gdb.execute(
                                     'set {unsigned int}%#x = 0' % (buf + 0x20),
                                     to_string=True)
                                 _mm2['fix_3240_2e'] = _mm2.get(
                                     'fix_3240_2e', 0) + 1
-                                extra += ' SB_3240_ZERO_0x2e n=%d' % _mm2[
-                                    'fix_3240_2e']
+                                extra += ' SB_3240_ZERO_0x2e n=%d sas=%s' % (
+                                    _mm2['fix_3240_2e'],
+                                    bool(_mm2.get('sas_ok')))
                             except Exception as ez:
                                 extra += ' zero_err=%r' % ez
                     else:
