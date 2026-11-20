@@ -1697,5 +1697,9 @@ Image.pth74.
 
 ## Chunk 278 (boot329: SB kill after BB retry so SAS re-lookup)
 
-| boot329 | Image.pth259 | After BB_KILL_SAS_RETRY respawn, kill SB once (`SB_KILL_SAS_RELOOKUP`) to force SAS re-lookup; keep ZERO 0x2e; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SB restart after fresh BB publish → SAS_PORT_REAL (boot325). | out/logs/boot329 |
+| boot329 | Image.pth259 | After BB_KILL_SAS_RETRY respawn, kill SB once (`SB_KILL_SAS_RELOOKUP`) to force SAS re-lookup; keep ZERO 0x2e; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SB_KILL_SAS_ARMED` ok, but SB stuck in **3240 mach** (no XPC) → kill never fired; ZERO×6 sas=False. Kill ~27m. | out/logs/boot329 |
+
+## Chunk 279 (boot330: SB kill on 3240 MACHMSG2_RET)
+
+| boot330 | Image.pth260 | Kill SB on userspace `MACHMSG2_RET` 3240 when `sb_kill_sas_armed` (`SB_KILL_SAS_RELOOKUP_3240`); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: break 3240 poll → SB respawn → SAS re-lookup. | out/logs/boot330 |
 

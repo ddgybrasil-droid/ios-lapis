@@ -298,6 +298,21 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
+            # boot330: SB stuck in 3240 mach loop (no XPC) after BB retry
+            # (boot329: SB_KILL_SAS_ARMED but XPC kill never fired). Kill on
+            # userspace MACHMSG2_RET so SB restarts and re-looks up SAS.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
+                    and 'SpringBoard' in t
+                    and _mm2.get('sb_kill_sas_armed')
+                    and not _mm2.get('sb_kill_sas_relookup')
+                    and not _mm2.get('sas_ok')):
+                _mm2['sb_kill_sas_relookup'] = 1
+                _mm2['sb_kill_sas_armed'] = 0
+                try:
+                    gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                    extra += ' SB_KILL_SAS_RELOOKUP_3240'
+                except Exception as ek:
+                    extra += ' SB_KILL_SAS_RELOOKUP_ERR=%r' % ek
             # boot325: dump 3240 reply via MACHMSG2_RET (RetBP tag collide).
             # boot325 reply: id=0xd0c body … 0x2e/8 — SB polls forever.
             # boot326: after SAS, zero the 0x2e slot (off+0x20) if present.
