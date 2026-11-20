@@ -1881,6 +1881,22 @@ def on_mach_msg2():
         rcv_name = (dc_rn >> 32) & 0xffffffff
         rcv_sz = rs_pr & 0xffffffff
         sending = bool(opt64 & 1); recving = bool(opt64 & 2)
+        # boot331: after sampling/zeroing 3240, drop further SB 3240 traps —
+        # boot330: 600+ MACHMSG2 3240 starved BB past IOMFB/HID despite
+        # SAS_PORT_REAL + SAS_MACH W00T + ZERO sas=True.
+        if (msgid == 3240
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and (_mm2.get('dump_3240', 0) >= 6
+                     or _mm2.get('zero_3240_2e', 0) >= 4)):
+            _mm2['drop_3240_n'] = _mm2.get('drop_3240_n', 0) + 1
+            if _mm2['drop_3240_n'] <= 2:
+                P('SB_3240_DROP n=%d sas=%s' % (
+                    _mm2['drop_3240_n'], bool(_mm2.get('sas_ok'))))
+            if _mm2['drop_3240_n'] == 1:
+                _mm2['n'] = 0
+                _mm2['post_surf_mach'] = 1
+                P('MACHMSG2_WINDOW post-3240-drop reopen')
+            return False
         # boot260/262: dump 1011/1012/1018 buffers (SB or BB) after SURFACE —
         # boot261b: SB skipped MIG; BB did 1012/1018. Need ascii service names.
         if (msgid in (1011, 1012, 1018)

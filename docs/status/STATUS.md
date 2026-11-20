@@ -1701,5 +1701,9 @@ Image.pth74.
 
 ## Chunk 279 (boot330: SB kill on 3240 MACHMSG2_RET)
 
-| boot330 | Image.pth260 | Kill SB on userspace `MACHMSG2_RET` 3240 when `sb_kill_sas_armed` (`SB_KILL_SAS_RELOOKUP_3240`); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: break 3240 poll → SB respawn → SAS re-lookup. | out/logs/boot330 |
+| boot330 | Image.pth260 | Kill SB on userspace `MACHMSG2_RET` 3240 when `sb_kill_sas_armed`; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST+++ race**: **SAS_PORT_REAL `0x1b13`** + **SAS_MACH W00T** + ZERO×6 `sas=True`; **0 HID** — SB 3240 flood (~600 traps) starved BB. Kill ~28m. | out/logs/boot330 |
+
+## Chunk 280 (boot331: drop SB 3240 traps after sample)
+
+| boot331 | Image.pth261 | After 6× dump / 4× ZERO on 3240, `return False` (no RetBP/log); reopen mach window for BB→HID; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: stop GDB flood → BB reaches IOMFB/HID (boot325 order). | out/logs/boot331 |
 
