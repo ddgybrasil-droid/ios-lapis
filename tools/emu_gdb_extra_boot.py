@@ -1751,6 +1751,21 @@ def on_mach_msg2():
             return False
         if 'runningboard' in pn0.lower():
             _mm2['rb'] = 1
+        if 'SpringBoard' in pn0 or pn0 == 'SpringBoard':
+            _mm2['sb_alive'] = 1
+        # boot300: boot298 SAS_PORT_REAL after natural BB SIGKILL→respawn;
+        # boot299 no kill → SAS null. Once SB is up and before first GMD,
+        # crash BB once so the respawn publishes system-app-server.
+        if (_mm2.get('sb_alive') and not _mm2.get('bb_gmd_ok')
+                and not _mm2.get('bb_kill_for_sas')
+                and 'backboard' in pn0.lower()):
+            _mm2['bb_kill_for_sas'] = 1
+            P('BB_KILL_FOR_SAS pre-GMD')
+            try:
+                gdb.execute('set $pc = 0xbad0dead', to_string=True)
+            except Exception as ek:
+                P('BB_KILL_FOR_SAS_ERR=%r' % ek)
+            return False
         # boot296: kill RB once after SURFACE defer + GMD so IOCoreSurfaceRoot
         # rematches and sel32 can succeed (boot288 SAS window + SURFACE).
         if (_mm2.get('need_rb_rematch') and not _mm2.get('rb_rematch_kill')

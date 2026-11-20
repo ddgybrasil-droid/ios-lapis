@@ -1577,5 +1577,9 @@ Image.pth74.
 
 ## Chunk 248 (boot299: SAS_MACH name-index match + post-SAS CA probe)
 
-| boot299 | Image.pth229 | Match SAS_MACH by port index (mask type bits); widen post-SAS SB/BB mach dump; probe SPIN remote; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: catch real SAS traffic + next CA/IOMFB wall past asl MIG. | out/logs/boot299 |
+| boot299 | Image.pth229 | Match SAS_MACH by port index; widen post-SAS mach; probe SPIN; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE+6001012+CA_MIG(asl); **SAS_OBSERVE null**; **0 BB kill** (vs boot298 SIGKILL→SAS_PORT_REAL). SAS requires BB respawn. | out/logs/boot299 |
+
+## Chunk 249 (boot300: force BB kill once pre-GMD for SAS)
+
+| boot300 | Image.pth230 | Once SB alive and !bb_gmd_ok, `BB_KILL_FOR_SAS` (bad PC); keep NULL analytics + post-SAS probes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: recreate boot298 kill→respawn → SAS_PORT_REAL + SURFACE + then CA past asl. | out/logs/boot300 |
 
