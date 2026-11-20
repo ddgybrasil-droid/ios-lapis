@@ -47,6 +47,20 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
+            # boot333: dump GetDisplaySize scalars (boot332 wall = GETSIZE
+            # then W00T/SPIN/XPC388, 0 sels past 8).
+            if (t.startswith('IOEXTMETHOD_RET') and 'IOMFB_GETSIZE' in t
+                    and _mm2.get('getsize_soutp')):
+                try:
+                    sp = int(_mm2['getsize_soutp'])
+                    raw = bytes(gdb.selected_inferior().read_memory(sp, 16))
+                    w = int.from_bytes(raw[0:4], 'little')
+                    h = int.from_bytes(raw[4:8], 'little')
+                    extra += ' GETSIZE_OUT w=%d h=%d raw=%s' % (
+                        w, h, ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 16, 4)))
+                except Exception as eg:
+                    extra += ' GETSIZE_OUT_err=%r' % eg
             # boot309: RB_REMATCH_KILL via mach_msg2 set pc=0xbad0dead in
             # KERNEL → PANIC (same class as boot300). boot310: always allow
             # SURFACE (boot302/306 HID path); no NotReady / no RB rematch kill.
@@ -1607,6 +1621,7 @@ def on_external_method():
             return False
         # Dump IOExternalMethodArguments output fields for RB/surface sels.
         stout_p = 0
+        sout_p = 0
         if args and (sel in (0, 2, 4, 13, 32) or keep):
             try:
                 sin_c = m32(args + 40); sout_c = m32(args + 80)
@@ -1651,6 +1666,9 @@ def on_external_method():
                 tag += ' IOMFB_UCAL'
             if sel == 8 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_GETSIZE'
+                if sout_p:
+                    _mm2['getsize_soutp'] = sout_p
+                    tag += ' soutp=%#x' % sout_p
             RetBP(r('x30'), tag)
     except Exception as e:
         P('ERR extmethod %s' % e)

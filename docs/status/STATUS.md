@@ -1709,5 +1709,9 @@ Image.pth74.
 
 ## Chunk 281 (boot332: allow 3240 when SB kill armed)
 
-| boot332 | Image.pth262 | Keep 3240 DROP after sample, but pass through when `sb_kill_sas_armed` so `SB_KILL_SAS_RELOOKUP_3240` can fire; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SB restart after BB retry → SAS re-lookup + HID path. | out/logs/boot332 |
+| boot332 | Image.pth262 | Pass 3240 when `sb_kill_sas_armed`; keep DROP otherwise; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: `SB_3240_DROP` (~18 traps) → **HID** → **BB_IOMFB** → GETSIZE → **W00T_REAL×4** → **SPIN_REAL** → XPC388_FAKE. Wall: **0 sels past GETSIZE**. Kill ~26m. | out/logs/boot332 |
+
+## Chunk 282 (boot333: dump IOMFB_GETSIZE out)
+
+| boot333 | Image.pth263 | Dump GETSIZE soutp w/h on RET; keep DROP+HID+W00T path; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: size/scalars wrong → no further IOMFB sels. | out/logs/boot333 |
 
