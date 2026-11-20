@@ -298,6 +298,29 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
+            # boot324: dump 3240 reply buffer after RET (poll contents).
+            if t.startswith('SB_3240_RET') and 'buf=0x' in t:
+                try:
+                    buf = int(t.split('buf=')[1].split()[0], 16)
+                    raw = bytearray()
+                    for off in range(0, 96, 8):
+                        try:
+                            xs = gdb.execute(
+                                'x/gx %#x' % (buf + off), to_string=True)
+                            toks = [tt for tt in xs.replace(':', ' ').split()
+                                    if tt.startswith('0x') and len(tt) > 5]
+                            raw += int(toks[-1], 16).to_bytes(8, 'little')
+                        except Exception:
+                            raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little')
+                            for i in range(0, len(raw), 4))
+                        extra += ' reply=[%s]' % words
+                    else:
+                        extra += ' reply=empty'
+                except Exception as e3240r:
+                    extra += ' reply_err=%r' % e3240r
             # boot251/252/259: dump 6001012 reply + RET FP walk (boot258
             # quiet after BKS→FrontBoard; need where SB goes next).
             if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
@@ -1863,8 +1886,30 @@ def on_mach_msg2():
                         _uframes('SB_3240_U', 'n=%d' % _mm2['dump_3240'])
                     except Exception as e3240:
                         P('SB_3240_U err=%r' % e3240)
+                # boot324: RetBP dump reply words after 3240 (poll result).
+                if _mm2['dump_3240'] <= 3:
+                    try:
+                        RetBP(r('x30'),
+                              'SB_3240_RET n=%d remote=%#x buf=%#x' % (
+                                  _mm2['dump_3240'], remote, data_ptr))
+                    except Exception as eret:
+                        P('SB_3240_RET_ARM_ERR=%r' % eret)
             except Exception as e3240b:
                 P('SB_3240_MIG err=%r' % e3240b)
+        # boot324: after SAS_PORT_REAL, log SB→SAS mach (expect CA path).
+        if (_mm2.get('sas_ok') and _mm2.get('sas_port') and sending
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and (remote & 0xffffffff) == (_mm2['sas_port'] & 0xffffffff)
+                and _mm2.get('sas_mach_n', 0) < 16):
+            _mm2['sas_mach_n'] = _mm2.get('sas_mach_n', 0) + 1
+            P('SAS_MACH n=%d msgid=%d remote=%#x send=%d rcv=%d' % (
+                _mm2['sas_mach_n'], msgid, remote, send_sz, rcv_sz))
+            if _mm2['sas_mach_n'] <= 2:
+                try:
+                    _uframes('SAS_MACH_U', 'n=%d msgid=%d' % (
+                        _mm2['sas_mach_n'], msgid))
+                except Exception as esm:
+                    P('SAS_MACH_U err=%r' % esm)
         # boot251: stash userspace buffer for 6001012 reply dump (boot250
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:
@@ -1967,19 +2012,8 @@ def on_mach_msg2():
                 # boot231: ERR 0x10004004 → no W00T but also no SURFACE (BB
                 # aborts display path). Restore FAKE success (boot230) while
                 # boot232 deepens GMD object via OBJ_SUBINIT+const.
-                # boot322: after real W00T+SPIN, XPC388_FAKE still no sels
-                # past GETSIZE. boot323: after first W00T let XPC388 go real.
-                if _mm2.get('w00t_n', 0) >= 1:
-                    if _mm2['xpc388_n'] <= 4:
-                        try:
-                            RetBP(r('x30'),
-                                  'POST_W00T_XPC388_RET n=%d remote=%#x' % (
-                                      _mm2['xpc388_n'], remote))
-                            P('POST_W00T_XPC388_REAL n=%d remote=%#x' % (
-                                _mm2['xpc388_n'], remote))
-                        except Exception as e:
-                            P('XPC388_REAL_ERR=%r' % e)
-                    return False
+                # boot323: real XPC388 after W00T → RET x0=0x276b then BB
+                # CPU-burn; no sels past GETSIZE. boot324: FAKE again.
                 if _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)

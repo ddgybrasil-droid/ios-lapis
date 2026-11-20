@@ -1673,5 +1673,9 @@ Image.pth74.
 
 ## Chunk 272 (boot323: analytics DROP→0x9f + real XPC388 post-W00T)
 
-| boot323 | Image.pth253 | REAL_DROP uses 0x9f (no null-deref); after W00T let XPC388 real; keep SPIN_REAL+W00T_REAL; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid early far=0x4 → SAS_PORT_REAL race; real XPC388 may unlock sels past GETSIZE. | out/logs/boot323 |
+| boot323 | Image.pth253 | REAL_DROP uses 0x9f (no null-deref); after W00T let XPC388 real; keep SPIN_REAL+W00T_REAL; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++**: **SAS_PORT_REAL `0x250b`**+SURFACE+6001012+HID+W00T_RET×4+SPIN_REAL+**XPC388_REAL RET x0=0x276b**; no far=0x4. Wall: SB 3240 + SB_RECV; BB CPU-burn; no IOMFB past GETSIZE; 0 SAS_MACH. | out/logs/boot323 |
+
+## Chunk 273 (boot324: XPC388_FAKE again + 3240 reply + SAS_MACH)
+
+| boot324 | Image.pth254 | Revert XPC388_FAKE; keep DROP 0x9f; dump SB_3240_RET reply; log SAS_MACH; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: FAKE avoids 0x276b burn; 3240 reply + SAS_MACH show CA unlock gap. | out/logs/boot324 |
 
