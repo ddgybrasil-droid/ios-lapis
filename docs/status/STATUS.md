@@ -1617,5 +1617,9 @@ Image.pth74.
 
 ## Chunk 258 (boot309: rematch-on-defer; allow SURFACE after rematch)
 
-| boot309 | Image.pth239 | Arm RB_REMATCH on SURFACE defer (post-GMD); allow SURFACE after rematch_kill (don't wait sas_ok); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore HID path via rematch after one NotReady; SAS remains a race — push CA past HID next. | out/logs/boot309 |
+| boot309 | Image.pth239 | Arm RB_REMATCH on SURFACE defer (post-GMD); allow SURFACE after rematch_kill (don't wait sas_ok); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: rematch armed + **RB_REMATCH_KILL via mach_msg2 KERNEL pc=0xbad0dead → PANIC** (boot300 class). Disable rematch kill; restore always SURFACE. | out/logs/boot309 |
+
+## Chunk 259 (boot310: always SURFACE; no RB rematch kill; post-HID CA)
+
+| boot310 | Image.pth240 | Revert to boot302 always SURFACE + userspace BB kill; disable RB rematch kill; keep 3240/HID probes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore stable HID path; next wall = CA past iohidevent/3240/SPIN toward framebuffer. | out/logs/boot310 |
 

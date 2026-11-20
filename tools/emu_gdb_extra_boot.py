@@ -47,54 +47,9 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
-            # boot308: SAS lookup is NOT gated on SURFACE success (SB still
-            # SAS_OBSERVE'd after NotReady). Waiting for sas_ok stuck HID.
-            # boot309: one post-GMD NotReady to arm RB rematch (boot296), then
-            # allow on rematch/exhaust — restore HID path; SAS stays race.
-            if (t.startswith('IOEXTMETHOD_RET') and 'SURFACE_CONNECT' in t
-                    and ('PRE_BB_GMD' in t or 'PRE_SAS' in t)):
-                _mm2['surf_defer_n'] = _mm2.get('surf_defer_n', 0) + 1
-                # Arm rematch when defer happens after GMD (GMD-first boots
-                # never armed at GMD_BODY_RET because surf_defer_n was 0).
-                if (_mm2.get('bb_gmd_ok')
-                        and not _mm2.get('rb_sel32')
-                        and not _mm2.get('need_rb_rematch')
-                        and not _mm2.get('rb_rematch_kill')):
-                    _mm2['need_rb_rematch'] = 1
-                    P('RB_REMATCH_ARMED_ON_DEFER defer_n=%d' % (
-                        _mm2['surf_defer_n'],))
-                    extra += ' RB_REMATCH_ARMED_ON_DEFER'
-                allow = (
-                    _mm2.get('sas_ok')
-                    or _mm2.get('rb_rematch_kill')
-                    or _mm2.get('surf_defer_n', 0) > 8
-                    or (not _mm2.get('bb_gmd_ok')
-                        and _mm2.get('surf_defer_n', 0) > 12))
-                if allow:
-                    _mm2['rb_sel32'] = 1
-                    _mm2['surface_ok'] = 1
-                    if not _mm2.get('post_surf_mach'):
-                        _mm2['post_surf_mach'] = 1
-                        _mm2['n'] = 0
-                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                    if _mm2.get('rb_rematch_kill'):
-                        extra += ' SURFACE_AFTER_REMATCH n=%d' % (
-                            _mm2['surf_defer_n'],)
-                    elif _mm2.get('surf_defer_n', 0) > 8:
-                        extra += ' SURFACE_DEFER_EXHAUSTED n=%d' % (
-                            _mm2['surf_defer_n'],)
-                    else:
-                        extra += ' SURFACE_AFTER_SAS n=%d' % (
-                            _mm2['surf_defer_n'],)
-                else:
-                    try:
-                        gdb.execute('set $x0 = 0xe00002d7', to_string=True)
-                        x0 = 0xe00002d7
-                        extra += ' SURFACE_DEFER_PRE_SAS n=%d gmd=%s' % (
-                            _mm2['surf_defer_n'],
-                            1 if _mm2.get('bb_gmd_ok') else 0)
-                    except Exception as ed:
-                        extra += ' surf_defer_err=%r' % ed
+            # boot309: RB_REMATCH_KILL via mach_msg2 set pc=0xbad0dead in
+            # KERNEL → PANIC (same class as boot300). boot310: always allow
+            # SURFACE (boot302/306 HID path); no NotReady / no RB rematch kill.
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -1582,22 +1537,15 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
-                # boot309: allow after rematch kill or exhaust; else PRE_SAS
-                # for one NotReady that arms rematch.
-                if (_mm2.get('sas_ok')
-                        or _mm2.get('rb_sel32')
-                        or _mm2.get('rb_rematch_kill')
-                        or _mm2.get('surf_defer_n', 0) > 8):
-                    _mm2['rb_sel32'] = 1
-                    _mm2['surface_ok'] = 1
-                    if not _mm2.get('post_surf_mach'):
-                        _mm2['post_surf_mach'] = 1
-                        _mm2['n'] = 0
-                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                else:
-                    if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
-                        tag += ' PRE_BB_GMD'
-                    tag += ' PRE_SAS'
+                # boot310: always allow SURFACE (boot302 HID path).
+                _mm2['rb_sel32'] = 1
+                _mm2['surface_ok'] = 1
+                if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                    tag += ' PRE_BB_GMD'
+                if not _mm2.get('post_surf_mach'):
+                    _mm2['post_surf_mach'] = 1
+                    _mm2['n'] = 0
+                    P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
@@ -1808,19 +1756,7 @@ def on_mach_msg2():
             _mm2['rb'] = 1
         if 'SpringBoard' in pn0 or pn0 == 'SpringBoard':
             _mm2['sb_alive'] = 1
-        # boot296: kill RB once after SURFACE defer + GMD so IOCoreSurfaceRoot
-        # rematches and sel32 can succeed (boot288 SAS window + SURFACE).
-        if (_mm2.get('need_rb_rematch') and not _mm2.get('rb_rematch_kill')
-                and 'runningboard' in pn0.lower()):
-            _mm2['rb_rematch_kill'] = 1
-            _mm2['need_rb_rematch'] = 0
-            P('RB_REMATCH_KILL defer_n=%d sas_ok=%s' % (
-                _mm2.get('surf_defer_n', 0), _mm2.get('sas_ok')))
-            try:
-                gdb.execute('set $pc = 0xbad0dead', to_string=True)
-            except Exception as ek:
-                P('RB_REMATCH_KILL_ERR=%r' % ek)
-            return False
+        # boot309: RB_REMATCH_KILL here (mach_msg2 kernel) → PANIC. Disabled.
         # boot146: BB post-IOMFB-open only shows up as mach 'w00t' — always
         # log BB/SB; keep the RB-first gate for other UI procs only.
         if (not _mm2['rb'] and 'runningboard' not in pn0.lower()
