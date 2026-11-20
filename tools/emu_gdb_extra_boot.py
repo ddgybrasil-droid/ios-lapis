@@ -298,29 +298,35 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
-            # boot324: dump 3240 reply buffer after RET (poll contents).
-            if t.startswith('SB_3240_RET') and 'buf=0x' in t:
+            # boot325: dump 3240 reply via MACHMSG2_RET (RetBP tag collide).
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
+                    and 'SpringBoard' in t
+                    and _mm2.get('dump_3240_ret', 0) < 3):
+                _mm2['dump_3240_ret'] = _mm2.get('dump_3240_ret', 0) + 1
                 try:
-                    buf = int(t.split('buf=')[1].split()[0], 16)
+                    buf = int(_mm2.get('buf_3240') or 0)
                     raw = bytearray()
-                    for off in range(0, 96, 8):
-                        try:
-                            xs = gdb.execute(
-                                'x/gx %#x' % (buf + off), to_string=True)
-                            toks = [tt for tt in xs.replace(':', ' ').split()
-                                    if tt.startswith('0x') and len(tt) > 5]
-                            raw += int(toks[-1], 16).to_bytes(8, 'little')
-                        except Exception:
-                            raw += b'\x00' * 8
+                    if buf:
+                        for off in range(0, 96, 8):
+                            try:
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (buf + off), to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            except Exception:
+                                raw += b'\x00' * 8
                     if any(raw):
                         words = ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little')
                             for i in range(0, len(raw), 4))
-                        extra += ' reply=[%s]' % words
+                        extra += ' SB_3240_REPLY n=%d [%s]' % (
+                            _mm2['dump_3240_ret'], words)
                     else:
-                        extra += ' reply=empty'
+                        extra += ' SB_3240_REPLY n=%d empty' % _mm2[
+                            'dump_3240_ret']
                 except Exception as e3240r:
-                    extra += ' reply_err=%r' % e3240r
+                    extra += ' SB_3240_REPLY_err=%r' % e3240r
             # boot251/252/259: dump 6001012 reply + RET FP walk (boot258
             # quiet after BKS→FrontBoard; need where SB goes next).
             if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
@@ -1886,14 +1892,10 @@ def on_mach_msg2():
                         _uframes('SB_3240_U', 'n=%d' % _mm2['dump_3240'])
                     except Exception as e3240:
                         P('SB_3240_U err=%r' % e3240)
-                # boot324: RetBP dump reply words after 3240 (poll result).
+                # boot324 RetBP collided with MACHMSG2_RET; boot325: stash
+                # buf for reply dump on MACHMSG2_RET msgid=3240.
                 if _mm2['dump_3240'] <= 3:
-                    try:
-                        RetBP(r('x30'),
-                              'SB_3240_RET n=%d remote=%#x buf=%#x' % (
-                                  _mm2['dump_3240'], remote, data_ptr))
-                    except Exception as eret:
-                        P('SB_3240_RET_ARM_ERR=%r' % eret)
+                    _mm2['buf_3240'] = data_ptr
             except Exception as e3240b:
                 P('SB_3240_MIG err=%r' % e3240b)
         # boot324: after SAS_PORT_REAL, log SB→SAS mach (expect CA path).

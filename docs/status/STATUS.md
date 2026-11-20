@@ -1677,5 +1677,9 @@ Image.pth74.
 
 ## Chunk 273 (boot324: XPC388_FAKE again + 3240 reply + SAS_MACH)
 
-| boot324 | Image.pth254 | Revert XPC388_FAKE; keep DROP 0x9f; dump SB_3240_RET reply; log SAS_MACH; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: FAKE avoids 0x276b burn; 3240 reply + SAS_MACH show CA unlock gap. | out/logs/boot324 |
+| boot324 | Image.pth254 | Revert XPC388_FAKE; keep DROP 0x9f; dump SB_3240_RET reply; log SAS_MACH; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: DROP_FORCE_0x9f (no far=0x4); SURFACE+6001012+HID+W00T_RET+SPIN_REAL+XPC388_FAKE; **SAS null** (race vs boot323); 3240 RetBP collide (0 reply); 0 SAS_MACH; wall GETSIZE/3240. | out/logs/boot324 |
+
+## Chunk 274 (boot325: 3240 reply via MACHMSG2_RET; retry SAS race)
+
+| boot325 | Image.pth255 | Fix 3240 reply dump on MACHMSG2_RET; same DROP 0x9f + W00T_REAL + SPIN_REAL + XPC388_FAKE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: recover SAS_PORT_REAL (boot323) + see 3240 reply contents. | out/logs/boot325 |
 
