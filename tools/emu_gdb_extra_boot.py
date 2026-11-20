@@ -1280,20 +1280,19 @@ def _ufn(n):
                 if pn == 'SpringBoard':
                     _mm2['sb_alive'] = 1
                 # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
-                # boot301–304: pre-GMD userspace kill → SAS when respawn
-                # reaches GMD (boot302); boot304 respawn BRK'd after HID
-                # NOTE64 before Paravirt/IOMFB → 0 BB_GMD + SAS null.
-                # boot305: kill once AFTER bb_gmd_ok so HID→Paravirt→IOMFB
-                # completes first; respawn still republishes SAS (boot299:
-                # no kill ⇒ SAS null).
+                # boot301–304: pre-GMD userspace kill → SAS+HID when respawn
+                # reaches GMD (boot302). boot305 post-GMD kill: first BB did
+                # GMD/IOMFB, but SB stalled at cfprefs (0 SB_RB/6001012) —
+                # kill mid-SB-init breaks the wait. boot306: restore pre-GMD
+                # kill (boot302 path) + keep 3240/NOTE64 probes.
                 if (pn == 'backboardd'
                         and _mm2.get('sb_alive')
-                        and _mm2.get('bb_gmd_ok')
+                        and not _mm2.get('bb_gmd_ok')
                         and not _mm2.get('bb_kill_for_sas')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_sas'] = 1
-                        P('BB_KILL_FOR_SAS post-GMD via XPC name=%r pc=%#x' % (
+                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
                             name, pc))
                         try:
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)

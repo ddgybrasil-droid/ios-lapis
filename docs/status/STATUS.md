@@ -1601,5 +1601,9 @@ Image.pth74.
 
 ## Chunk 254 (boot305: post-GMD BB kill + 3240 name dump)
 
-| boot305 | Image.pth235 | BB_KILL_FOR_SAS after bb_gmd_ok (not pre-GMD); dump SB msgid 3240 MIG ascii; NOTE64 pre-GMD frames; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: first BB completes HID→Paravirt→IOMFB→GMD (avoid boot304 early BRK), then kill once for SAS republish; learn what 3240 looks up after HID. | out/logs/boot305 |
+| boot305 | Image.pth235 | BB_KILL_FOR_SAS after bb_gmd_ok (not pre-GMD); dump SB msgid 3240 MIG ascii; NOTE64 pre-GMD frames; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: NOTE64→Paravirt→IOMFB→**BB_GMD_OK** then post-GMD kill+respawn; SURFACE ok; **SB stuck at cfprefs** (msgid 11602/1026 spin, **0 SB_RB / 0×6001012 / 0 SAS**). Post-GMD kill mid-SB-init is harmful. Revert to pre-GMD kill. | out/logs/boot305 |
+
+## Chunk 255 (boot306: restore pre-GMD kill + keep 3240/NOTE64 probes)
+
+| boot306 | Image.pth236 | Revert BB_KILL to pre-GMD (boot302); keep SB_3240_MIG + NOTE64_PRE_GMD_U; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot302 SAS+HID path; after iohidevent dump 3240 names to unlock CA/UI wall. | out/logs/boot306 |
 
