@@ -1605,5 +1605,9 @@ Image.pth74.
 
 ## Chunk 255 (boot306: restore pre-GMD kill + keep 3240/NOTE64 probes)
 
-| boot306 | Image.pth236 | Revert BB_KILL to pre-GMD (boot302); keep SB_3240_MIG + NOTE64_PRE_GMD_U; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot302 SAS+HID path; after iohidevent dump 3240 names to unlock CA/UI wall. | out/logs/boot306 |
+| boot306 | Image.pth236 | Revert BB_KILL to pre-GMD (boot302); keep SB_3240_MIG + NOTE64_PRE_GMD_U; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: pre-GMD kill → NOTE64→Paravirt→**BB_GMD_OK** → SB_RB PORT_KEPT → SURFACE+6001012 + **iohidevent/HID_EVT** + SB_3240_MIG×6 (buf ptrs, no ascii name). **SAS null** (same race as boot304; boot302 had SAS). Wall: SAS publish timing + POST_IOMFB_SPIN after HID. | out/logs/boot306 |
+
+## Chunk 256 (boot307: SURFACE defer SAS window + 3240 name ptr)
+
+| boot307 | Image.pth237 | Restore SURFACE_DEFER_PRE_BB_GMD + RB rematch (boot296); keep pre-GMD kill; follow 3240 name ptrs; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot306 post-kill GMD is reliable, so defer+kill no longer sticks (boot301); SAS window before SURFACE like boot296; dump 3240 lookup names. | out/logs/boot307 |
 

@@ -47,9 +47,36 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
-            # boot301: SURFACE defer + early BB kill → no bb_gmd_ok ever,
-            # NotReady stuck (0×6001012). boot302: always allow SURFACE
-            # (boot289/298 path); keep userspace BB_KILL for SAS respawn.
+            # boot302–306: always SURFACE → HID path but SAS often null
+            # (SB looks up before respawn BB publishes). boot296: NotReady
+            # defer until bb_gmd_ok gave SAS_PORT_REAL. boot301 defer+kill
+            # stuck when post-kill BB never GMD'd; boot306 shows post-kill
+            # BB now reaches GMD reliably. boot307: restore defer + rematch.
+            if (t.startswith('IOEXTMETHOD_RET') and 'SURFACE_CONNECT' in t
+                    and 'PRE_BB_GMD' in t):
+                _mm2['surf_defer_n'] = _mm2.get('surf_defer_n', 0) + 1
+                if (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')
+                        or _mm2.get('surf_defer_n', 0) > 12):
+                    _mm2['rb_sel32'] = 1
+                    _mm2['surface_ok'] = 1
+                    if not _mm2.get('post_surf_mach'):
+                        _mm2['post_surf_mach'] = 1
+                        _mm2['n'] = 0
+                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
+                    if _mm2.get('surf_defer_n', 0) > 12 and not (
+                            _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                        extra += ' SURFACE_DEFER_EXHAUSTED n=%d' % (
+                            _mm2['surf_defer_n'],)
+                    else:
+                        extra += ' SURFACE_AFTER_BB_GMD'
+                else:
+                    try:
+                        gdb.execute('set $x0 = 0xe00002d7', to_string=True)
+                        x0 = 0xe00002d7
+                        extra += ' SURFACE_DEFER_PRE_BB_GMD n=%d' % (
+                            _mm2['surf_defer_n'],)
+                    except Exception as ed:
+                        extra += ' surf_defer_err=%r' % ed
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -1537,15 +1564,17 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
-                # boot302: always allow SURFACE (defer+kill left GMD unset).
-                _mm2['rb_sel32'] = 1
-                _mm2['surface_ok'] = 1
-                if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                # boot307: restore boot296 GMD gate — PRE_BB_GMD → RetBP
+                # NotReady (SAS publish window); post-GMD / rematch allow.
+                if _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb'):
+                    _mm2['rb_sel32'] = 1
+                    _mm2['surface_ok'] = 1
+                    if not _mm2.get('post_surf_mach'):
+                        _mm2['post_surf_mach'] = 1
+                        _mm2['n'] = 0
+                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
+                else:
                     tag += ' PRE_BB_GMD'
-                if not _mm2.get('post_surf_mach'):
-                    _mm2['post_surf_mach'] = 1
-                    _mm2['n'] = 0
-                    P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
@@ -1859,6 +1888,24 @@ def on_mach_msg2():
                     raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
                 P('SB_3240_MIG n=%d remote=%#x buf=%#x [%s] ascii=%r' % (
                     _mm2['dump_3240'], remote, data_ptr, words, ascii_s[:80]))
+                # boot306 buffers held ptr 0x101da8140 @+0x38 — follow name.
+                try:
+                    for poff in (0x38, 0x40, 0x48, 0x50):
+                        if poff + 8 > len(raw):
+                            break
+                        p = int.from_bytes(raw[poff:poff+8], 'little')
+                        if 0x100000000 <= p < 0x300000000:
+                            try:
+                                nm = bytes(gdb.selected_inferior().read_memory(
+                                    p, 96)).split(b'\0', 1)[0].decode(
+                                    'utf-8', 'replace')
+                                if nm and any(c.isalnum() for c in nm):
+                                    P('SB_3240_NAME n=%d off=%#x ptr=%#x name=%r' % (
+                                        _mm2['dump_3240'], poff, p, nm[:80]))
+                            except Exception:
+                                pass
+                except Exception as ename:
+                    P('SB_3240_NAME err=%r' % ename)
                 if _mm2['dump_3240'] <= 2:
                     try:
                         _uframes('SB_3240_U', 'n=%d' % _mm2['dump_3240'])
