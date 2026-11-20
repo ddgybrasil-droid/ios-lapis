@@ -299,9 +299,11 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as er:
                     extra += ' reply_err=%r' % er
             # boot325: dump 3240 reply via MACHMSG2_RET (RetBP tag collide).
+            # boot325 reply: id=0xd0c body … 0x2e/8 — SB polls forever.
+            # boot326: after SAS, zero the 0x2e slot (off+0x20) if present.
             if (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
                     and 'SpringBoard' in t
-                    and _mm2.get('dump_3240_ret', 0) < 3):
+                    and _mm2.get('dump_3240_ret', 0) < 6):
                 _mm2['dump_3240_ret'] = _mm2.get('dump_3240_ret', 0) + 1
                 try:
                     buf = int(_mm2.get('buf_3240') or 0)
@@ -322,6 +324,20 @@ class _RetSite(gdb.Breakpoint):
                             for i in range(0, len(raw), 4))
                         extra += ' SB_3240_REPLY n=%d [%s]' % (
                             _mm2['dump_3240_ret'], words)
+                        if (_mm2.get('sas_ok') and buf and len(raw) >= 0x24
+                                and int.from_bytes(raw[0x20:0x24], 'little')
+                                == 0x2e
+                                and _mm2.get('fix_3240_2e', 0) < 8):
+                            try:
+                                gdb.execute(
+                                    'set {unsigned int}%#x = 0' % (buf + 0x20),
+                                    to_string=True)
+                                _mm2['fix_3240_2e'] = _mm2.get(
+                                    'fix_3240_2e', 0) + 1
+                                extra += ' SB_3240_ZERO_0x2e n=%d' % _mm2[
+                                    'fix_3240_2e']
+                            except Exception as ez:
+                                extra += ' zero_err=%r' % ez
                     else:
                         extra += ' SB_3240_REPLY n=%d empty' % _mm2[
                             'dump_3240_ret']

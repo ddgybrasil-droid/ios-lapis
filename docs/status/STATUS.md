@@ -1681,5 +1681,9 @@ Image.pth74.
 
 ## Chunk 274 (boot325: 3240 reply via MACHMSG2_RET; retry SAS race)
 
-| boot325 | Image.pth255 | Fix 3240 reply dump on MACHMSG2_RET; same DROP 0x9f + W00T_REAL + SPIN_REAL + XPC388_FAKE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: recover SAS_PORT_REAL (boot323) + see 3240 reply contents. | out/logs/boot325 |
+| boot325 | Image.pth255 | Fix 3240 reply dump on MACHMSG2_RET; same DROP 0x9f + W00T_REAL + SPIN_REAL + XPC388_FAKE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST+++**: **SAS_PORT_REAL `0x2807`** + **SAS_MACH W00T** (msgid=`0x77303074`→SAS) + 3240 reply id=`0xd0c` body **`0x2e`/8**; HID+W00T_RET+SPIN_REAL+XPC388_FAKE. Wall: SB stuck after one SAS_MACH; no IOMFB past GETSIZE. | out/logs/boot325 |
+
+## Chunk 275 (boot326: zero 3240 reply 0x2e after SAS)
+
+| boot326 | Image.pth256 | On 3240 RET after sas_ok, patch reply+0x20 0x2e→0; keep BEST+++ path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: 0x2e in 3240 reply keeps SB polling; zero → more SAS_MACH / CA. | out/logs/boot326 |
 
