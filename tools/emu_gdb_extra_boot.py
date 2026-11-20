@@ -155,35 +155,14 @@ class _RetSite(gdb.Breakpoint):
                             extra += ' fc08=%#x' % fc08
                         except Exception as e5:
                             extra += ' flag_err=%r' % e5
-                        # boot211: BB GMD sometimes returns a zeroed *out page
-                        # (size/isa/flags all 0) despite Open kr=0. Force FDR-
-                        # proven panel fields so CA can proceed.
-                        if ('backboardd' in t and obj
+                        # boot211: BB_GMD_FORCE wrote panel fields into *out.
+                        # boot310: FORCE hit a non-GMD object (obj40 ASCII
+                        # "AutomaticDiskAllocation") → asl-only CA, 0 iohidevent.
+                        # boot311: never FORCE; require clean BB_GMD_OK.
+                        if False and ('backboardd' in t and obj
                                 and (w == 0 or h == 0 or not isa
                                      or f838 == 0 or fc08 == 0)):
-                            try:
-                                seed = int(_dsc.get('gmd_isa_seed', 0) or isa or 0)
-                                if seed and not isa:
-                                    gdb.selected_inferior().write_memory(
-                                        obj, seed.to_bytes(8, 'little'))
-                                    isa = seed
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0x30, (2420).to_bytes(4, 'little'))
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0x34, (1668).to_bytes(4, 'little'))
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0x38, (2420).to_bytes(4, 'little'))
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0x3c, (1668).to_bytes(4, 'little'))
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0x838, (1).to_bytes(4, 'little'))
-                                gdb.selected_inferior().write_memory(
-                                    obj + 0xc08, (1).to_bytes(4, 'little'))
-                                _mm2['bb_gmd_ok'] = 1
-                                extra += ' BB_GMD_FORCE size=2420x1668'
-                                w, h = 2420, 1668
-                            except Exception as e7:
-                                extra += ' bb_gmd_force_err=%r' % e7
+                            pass
                         if 'backboardd' in t and w and h and isa:
                             _mm2['bb_gmd_ok'] = 1
                             if 'BB_GMD_FORCE' not in extra:

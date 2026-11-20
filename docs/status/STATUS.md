@@ -1621,5 +1621,9 @@ Image.pth74.
 
 ## Chunk 259 (boot310: always SURFACE; no RB rematch kill; post-HID CA)
 
-| boot310 | Image.pth240 | Revert to boot302 always SURFACE + userspace BB kill; disable RB rematch kill; keep 3240/HID probes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore stable HID path; next wall = CA past iohidevent/3240/SPIN toward framebuffer. | out/logs/boot310 |
+| boot310 | Image.pth240 | Revert to boot302 always SURFACE + userspace BB kill; disable RB rematch kill; keep 3240/HID probes; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; **BB_GMD_FORCE** on garbage *out (AutomaticDiskAllocation) → asl-only CA, **0 iohidevent** (regression vs boot306). Disable FORCE. | out/logs/boot310 |
+
+## Chunk 260 (boot311: disable BB_GMD_FORCE; restore clean GMD→HID)
+
+| boot311 | Image.pth241 | Disable BB_GMD_FORCE; keep always SURFACE + userspace BB kill; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean BB_GMD_OK like boot306 restores iohidevent; then push CA past HID. | out/logs/boot311 |
 
