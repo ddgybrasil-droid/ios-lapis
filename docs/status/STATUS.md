@@ -1573,5 +1573,9 @@ Image.pth74.
 
 ## Chunk 247 (boot298: drop pre-SURFACE REAL analytics for SAS)
 
-| boot298 | Image.pth228 | Pre-SURFACE BB analytics has_port → clear+NULL_SKIP (boot296 path); keep SEED disabled; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot296 SAS came with null analytics; drop REAL pre-SURFACE to recreate that publish window. | out/logs/boot298 |
+| boot298 | Image.pth228 | Pre-SURFACE BB analytics has_port → clear+NULL_SKIP (boot296 path); keep SEED disabled; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / SAS STABLE**: **SAS_PORT_REAL `0x240b`** + SURFACE + 6001012×4 (x0=0) + CA_MIG(asl) + HIDPROP; analytics NULL_SKIP (no REAL_DROP needed); BB SIGKILL→respawn pre-GMD; **0 SAS_MACH**; wall = POST_IOMFB_SPIN + CA only asl/syslog. | out/logs/boot298 |
+
+## Chunk 248 (boot299: SAS_MACH name-index match + post-SAS CA probe)
+
+| boot299 | Image.pth229 | Match SAS_MACH by port index (mask type bits); widen post-SAS SB/BB mach dump; probe SPIN remote; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: catch real SAS traffic + next CA/IOMFB wall past asl MIG. | out/logs/boot299 |
 

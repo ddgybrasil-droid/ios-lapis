@@ -1918,12 +1918,17 @@ def on_mach_msg2():
         # boot167: also dump trap msg header words (identify port peer).
         if msgid == 0x10000000 and 'backboard' in pn0.lower():
             _mm2['spin1'] = _mm2.get('spin1', 0) + 1
-            if _mm2['spin1'] <= 8:
+            # boot299: keep sampling SPIN after SAS (CA/UI wall).
+            spin_cap = 16 if _mm2.get('sas_ok') else 8
+            if _mm2['spin1'] <= spin_cap:
                 tag = ('POST_IOMFB_SPIN' if _mm2.get('post_iomfb')
                        else 'MACHMSG2_SPIN')
+                if _mm2.get('sas_ok'):
+                    tag += '_POST_SAS'
                 P('%s proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
                     tag, pn0, remote, local, r('x30'), _mm2['spin1']))
-                if _mm2['spin1'] <= 3:
+                if _mm2['spin1'] <= 3 or (
+                        _mm2.get('sas_ok') and _mm2['spin1'] <= 6):
                     try:
                         data = m64(ap)
                         ws = [0, 0, 0, 0]
@@ -2022,13 +2027,22 @@ def on_mach_msg2():
         P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
             pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
             rcv_name, msgid, timeout))
-        # boot297: after SAS_PORT_REAL, log traffic to that port (CA/UI path).
+        # boot297/299: after SAS_PORT_REAL, log traffic to that port.
+        # Match by name index (ignore low type/rights bits) — boot298 had
+        # SAS_PORT_REAL but 0 exact-name hits.
         if (_mm2.get('sas_ok') and _mm2.get('sas_port')
-                and (remote & 0xffff) == (_mm2['sas_port'] & 0xffff)
-                and _mm2.get('sas_mach_n', 0) < 24):
+                and ((remote >> 8) & 0xffffff) == (
+                    (_mm2['sas_port'] >> 8) & 0xffffff)
+                and _mm2.get('sas_mach_n', 0) < 32):
             _mm2['sas_mach_n'] = _mm2.get('sas_mach_n', 0) + 1
             P('SAS_MACH n=%d proc=%s msgid=%d remote=%#x send=%d rcv=%d' % (
                 _mm2['sas_mach_n'], pn0, msgid, remote, send_sz, rcv_sz))
+        # boot299: after SAS, reopen SB/BB mach window for CA past asl.
+        if (_mm2.get('sas_ok') and not _mm2.get('post_sas_mach')):
+            _mm2['post_sas_mach'] = 1
+            _mm2['n'] = 0
+            _mm2['post_surf_mach'] = 1
+            P('MACHMSG2_WINDOW post-SAS reopen')
         # boot241: drop POST_IOMFB_U stack walks — boot240 GDB drag left RB
         # short of SURFACE under T=2400.
         # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
