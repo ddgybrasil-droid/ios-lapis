@@ -1884,8 +1884,11 @@ def on_mach_msg2():
         # boot331: after sampling/zeroing 3240, drop further SB 3240 traps —
         # boot330: 600+ MACHMSG2 3240 starved BB past IOMFB/HID despite
         # SAS_PORT_REAL + SAS_MACH W00T + ZERO sas=True.
+        # boot332: still allow 3240 when sb_kill_sas_armed (boot331: DROP
+        # blocked SB_KILL_SAS_RELOOKUP_3240 after BB retry).
         if (msgid == 3240
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and not _mm2.get('sb_kill_sas_armed')
                 and (_mm2.get('dump_3240', 0) >= 6
                      or _mm2.get('zero_3240_2e', 0) >= 4)):
             _mm2['drop_3240_n'] = _mm2.get('drop_3240_n', 0) + 1

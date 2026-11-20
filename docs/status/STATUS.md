@@ -1705,5 +1705,9 @@ Image.pth74.
 
 ## Chunk 280 (boot331: drop SB 3240 traps after sample)
 
-| boot331 | Image.pth261 | After 6× dump / 4× ZERO on 3240, `return False` (no RetBP/log); reopen mach window for BB→HID; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: stop GDB flood → BB reaches IOMFB/HID (boot325 order). | out/logs/boot331 |
+| boot331 | Image.pth261 | After 6× dump / 4× ZERO on 3240, drop traps; reopen mach window; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SB_3240_DROP` + **HID_EVT** + BB_KILL_SAS_RETRY + `SB_KILL_SAS_ARMED`; SAS null; DROP blocked 3240 kill. Kill ~26m. | out/logs/boot331 |
+
+## Chunk 281 (boot332: allow 3240 when SB kill armed)
+
+| boot332 | Image.pth262 | Keep 3240 DROP after sample, but pass through when `sb_kill_sas_armed` so `SB_KILL_SAS_RELOOKUP_3240` can fire; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SB restart after BB retry → SAS re-lookup + HID path. | out/logs/boot332 |
 
