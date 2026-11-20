@@ -721,12 +721,15 @@ class _RetSite(gdb.Breakpoint):
                             # `0x4603` kept → SAS null; boot296 NULL_SKIP →
                             # SAS_PORT_REAL. boot298: pre-SURFACE drop REAL
                             # (clear outs, x0=0) to recreate boot296 window.
+                            # boot322: DROP+x0=0+CLEARED → BB EXC far=0x4
+                            # before PRE_SURFACE kill, SAS null. boot323: on
+                            # DROP force 0x9f so BB errors instead of null-deref.
                             if not _mm2.get('rb_sel32'):
-                                extra += ' ANALYTICS_REAL_DROP_PRE_FOR_SAS'
+                                extra += ' ANALYTICS_REAL_DROP_FORCE_0x9f'
                                 force_bb = True  # clear x4/x6/x7 below
                                 try:
-                                    gdb.execute('set $x0 = 0', to_string=True)
-                                    x0 = 0
+                                    gdb.execute('set $x0 = 0x9f', to_string=True)
+                                    x0 = 0x9f
                                 except Exception as e:
                                     extra += ' drop_x0_err=%r' % e
                             else:
@@ -1964,6 +1967,19 @@ def on_mach_msg2():
                 # boot231: ERR 0x10004004 → no W00T but also no SURFACE (BB
                 # aborts display path). Restore FAKE success (boot230) while
                 # boot232 deepens GMD object via OBJ_SUBINIT+const.
+                # boot322: after real W00T+SPIN, XPC388_FAKE still no sels
+                # past GETSIZE. boot323: after first W00T let XPC388 go real.
+                if _mm2.get('w00t_n', 0) >= 1:
+                    if _mm2['xpc388_n'] <= 4:
+                        try:
+                            RetBP(r('x30'),
+                                  'POST_W00T_XPC388_RET n=%d remote=%#x' % (
+                                      _mm2['xpc388_n'], remote))
+                            P('POST_W00T_XPC388_REAL n=%d remote=%#x' % (
+                                _mm2['xpc388_n'], remote))
+                        except Exception as e:
+                            P('XPC388_REAL_ERR=%r' % e)
+                    return False
                 if _mm2['xpc388_n'] <= 32:
                     try:
                         gdb.execute('set $x0 = 0', to_string=True)

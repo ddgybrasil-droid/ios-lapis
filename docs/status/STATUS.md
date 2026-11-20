@@ -1669,5 +1669,9 @@ Image.pth74.
 
 ## Chunk 271 (boot322: no SPIN_TIMEOUT after first W00T)
 
-| boot322 | Image.pth252 | After w00t_n≥1 let SPIN go real (log POST_W00T_SPIN_REAL); pre-W00T SPIN_TIMEOUT kept; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: real post-W00T notify-wait completes FB handshake past 3240. | out/logs/boot322 |
+| boot322 | Image.pth252 | After w00t_n≥1 let SPIN go real (log POST_W00T_SPIN_REAL); pre-W00T SPIN_TIMEOUT kept; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+HID+**W00T_RET×4 x0=0**+**SPIN_REAL×8**+IOMFB surface wake/nuc; **SAS null**; early **ANALYTICS_REAL_DROP→EXC far=0x4**; SB 3240; no IOMFB past GETSIZE. | out/logs/boot322 |
+
+## Chunk 272 (boot323: analytics DROP→0x9f + real XPC388 post-W00T)
+
+| boot323 | Image.pth253 | REAL_DROP uses 0x9f (no null-deref); after W00T let XPC388 real; keep SPIN_REAL+W00T_REAL; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid early far=0x4 → SAS_PORT_REAL race; real XPC388 may unlock sels past GETSIZE. | out/logs/boot323 |
 
