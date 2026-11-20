@@ -1689,5 +1689,9 @@ Image.pth74.
 
 ## Chunk 276 (boot327: always ZERO 3240 0x2e)
 
-| boot327 | Image.pth257 | Zero 3240+0x20 0x2e always (not only post-SAS); retry SAS race; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early 3240 zero + SAS race may unlock past poll. | out/logs/boot327 |
+| boot327 | Image.pth257 | Zero 3240+0x20 0x2e always (not only post-SAS); retry SAS race; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ZERO×6 `sas=False`; **SAS_OBSERVE v=None**; SURFACE+6001012; no HID/W00T. Wall: SB 3240 poll without SAS. Kill ~28m (не ждать T=3000). | out/logs/boot327 |
+
+## Chunk 277 (boot328: post-SURFACE SAS-null BB kill retry)
+
+| boot328 | Image.pth258 | On SAS null after SURFACE, arm one more userspace BB kill (`BB_KILL_SAS_RETRY`); keep always-ZERO 0x2e; T=3000, poll≤8m kill-at-wall | qemu11 43G lva=off | **ГИПОТЕЗА**: second BB respawn republishes SAS (boot325 path). | out/logs/boot328 |
 

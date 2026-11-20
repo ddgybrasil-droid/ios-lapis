@@ -415,6 +415,13 @@ class _RetSite(gdb.Breakpoint):
                             v = None
                     if v is None:
                         extra += ' SAS_OBSERVE v=None'
+                        # boot328: SAS race often null post-SURFACE (boot326/327).
+                        # Arm one more userspace BB kill so SAS can republish.
+                        if (_mm2.get('surface_ok')
+                                and not _mm2.get('sas_ok')
+                                and not _mm2.get('bb_kill_sas_retry')):
+                            _mm2['bb_kill_sas_retry_armed'] = 1
+                            extra += ' SAS_NULL_RETRY_ARMED'
                     else:
                         raw = v & 0xffffffffffffffff
                         low = raw & 0xffffffff
@@ -1334,6 +1341,22 @@ def _ufn(n):
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)
                         except Exception as ek:
                             P('BB_KILL_FOR_SAS_ERR=%r' % ek)
+                        return False
+                # boot328: second BB kill after SURFACE if SAS still null.
+                if (pn == 'backboardd'
+                        and _mm2.get('bb_kill_sas_retry_armed')
+                        and not _mm2.get('bb_kill_sas_retry')
+                        and not _mm2.get('sas_ok')):
+                    pc = r('pc') & 0xffffffffffffffff
+                    if pc < 0xffff000000000000:
+                        _mm2['bb_kill_sas_retry'] = 1
+                        _mm2['bb_kill_sas_retry_armed'] = 0
+                        P('BB_KILL_SAS_RETRY post-SURFACE SAS-null name=%r pc=%#x' % (
+                            name, pc))
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_SAS_RETRY_ERR=%r' % ek)
                         return False
                 # boot297: disable SHORTCIRCUIT_SEED (fake analytics ↔ SAS null).
                 if False and (pn == 'backboardd'
