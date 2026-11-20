@@ -1661,5 +1661,9 @@ Image.pth74.
 
 ## Chunk 269 (boot320: retry W00T_FAKE full window)
 
-| boot320 | Image.pth250 | Same as boot319 (W00T_FAKE+SPIN_TIMEOUT×24+PRE_SURFACE kill); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: complete HID→W00T_FAKE window that boot319 truncated. | out/logs/boot320 |
+| boot320 | Image.pth250 | Same as boot319 (W00T_FAKE+SPIN_TIMEOUT×24+PRE_SURFACE kill); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST PATH+**: PRE_SURFACE→SURFACE→**SAS_PORT_REAL `0x3b03`**→6001012→HID→SPIN_TIMEOUT×24→**BB_GMD_OK**→**W00T_FAKE**→IOMFB deferred wake (property/power/resumed/gfx)+XPC388_FAKE. Wall: SB **msgid=3240** flood; no IOMFB sels past GETSIZE; CA asl-only. W00T_FAKE skips real FB send (`remote=0x5087`). | out/logs/boot320 |
+
+## Chunk 270 (boot321: real W00T→FB after HID+GMD)
+
+| boot321 | Image.pth251 | Disable W00T_FAKE; RetBP W00T_RET; keep SPIN_TIMEOUT×24+PRE_SURFACE+SAS path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: real W00T to FB unlocks post-GETSIZE IOMFB / breaks SB 3240 poll. | out/logs/boot321 |
 
