@@ -1609,5 +1609,9 @@ Image.pth74.
 
 ## Chunk 256 (boot307: SURFACE defer SAS window + 3240 name ptr)
 
-| boot307 | Image.pth237 | Restore SURFACE_DEFER_PRE_BB_GMD + RB rematch (boot296); keep pre-GMD kill; follow 3240 name ptrs; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot306 post-kill GMD is reliable, so defer+kill no longer sticks (boot301); SAS window before SURFACE like boot296; dump 3240 lookup names. | out/logs/boot307 |
+| boot307 | Image.pth237 | Restore SURFACE_DEFER_PRE_BB_GMD + RB rematch (boot296); keep pre-GMD kill; follow 3240 name ptrs; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD before first sel32 → **0 SURFACE_DEFER** (no PRE_BB_GMD); SURFACE+6001012+HID_EVT; **SAS null**; SB_3240_NAME mostly garbage (wrong ptr range). Need post-GMD SAS defer window. | out/logs/boot307 |
+
+## Chunk 257 (boot308: post-GMD SURFACE defer until SAS/window)
+
+| boot308 | Image.pth238 | NotReady SURFACE until sas_ok OR post-GMD defer n>4 OR exhaust n>12; RB rematch; fix 3240 heap name ptr; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: even after bb_gmd_ok, soft-defer SURFACE so BB can publish SAS before SB lookup (boot296 window adapted to post-GMD timing). | out/logs/boot308 |
 
