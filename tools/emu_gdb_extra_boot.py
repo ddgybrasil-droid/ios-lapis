@@ -1954,6 +1954,19 @@ def on_mach_msg2():
                             'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
+            # boot303: after SAS, fake-return first SPIN traps (like
+            # XPC388_FAKE) — boot302 spun forever post-iohideventsystem.
+            if (_mm2.get('sas_ok')
+                    and _mm2.get('spin_fake_n', 0) < 8):
+                _mm2['spin_fake_n'] = _mm2.get('spin_fake_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x' % (
+                        _mm2['spin_fake_n'], remote))
+                except Exception as ef:
+                    P('POST_SAS_SPIN_FAKE_ERR=%r' % ef)
+                return False
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.

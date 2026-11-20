@@ -1589,5 +1589,9 @@ Image.pth74.
 
 ## Chunk 251 (boot302: allow SURFACE always + keep userspace BB kill)
 
-| boot302 | Image.pth232 | Drop SURFACE NotReady defer; keep userspace BB_KILL_FOR_SAS; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: kill→respawn for SAS + always-allow SURFACE (boot298) → SAS_PORT_REAL+6001012. | out/logs/boot302 |
+| boot302 | Image.pth232 | Drop SURFACE NotReady defer; keep userspace BB_KILL_FOR_SAS; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / STABLE PATH**: BB_KILL via oscard (no panic) → GMD → **SAS_PORT_REAL `0x3d13`** + SURFACE + 6001012×6 + CA_MIG incl. **`iohideventsystem.available`** (past asl-only). Wall: 0 SAS_MACH, POST_IOMFB_SPIN_POST_SAS. | out/logs/boot302 |
+
+## Chunk 252 (boot303: post-SAS SPIN + CA past HID available)
+
+| boot303 | Image.pth233 | Keep boot302 kill+SURFACE; broaden SAS_MACH (any SB msgid after sas_ok); dump SPIN peer; watch IOSurface/CARender; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: after HID available, unblock SPIN / find real CA render server traffic. | out/logs/boot303 |
 
