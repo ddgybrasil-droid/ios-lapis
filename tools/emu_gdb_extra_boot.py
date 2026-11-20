@@ -1290,6 +1290,8 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
+                if pn == 'SpringBoard':
+                    _mm2['sb_alive'] = 1
                 # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
                 # boot301: crash BB once in userspace XPC enter after SB is
                 # alive and before GMD (boot298 natural SIGKILL→SAS path).
