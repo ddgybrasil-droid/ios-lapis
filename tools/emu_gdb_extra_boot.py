@@ -742,18 +742,28 @@ class _RetSite(gdb.Breakpoint):
                             else:
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
-                            # boot284: ALWAYS_SKIP then REAL_FORCE cleared a
-                            # pre-GMD real port (stash later unused) → SAS null.
-                            # boot285: keep real ports pre-SURFACE (boot239).
-                            _mm2['analytics_ok'] = 1
-                            extra += ' ANALYTICS_REAL_KEEP_PRE'
-                            if (x0 & 0xffffffff) != 0:
+                            # boot285: keep REAL pre-SURFACE. boot297: REAL
+                            # `0x4603` kept → SAS null; boot296 NULL_SKIP →
+                            # SAS_PORT_REAL. boot298: pre-SURFACE drop REAL
+                            # (clear outs, x0=0) to recreate boot296 window.
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_REAL_DROP_PRE_FOR_SAS'
+                                force_bb = True  # clear x4/x6/x7 below
                                 try:
                                     gdb.execute('set $x0 = 0', to_string=True)
                                     x0 = 0
-                                    extra += '+X0CLR'
                                 except Exception as e:
-                                    extra += ' x0clr_err=%r' % e
+                                    extra += ' drop_x0_err=%r' % e
+                            else:
+                                _mm2['analytics_ok'] = 1
+                                extra += ' ANALYTICS_REAL_KEEP_PRE'
+                                if (x0 & 0xffffffff) != 0:
+                                    try:
+                                        gdb.execute('set $x0 = 0', to_string=True)
+                                        x0 = 0
+                                        extra += '+X0CLR'
+                                    except Exception as e:
+                                        extra += ' x0clr_err=%r' % e
                         elif (x0 & 0xffffffff) == 0 and not has_port:
                             if not _mm2.get('rb_sel32'):
                                 extra += ' ANALYTICS_NULL_SKIP_NO_STASH'

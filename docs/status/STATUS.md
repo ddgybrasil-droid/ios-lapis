@@ -1569,5 +1569,9 @@ Image.pth74.
 
 ## Chunk 246 (boot297: disable analytics SEED to stabilize SAS)
 
-| boot297 | Image.pth227 | Disable SEED_BADPATH + SHORTCIRCUIT (boot296 SAS had 0 stash); keep SURFACE defer/rematch safety; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: fake analytics seed blocks SAS publish; natural NULL_SKIP path → reproducible SAS_PORT_REAL + SURFACE + CA. | out/logs/boot297 |
+| boot297 | Image.pth227 | Disable SEED_BADPATH + SHORTCIRCUIT; SAS_MACH log; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE+6001012; **ANALYTICS_REAL_KEEP_PRE `0x4603`** + SEED_SKIP; **SAS_OBSERVE null**; 6001012 x0=`0x10004003`. Contrast boot296 (NULL_SKIP, 0 port → SAS_PORT_REAL). Real analytics ≠ SAS. | out/logs/boot297 |
+
+## Chunk 247 (boot298: drop pre-SURFACE REAL analytics for SAS)
+
+| boot298 | Image.pth228 | Pre-SURFACE BB analytics has_port → clear+NULL_SKIP (boot296 path); keep SEED disabled; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot296 SAS came with null analytics; drop REAL pre-SURFACE to recreate that publish window. | out/logs/boot298 |
 
