@@ -1585,5 +1585,9 @@ Image.pth74.
 
 ## Chunk 250 (boot301: BB kill in userspace XPC only)
 
-| boot301 | Image.pth231 | `BB_KILL_FOR_SAS` on BB XPC_LOOKUP enter (userspace pc only) after `sb_alive`, before GMD; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: userspace crash → launchd respawn → SAS_PORT_REAL like boot298, no kernel panic. | out/logs/boot301 |
+| boot301 | Image.pth231 | Userspace XPC BB kill after sb_alive pre-GMD; SURFACE defer still on; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: kill via oscard OK (no panic); BB×3; SURFACE_DEFER stuck (0 bb_gmd_ok); SAS null; 0×6001012. Defer+early-kill harmful together. | out/logs/boot301 |
+
+## Chunk 251 (boot302: allow SURFACE always + keep userspace BB kill)
+
+| boot302 | Image.pth232 | Drop SURFACE NotReady defer; keep userspace BB_KILL_FOR_SAS; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: kill→respawn for SAS + always-allow SURFACE (boot298) → SAS_PORT_REAL+6001012. | out/logs/boot302 |
 

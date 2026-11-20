@@ -47,34 +47,9 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
-            # boot289: deferred NotReady stuck (RB never retried).
-            # boot296: restore defer for SAS window (boot288), then kill RB
-            # after GMD so IOCoreSurfaceRoot rematches → second sel32 allows.
-            if (t.startswith('IOEXTMETHOD_RET') and 'SURFACE_CONNECT' in t
-                    and 'PRE_BB_GMD' in t):
-                _mm2['surf_defer_n'] = _mm2.get('surf_defer_n', 0) + 1
-                if (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')
-                        or _mm2.get('surf_defer_n', 0) > 12):
-                    _mm2['rb_sel32'] = 1
-                    _mm2['surface_ok'] = 1
-                    if not _mm2.get('post_surf_mach'):
-                        _mm2['post_surf_mach'] = 1
-                        _mm2['n'] = 0
-                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                    if _mm2.get('surf_defer_n', 0) > 12 and not (
-                            _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
-                        extra += ' SURFACE_DEFER_EXHAUSTED n=%d' % (
-                            _mm2['surf_defer_n'],)
-                    else:
-                        extra += ' SURFACE_AFTER_BB_GMD'
-                else:
-                    try:
-                        gdb.execute('set $x0 = 0xe00002d7', to_string=True)
-                        x0 = 0xe00002d7
-                        extra += ' SURFACE_DEFER_PRE_BB_GMD n=%d' % (
-                            _mm2['surf_defer_n'],)
-                    except Exception as ed:
-                        extra += ' surf_defer_err=%r' % ed
+            # boot301: SURFACE defer + early BB kill → no bb_gmd_ok ever,
+            # NotReady stuck (0×6001012). boot302: always allow SURFACE
+            # (boot289/298 path); keep userspace BB_KILL for SAS respawn.
             if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
                 try:
                     op = int(t.split('out=')[1].split()[0], 16)
@@ -1547,18 +1522,15 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
-                # boot296: restore boot288 GMD gate + RB rematch after defer.
-                # Pre-GMD → PRE_BB_GMD tag → RetBP NotReady (SAS window).
-                # Post-GMD / rematch → allow and mark rb_sel32.
-                if _mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb'):
-                    _mm2['rb_sel32'] = 1
-                    _mm2['surface_ok'] = 1
-                    if not _mm2.get('post_surf_mach'):
-                        _mm2['post_surf_mach'] = 1
-                        _mm2['n'] = 0
-                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                else:
+                # boot302: always allow SURFACE (defer+kill left GMD unset).
+                _mm2['rb_sel32'] = 1
+                _mm2['surface_ok'] = 1
+                if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
                     tag += ' PRE_BB_GMD'
+                if not _mm2.get('post_surf_mach'):
+                    _mm2['post_surf_mach'] = 1
+                    _mm2['n'] = 0
+                    P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
