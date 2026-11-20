@@ -1581,5 +1581,9 @@ Image.pth74.
 
 ## Chunk 249 (boot300: force BB kill once pre-GMD for SAS)
 
-| boot300 | Image.pth230 | Once SB alive and !bb_gmd_ok, `BB_KILL_FOR_SAS` (bad PC); keep NULL analytics + post-SAS probes; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: recreate boot298 kill→respawn → SAS_PORT_REAL + SURFACE + then CA past asl. | out/logs/boot300 |
+| boot300 | Image.pth230 | Once SB alive and !bb_gmd_ok, `BB_KILL_FOR_SAS` via mach_msg2 bad PC; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / PANIC**: kill ran in **kernel** mach_msg2 (`pc=0xbad0dead` → PC alignment → PANIC). Too early + wrong context. | out/logs/boot300 |
+
+## Chunk 250 (boot301: BB kill in userspace XPC only)
+
+| boot301 | Image.pth231 | `BB_KILL_FOR_SAS` on BB XPC_LOOKUP enter (userspace pc only) after `sb_alive`, before GMD; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: userspace crash → launchd respawn → SAS_PORT_REAL like boot298, no kernel panic. | out/logs/boot301 |
 

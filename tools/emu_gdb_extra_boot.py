@@ -1290,10 +1290,24 @@ def _ufn(n):
                 _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
                 P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
-                # boot297: boot296 got SAS_PORT_REAL with 0 analytics stash
-                # (NULL_SKIP). boot295 SEED_BADPATH stuck port but SAS null.
-                # Disable SHORTCIRCUIT_SEED entirely — fake analytics blocks
-                # BB from publishing system-app-server.
+                # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
+                # boot301: crash BB once in userspace XPC enter after SB is
+                # alive and before GMD (boot298 natural SIGKILL→SAS path).
+                if (pn == 'backboardd'
+                        and _mm2.get('sb_alive')
+                        and not _mm2.get('bb_gmd_ok')
+                        and not _mm2.get('bb_kill_for_sas')):
+                    pc = r('pc') & 0xffffffffffffffff
+                    if pc < 0xffff000000000000:
+                        _mm2['bb_kill_for_sas'] = 1
+                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
+                            name, pc))
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_FOR_SAS_ERR=%r' % ek)
+                        return False
+                # boot297: disable SHORTCIRCUIT_SEED (fake analytics ↔ SAS null).
                 if False and (pn == 'backboardd'
                         and name == 'com.apple.analyticsd'
                         and _mm2.get('analytics_port')
@@ -1753,19 +1767,6 @@ def on_mach_msg2():
             _mm2['rb'] = 1
         if 'SpringBoard' in pn0 or pn0 == 'SpringBoard':
             _mm2['sb_alive'] = 1
-        # boot300: boot298 SAS_PORT_REAL after natural BB SIGKILL→respawn;
-        # boot299 no kill → SAS null. Once SB is up and before first GMD,
-        # crash BB once so the respawn publishes system-app-server.
-        if (_mm2.get('sb_alive') and not _mm2.get('bb_gmd_ok')
-                and not _mm2.get('bb_kill_for_sas')
-                and 'backboard' in pn0.lower()):
-            _mm2['bb_kill_for_sas'] = 1
-            P('BB_KILL_FOR_SAS pre-GMD')
-            try:
-                gdb.execute('set $pc = 0xbad0dead', to_string=True)
-            except Exception as ek:
-                P('BB_KILL_FOR_SAS_ERR=%r' % ek)
-            return False
         # boot296: kill RB once after SURFACE defer + GMD so IOCoreSurfaceRoot
         # rematches and sel32 can succeed (boot288 SAS window + SURFACE).
         if (_mm2.get('need_rb_rematch') and not _mm2.get('rb_rematch_kill')
