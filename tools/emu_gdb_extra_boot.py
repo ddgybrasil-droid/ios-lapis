@@ -2000,8 +2000,20 @@ def on_mach_msg2():
                             'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
-            # boot303: SPIN_FAKE×3 → lost iohideventsystem.available (boot302).
-            # boot304: do not fake SPIN; observe post-iohidevent instead.
+            # boot303: SPIN_FAKE before HID → lost iohidevent.
+            # boot311: SAS+HID+GMD then SPIN_POST_SAS wall.
+            # boot312: fake SPIN only AFTER hid_evt_seen+sas_ok+bb_gmd_ok.
+            if (_mm2.get('hid_evt_seen') and _mm2.get('sas_ok')
+                    and _mm2.get('bb_gmd_ok')
+                    and _mm2.get('spin_fake_n', 0) < 8):
+                _mm2['spin_fake_n'] = _mm2.get('spin_fake_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x' % (
+                        _mm2['spin_fake_n'], remote))
+                except Exception as ef:
+                    P('POST_SAS_SPIN_FAKE_ERR=%r' % ef)
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.

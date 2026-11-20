@@ -1625,5 +1625,9 @@ Image.pth74.
 
 ## Chunk 260 (boot311: disable BB_GMD_FORCE; restore clean GMD→HID)
 
-| boot311 | Image.pth241 | Disable BB_GMD_FORCE; keep always SURFACE + userspace BB kill; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: clean BB_GMD_OK like boot306 restores iohidevent; then push CA past HID. | out/logs/boot311 |
+| boot311 | Image.pth241 | Disable BB_GMD_FORCE; keep always SURFACE + userspace BB kill; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST PATH**: early BB BRK after NOTE64→respawn; SURFACE+**SAS_PORT_REAL `0x2e03`**+6001012+**iohidevent/HID_EVT**+clean **BB_GMD_OK**. Wall: **POST_IOMFB_SPIN_POST_SAS** (asl CA only beyond HID). | out/logs/boot311 |
+
+## Chunk 261 (boot312: post-SAS SPIN_FAKE after HID+GMD)
+
+| boot312 | Image.pth242 | Keep boot311 path; SPIN_FAKE×8 only after hid_evt+sas_ok+bb_gmd_ok; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot303 SPIN_FAKE was too early (pre-HID); post-HID+GMD fake may clear POST_SAS SPIN toward CA render. | out/logs/boot312 |
 
