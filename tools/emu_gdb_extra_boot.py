@@ -1931,6 +1931,20 @@ def on_mach_msg2():
                         _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
                     except Exception as e:
                         P('W00T_U err=%r' % e)
+            # boot179: early W00T_FAKE → respawn. boot318: W00T→FB port then
+            # SPIN; boot319: after hid+gmd+surface soft-success W00T.
+            if (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+                    and _mm2.get('surface_ok')
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_fake_n', 0) < 8):
+                _mm2['w00t_fake_n'] = _mm2.get('w00t_fake_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_W00T_FAKE n=%d remote=%#x msgid=%#x' % (
+                        _mm2['w00t_fake_n'], remote, msgid))
+                except Exception as ew:
+                    P('POST_SAS_W00T_FAKE_ERR=%r' % ew)
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
@@ -2012,7 +2026,7 @@ def on_mach_msg2():
             # boot317: after surface+(sas|post_iomfb), TIMED_OUT (no hid req).
             if (_mm2.get('surface_ok')
                     and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
-                    and _mm2.get('spin_timeout_n', 0) < 12):
+                    and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
                 try:
                     gdb.execute('set $x0 = 0x10000004', to_string=True)
@@ -2198,7 +2212,7 @@ def on_prepexit():
             for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
                       'xpc388_n', 'w00t_n', 'bb_kill_pre_surf',
-                      'spin_timeout_n'):
+                      'spin_timeout_n', 'w00t_fake_n'):
                 if _mm2.pop(k, None) is not None:
                     cleared.append(k)
             if cleared:

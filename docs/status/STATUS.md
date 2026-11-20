@@ -1653,5 +1653,9 @@ Image.pth74.
 
 ## Chunk 267 (boot318: kill BB if GMD before SURFACE)
 
-| boot318 | Image.pth248 | On BB_GMD_OK without surface_ok, deadbeef-kill (BB_KILL_PRE_SURFACE_GMD); keep SPIN_TIMEOUT+analytics FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: force boot311 order SURFACE→SAS→HID→GMD by rejecting pre-SURFACE GMD. | out/logs/boot318 |
+| boot318 | Image.pth248 | On BB_GMD_OK without surface_ok, deadbeef-kill (BB_KILL_PRE_SURFACE_GMD); keep SPIN_TIMEOUT+analytics FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST ORDER**: PRE_SURFACE kill → SURFACE→HID→GMD; **SPIN_TIMEOUT×12 no EXC**; FB_SAS REAL; SAS null; CA still asl; W00T→0x52db (FB) then SPIN. | out/logs/boot318 |
+
+## Chunk 268 (boot319: soft-complete W00T after HID+GMD)
+
+| boot319 | Image.pth249 | Keep boot318 path; after hid+gmd+surface fake-return W00T (0x77303074) success×8; raise SPIN_TIMEOUT×24; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: SPIN is notify-wait for W00T MIG to FB (port 0x52db); completing W00T may unblock CA past asl. | out/logs/boot319 |
 
