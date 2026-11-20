@@ -2001,17 +2001,20 @@ def on_mach_msg2():
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
             # boot303: SPIN_FAKE before HID → lost iohidevent.
-            # boot311: SAS+HID+GMD then SPIN_POST_SAS wall.
-            # boot312: fake SPIN only AFTER hid_evt_seen+sas_ok+bb_gmd_ok.
-            if (_mm2.get('hid_evt_seen') and _mm2.get('sas_ok')
-                    and _mm2.get('bb_gmd_ok')
+            # boot312: sas_ok gate never fired (SAS null after BB churn).
+            # boot313: after hid+gmd+(sas|surface); BB exit clears gmd so
+            # only the live BB instance can arm the fake.
+            if (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+                    and (_mm2.get('sas_ok') or _mm2.get('surface_ok'))
                     and _mm2.get('spin_fake_n', 0) < 8):
                 _mm2['spin_fake_n'] = _mm2.get('spin_fake_n', 0) + 1
                 try:
                     gdb.execute('set $x0 = 0', to_string=True)
                     gdb.execute('set $pc = $x30', to_string=True)
-                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x' % (
-                        _mm2['spin_fake_n'], remote))
+                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x sas=%s surf=%s' % (
+                        _mm2['spin_fake_n'], remote,
+                        bool(_mm2.get('sas_ok')),
+                        bool(_mm2.get('surface_ok'))))
                 except Exception as ef:
                     P('POST_SAS_SPIN_FAKE_ERR=%r' % ef)
             return False
@@ -2176,3 +2179,34 @@ def on_mach_msg2():
         P('ERR mach_msg2 %s' % e)
     return False
 BP('_mach_msg2_trap', on_mach_msg2, addr=0xfffffe000737cc9c)
+
+# boot313: BB respawn after BRK/kill left bb_gmd_ok/post_iomfb set from a
+# dead instance (boot312: early GMD → SAS null, SPIN_FAKE never armed).
+# Clear per-BB display flags on exit; keep surface_ok/sas_ok as global wins.
+_prev_on_prepexit = on_prepexit
+def on_prepexit():
+    try:
+        pn = triage_pname()
+        if isinstance(pn, str) and 'backboard' in pn.lower():
+            cleared = []
+            for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
+                      'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
+                      'xpc388_n', 'w00t_n'):
+                if _mm2.pop(k, None) is not None:
+                    cleared.append(k)
+            if cleared:
+                P('BB_EXIT_CLEAR keys=%s surface_ok=%s sas_ok=%s' % (
+                    ','.join(cleared),
+                    bool(_mm2.get('surface_ok')),
+                    bool(_mm2.get('sas_ok'))))
+    except Exception as e:
+        P('BB_EXIT_CLEAR_ERR=%r' % e)
+    return _prev_on_prepexit()
+# Re-bind prepareexit BP to wrapped handler (driver already installed one).
+try:
+    for bp in gdb.breakpoints():
+        if getattr(bp, 'location', None) == '_proc_prepareexit':
+            bp.delete()
+except Exception:
+    pass
+BP('_proc_prepareexit', on_prepexit)

@@ -1629,5 +1629,9 @@ Image.pth74.
 
 ## Chunk 261 (boot312: post-SAS SPIN_FAKE after HID+GMD)
 
-| boot312 | Image.pth242 | Keep boot311 path; SPIN_FAKE×8 only after hid_evt+sas_ok+bb_gmd_ok; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot303 SPIN_FAKE was too early (pre-HID); post-HID+GMD fake may clear POST_SAS SPIN toward CA render. | out/logs/boot312 |
+| boot312 | Image.pth242 | Keep boot311 path; SPIN_FAKE×8 only after hid_evt+sas_ok+bb_gmd_ok; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: SURFACE+6001012+HID+GMD but **SAS_OBSERVE null** (BB kill→BRK→respawn→early GMD poison); SPIN_FAKE never armed. Wall still POST_IOMFB_SPIN. | out/logs/boot312 |
+
+## Chunk 262 (boot313: BB_EXIT_CLEAR + SPIN_FAKE on surface|sas)
+
+| boot313 | Image.pth243 | Clear bb_gmd_ok/post_iomfb/hid on BB exit; SPIN_FAKE after hid+gmd+(sas\|surface); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: dead-BB GMD flags blocked SAS path + SPIN_FAKE; clear-on-exit restores boot311 SAS and arms post-HID SPIN clear. | out/logs/boot313 |
 
