@@ -1693,5 +1693,9 @@ Image.pth74.
 
 ## Chunk 277 (boot328: post-SURFACE SAS-null BB kill retry)
 
-| boot328 | Image.pth258 | On SAS null after SURFACE, arm one more userspace BB kill (`BB_KILL_SAS_RETRY`); keep always-ZERO 0x2e; T=3000, poll≤8m kill-at-wall | qemu11 43G lva=off | **ГИПОТЕЗА**: second BB respawn republishes SAS (boot325 path). | out/logs/boot328 |
+| boot328 | Image.pth258 | On SAS null after SURFACE, arm one more userspace BB kill (`BB_KILL_SAS_RETRY`); keep always-ZERO 0x2e; T=3000, poll≤8m kill-at-wall | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SAS_NULL_RETRY_ARMED` + `BB_KILL_SAS_RETRY` + BB SPAWN#184 + HID; **SB never re-looked SAS**; 0 W00T. Kill ~31m. | out/logs/boot328 |
+
+## Chunk 278 (boot329: SB kill after BB retry so SAS re-lookup)
+
+| boot329 | Image.pth259 | After BB_KILL_SAS_RETRY respawn, kill SB once (`SB_KILL_SAS_RELOOKUP`) to force SAS re-lookup; keep ZERO 0x2e; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SB restart after fresh BB publish → SAS_PORT_REAL (boot325). | out/logs/boot329 |
 

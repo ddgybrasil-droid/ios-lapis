@@ -960,7 +960,16 @@ SPAWN={'n':0}
 def on_spawn():
     a=r('x1'); path=m64(a+8)
     SPAWN['n']+=1
-    if SPAWN['n']<=300: P('SPAWN #%d path=%r'%(SPAWN['n'],ustr(path,256)))
+    pth = ustr(path, 256)
+    if SPAWN['n']<=300: P('SPAWN #%d path=%r'%(SPAWN['n'], pth))
+    # boot329: after BB_KILL_SAS_RETRY, BB respawned but SB never re-looked
+    # up SAS (boot328). Arm one SB kill so SB restarts and re-looks up.
+    if (pth and 'backboardd' in pth
+            and _mm2.get('bb_kill_sas_retry')
+            and not _mm2.get('sas_ok')
+            and not _mm2.get('sb_kill_sas_relookup')):
+        _mm2['sb_kill_sas_armed'] = 1
+        P('SB_KILL_SAS_ARMED after BB respawn')
     return False
 BP('_posix_spawn',on_spawn)
 def on_rk():
@@ -1325,6 +1334,23 @@ def _ufn(n):
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
                 if pn == 'SpringBoard':
                     _mm2['sb_alive'] = 1
+                    # boot329: kill SB once after BB retry-respawn so it
+                    # re-looks up system-app-server (boot328: SB never retried).
+                    if (_mm2.get('sb_kill_sas_armed')
+                            and not _mm2.get('sb_kill_sas_relookup')
+                            and not _mm2.get('sas_ok')):
+                        pc = r('pc') & 0xffffffffffffffff
+                        if pc < 0xffff000000000000:
+                            _mm2['sb_kill_sas_relookup'] = 1
+                            _mm2['sb_kill_sas_armed'] = 0
+                            P('SB_KILL_SAS_RELOOKUP name=%r pc=%#x' % (
+                                name, pc))
+                            try:
+                                gdb.execute(
+                                    'set $pc = 0xdeadbeef', to_string=True)
+                            except Exception as ek:
+                                P('SB_KILL_SAS_RELOOKUP_ERR=%r' % ek)
+                            return False
                 # boot314: deferring kill → BB hit GMD→analytics→EXC far=0x4
                 # before SURFACE; SAS lookup ran with no live BB.
                 # boot315: restore early pre-GMD kill (boot311 SAS+HID order).
