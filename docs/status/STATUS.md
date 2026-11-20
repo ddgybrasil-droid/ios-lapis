@@ -1613,5 +1613,9 @@ Image.pth74.
 
 ## Chunk 257 (boot308: post-GMD SURFACE defer until SAS/window)
 
-| boot308 | Image.pth238 | NotReady SURFACE until sas_ok OR post-GMD defer n>4 OR exhaust n>12; RB rematch; fix 3240 heap name ptr; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: even after bb_gmd_ok, soft-defer SURFACE so BB can publish SAS before SB lookup (boot296 window adapted to post-GMD timing). | out/logs/boot308 |
+| boot308 | Image.pth238 | NotReady SURFACE until sas_ok OR post-GMD defer n>4 OR exhaust n>12; RB rematch; fix 3240 heap name ptr; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE_DEFER_PRE_SAS n=1 fired, but **SAS lookup still happens** (null) — not gated on SURFACE. Rematch never armed (GMD before defer). Stuck: 0×6001012/HID. Waiting for sas_ok harmful. | out/logs/boot308 |
+
+## Chunk 258 (boot309: rematch-on-defer; allow SURFACE after rematch)
+
+| boot309 | Image.pth239 | Arm RB_REMATCH on SURFACE defer (post-GMD); allow SURFACE after rematch_kill (don't wait sas_ok); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore HID path via rematch after one NotReady; SAS remains a race — push CA past HID next. | out/logs/boot309 |
 

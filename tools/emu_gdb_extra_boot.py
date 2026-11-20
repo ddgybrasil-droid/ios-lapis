@@ -47,20 +47,29 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' limits_gate+0x22=%d' % gate
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
-            # boot307: SURFACE arrived post-GMD → 0 PRE_BB_GMD defer, SAS
-            # still null. boot308: NotReady until sas_ok OR short post-GMD
-            # window (n>4) OR exhaust n>12 — gives BB time to publish SAS
-            # before SB's SURFACE→SAS lookup (boot296 window, post-GMD too).
+            # boot308: SAS lookup is NOT gated on SURFACE success (SB still
+            # SAS_OBSERVE'd after NotReady). Waiting for sas_ok stuck HID.
+            # boot309: one post-GMD NotReady to arm RB rematch (boot296), then
+            # allow on rematch/exhaust — restore HID path; SAS stays race.
             if (t.startswith('IOEXTMETHOD_RET') and 'SURFACE_CONNECT' in t
                     and ('PRE_BB_GMD' in t or 'PRE_SAS' in t)):
                 _mm2['surf_defer_n'] = _mm2.get('surf_defer_n', 0) + 1
+                # Arm rematch when defer happens after GMD (GMD-first boots
+                # never armed at GMD_BODY_RET because surf_defer_n was 0).
+                if (_mm2.get('bb_gmd_ok')
+                        and not _mm2.get('rb_sel32')
+                        and not _mm2.get('need_rb_rematch')
+                        and not _mm2.get('rb_rematch_kill')):
+                    _mm2['need_rb_rematch'] = 1
+                    P('RB_REMATCH_ARMED_ON_DEFER defer_n=%d' % (
+                        _mm2['surf_defer_n'],))
+                    extra += ' RB_REMATCH_ARMED_ON_DEFER'
                 allow = (
                     _mm2.get('sas_ok')
-                    or _mm2.get('surf_defer_n', 0) > 12
-                    or (_mm2.get('bb_gmd_ok')
-                        and _mm2.get('surf_defer_n', 0) > 4)
-                    or (_mm2.get('post_iomfb')
-                        and _mm2.get('surf_defer_n', 0) > 4))
+                    or _mm2.get('rb_rematch_kill')
+                    or _mm2.get('surf_defer_n', 0) > 8
+                    or (not _mm2.get('bb_gmd_ok')
+                        and _mm2.get('surf_defer_n', 0) > 12))
                 if allow:
                     _mm2['rb_sel32'] = 1
                     _mm2['surface_ok'] = 1
@@ -68,14 +77,14 @@ class _RetSite(gdb.Breakpoint):
                         _mm2['post_surf_mach'] = 1
                         _mm2['n'] = 0
                         P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
-                    if _mm2.get('sas_ok'):
-                        extra += ' SURFACE_AFTER_SAS n=%d' % (
+                    if _mm2.get('rb_rematch_kill'):
+                        extra += ' SURFACE_AFTER_REMATCH n=%d' % (
                             _mm2['surf_defer_n'],)
-                    elif _mm2.get('surf_defer_n', 0) > 12:
+                    elif _mm2.get('surf_defer_n', 0) > 8:
                         extra += ' SURFACE_DEFER_EXHAUSTED n=%d' % (
                             _mm2['surf_defer_n'],)
                     else:
-                        extra += ' SURFACE_AFTER_BB_GMD_WINDOW n=%d' % (
+                        extra += ' SURFACE_AFTER_SAS n=%d' % (
                             _mm2['surf_defer_n'],)
                 else:
                     try:
@@ -1573,13 +1582,12 @@ def on_external_method():
                 tag += ' SURFACE_CONNECT'
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
-                # boot308: gate on sas_ok or post-GMD defer window (RetBP).
-                # Tag PRE_SAS so RetBP can NotReady even after bb_gmd_ok.
+                # boot309: allow after rematch kill or exhaust; else PRE_SAS
+                # for one NotReady that arms rematch.
                 if (_mm2.get('sas_ok')
                         or _mm2.get('rb_sel32')
-                        or _mm2.get('surf_defer_n', 0) > 12
-                        or (_mm2.get('bb_gmd_ok')
-                            and _mm2.get('surf_defer_n', 0) > 4)):
+                        or _mm2.get('rb_rematch_kill')
+                        or _mm2.get('surf_defer_n', 0) > 8):
                     _mm2['rb_sel32'] = 1
                     _mm2['surface_ok'] = 1
                     if not _mm2.get('post_surf_mach'):
