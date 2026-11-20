@@ -1597,5 +1597,9 @@ Image.pth74.
 
 ## Chunk 253 (boot304: revert SPIN_FAKE; probe post-iohidevent)
 
-| boot304 | Image.pth234 | Revert SPIN_FAKE; keep boot302 kill+SURFACE; on iohidevent CA_MIG dump BB/SB frames + IOCONN; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot302 HID-available path; instrument next step after iohideventsystem.available. | out/logs/boot304 |
+| boot304 | Image.pth234 | Revert SPIN_FAKE; keep boot302 kill+SURFACE; on iohidevent CA_MIG dump BB/SB frames + IOCONN; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID `iohideventsystem.available` + HID_EVT_U + SURFACE+6001012 restored; **SAS null** (vs boot302). Cause: post-kill BB **BRK after HID NOTE64** before Paravirt/IOMFB → **0 BB_GMD_OK**. SB then **msgid=3240×1116** spin. Wall: keep BB alive through GMD, then SAS republish. | out/logs/boot304 |
+
+## Chunk 254 (boot305: post-GMD BB kill + 3240 name dump)
+
+| boot305 | Image.pth235 | BB_KILL_FOR_SAS after bb_gmd_ok (not pre-GMD); dump SB msgid 3240 MIG ascii; NOTE64 pre-GMD frames; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: first BB completes HID→Paravirt→IOMFB→GMD (avoid boot304 early BRK), then kill once for SAS republish; learn what 3240 looks up after HID. | out/logs/boot305 |
 

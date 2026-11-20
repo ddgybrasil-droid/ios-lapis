@@ -237,6 +237,18 @@ class _RetSite(gdb.Breakpoint):
                 except Exception as eh:
                     extra += ' hid_conforms_err=%r' % eh
             # boot265: dump stashed ENTER args (userspace buf) — RET x4 was zero.
+            # boot305: boot304 BRK'd right after HID NOTE64 pre-GMD — sample
+            # userspace frames on first NOTE64 before Paravirt/IOMFB.
+            if (t.startswith('IOCONN_NOTE64_RET')
+                    and 'backboard' in t.lower()
+                    and not _mm2.get('bb_gmd_ok')
+                    and _mm2.get('note64_pre_gmd_uf', 0) < 2):
+                _mm2['note64_pre_gmd_uf'] = _mm2.get('note64_pre_gmd_uf', 0) + 1
+                try:
+                    _uframes('NOTE64_PRE_GMD_U', 'n=%d x0=%#x' % (
+                        _mm2['note64_pre_gmd_uf'], x0))
+                except Exception as en:
+                    extra += ' note64_uf_err=%r' % en
             if (t.startswith('IOREGPROP_buf_RET')
                     and 'HIDEventServiceProperties' in t
                     and 'backboardd' in t
@@ -1268,16 +1280,20 @@ def _ufn(n):
                 if pn == 'SpringBoard':
                     _mm2['sb_alive'] = 1
                 # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
-                # boot301: crash BB once in userspace XPC enter after SB is
-                # alive and before GMD (boot298 natural SIGKILL→SAS path).
+                # boot301–304: pre-GMD userspace kill → SAS when respawn
+                # reaches GMD (boot302); boot304 respawn BRK'd after HID
+                # NOTE64 before Paravirt/IOMFB → 0 BB_GMD + SAS null.
+                # boot305: kill once AFTER bb_gmd_ok so HID→Paravirt→IOMFB
+                # completes first; respawn still republishes SAS (boot299:
+                # no kill ⇒ SAS null).
                 if (pn == 'backboardd'
                         and _mm2.get('sb_alive')
-                        and not _mm2.get('bb_gmd_ok')
+                        and _mm2.get('bb_gmd_ok')
                         and not _mm2.get('bb_kill_for_sas')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_sas'] = 1
-                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
+                        P('BB_KILL_FOR_SAS post-GMD via XPC name=%r pc=%#x' % (
                             name, pc))
                         try:
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)
@@ -1821,6 +1837,36 @@ def on_mach_msg2():
                         P('HID_EVT_U err=%r' % eu)
             except Exception as em:
                 P('CA_MIG err=%r' % em)
+        # boot305: SB msgid 3240 flood after HID (boot304×1116) — dump
+        # bootstrap lookup name from send buffer (remote=0x203).
+        if (msgid == 3240 and sending and data_ptr
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('dump_3240', 0) < 6):
+            _mm2['dump_3240'] = _mm2.get('dump_3240', 0) + 1
+            try:
+                raw = bytearray()
+                for off in range(0, 96, 8):
+                    try:
+                        xs = gdb.execute(
+                            'x/gx %#x' % (data_ptr + off), to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        raw += int(toks[-1], 16).to_bytes(8, 'little')
+                    except Exception:
+                        raw += b'\x00' * 8
+                ascii_s = ''.join(
+                    chr(b) if 32 <= b < 127 else '.' for b in raw)
+                words = ' '.join('%08x' % int.from_bytes(
+                    raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
+                P('SB_3240_MIG n=%d remote=%#x buf=%#x [%s] ascii=%r' % (
+                    _mm2['dump_3240'], remote, data_ptr, words, ascii_s[:80]))
+                if _mm2['dump_3240'] <= 2:
+                    try:
+                        _uframes('SB_3240_U', 'n=%d' % _mm2['dump_3240'])
+                    except Exception as e3240:
+                        P('SB_3240_U err=%r' % e3240)
+            except Exception as e3240b:
+                P('SB_3240_MIG err=%r' % e3240b)
         # boot251: stash userspace buffer for 6001012 reply dump (boot250
         # tried x1 / kernel VA and got unreadable).
         if msgid == 6001012 and data_ptr:
