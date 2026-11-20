@@ -2028,7 +2028,15 @@ def on_mach_msg2():
             # boot316: hid gate → early-GMD SPIN before HID never timed out;
             # BB stuck, 0 iohidevent despite SAS_PORT_REAL.
             # boot317: after surface+(sas|post_iomfb), TIMED_OUT (no hid req).
-            if (_mm2.get('surface_ok')
+            # boot321: real W00T_RET x0=0 to FB, but SPIN_TIMEOUT still fired
+            # on post-W00T notify-waits → W00T retry storm + 3240 wall.
+            # boot322: only TIMED_OUT pre-W00T; after first W00T let SPINs real.
+            if (_mm2.get('w00t_n', 0) >= 1):
+                if _mm2.get('spin_post_w00t_n', 0) < 8:
+                    _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
+                    P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
+                        _mm2['spin_post_w00t_n'], remote, local))
+            elif (_mm2.get('surface_ok')
                     and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
                     and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
@@ -2216,7 +2224,8 @@ def on_prepexit():
             for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
                       'xpc388_n', 'w00t_n', 'bb_kill_pre_surf',
-                      'spin_timeout_n', 'w00t_fake_n'):
+                      'spin_timeout_n', 'w00t_fake_n', 'w00t_ret_n',
+                      'spin_post_w00t_n'):
                 if _mm2.pop(k, None) is not None:
                     cleared.append(k)
             if cleared:

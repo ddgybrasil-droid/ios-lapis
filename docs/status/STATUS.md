@@ -1665,5 +1665,9 @@ Image.pth74.
 
 ## Chunk 270 (boot321: real W00T→FB after HID+GMD)
 
-| boot321 | Image.pth251 | Disable W00T_FAKE; RetBP W00T_RET; keep SPIN_TIMEOUT×24+PRE_SURFACE+SAS path; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: real W00T to FB unlocks post-GETSIZE IOMFB / breaks SB 3240 poll. | out/logs/boot321 |
+| boot321 | Image.pth251 | Disable W00T_FAKE; RetBP W00T_RET; keep SPIN_TIMEOUT×24+PRE_SURFACE+SAS path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+HID+**W00T_REAL×4 RET x0=0** (remote=`0x506f`) + GMD + IOMFB wake/repulse; **SAS null** this run. Wall: SPIN_TIMEOUT still forced on **post-W00T** waits → W00T retry + SB 3240; CA asl. | out/logs/boot321 |
+
+## Chunk 271 (boot322: no SPIN_TIMEOUT after first W00T)
+
+| boot322 | Image.pth252 | After w00t_n≥1 let SPIN go real (log POST_W00T_SPIN_REAL); pre-W00T SPIN_TIMEOUT kept; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: real post-W00T notify-wait completes FB handshake past 3240. | out/logs/boot322 |
 
