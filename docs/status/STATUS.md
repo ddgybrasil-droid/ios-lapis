@@ -1649,5 +1649,9 @@ Image.pth74.
 
 ## Chunk 266 (boot317: SPIN_TIMEOUT after surface+(sas|post_iomfb))
 
-| boot317 | Image.pth247 | Drop hid gate on SPIN_TIMEOUT; arm after surface+(sas\|post_iomfb)×12; keep boot315 analytics/kill; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: unstick early-GMD SPIN so BB can reach iohidevent and CA past notify-wait. | out/logs/boot317 |
+| boot317 | Image.pth247 | Drop hid gate on SPIN_TIMEOUT; arm after surface+(sas\|post_iomfb)×12; keep boot315 analytics/kill; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: early GMD→SPIN then SURFACE; BB **SIGBUS** before SAS/HID; SPIN_TIMEOUT never reached. | out/logs/boot317 |
+
+## Chunk 267 (boot318: kill BB if GMD before SURFACE)
+
+| boot318 | Image.pth248 | On BB_GMD_OK without surface_ok, deadbeef-kill (BB_KILL_PRE_SURFACE_GMD); keep SPIN_TIMEOUT+analytics FORCE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: force boot311 order SURFACE→SAS→HID→GMD by rejecting pre-SURFACE GMD. | out/logs/boot318 |
 

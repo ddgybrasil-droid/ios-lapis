@@ -167,6 +167,19 @@ class _RetSite(gdb.Breakpoint):
                             _mm2['bb_gmd_ok'] = 1
                             if 'BB_GMD_FORCE' not in extra:
                                 extra += ' BB_GMD_OK'
+                            # boot316/317: GMD before SURFACE → SPIN stuck /
+                            # SIGBUS, 0 HID (boot311 order was SURFACE→SAS→
+                            # HID→GMD). Kill pre-SURFACE GMD to respawn later.
+                            if (not _mm2.get('surface_ok')
+                                    and not _mm2.get('bb_kill_pre_surf')):
+                                _mm2['bb_kill_pre_surf'] = 1
+                                try:
+                                    gdb.execute('set $pc = 0xdeadbeef',
+                                                to_string=True)
+                                    extra += ' BB_KILL_PRE_SURFACE_GMD'
+                                    P('BB_KILL_PRE_SURFACE_GMD')
+                                except Exception as ek:
+                                    extra += ' pre_surf_kill_err=%r' % ek
                         # boot296: after GMD, if SURFACE was NotReady-deferred,
                         # arm runningboardd kill so IOKit rematches sel32.
                         if (_mm2.get('bb_gmd_ok')
@@ -2184,7 +2197,8 @@ def on_prepexit():
             cleared = []
             for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
-                      'xpc388_n', 'w00t_n'):
+                      'xpc388_n', 'w00t_n', 'bb_kill_pre_surf',
+                      'spin_timeout_n'):
                 if _mm2.pop(k, None) is not None:
                     cleared.append(k)
             if cleared:
