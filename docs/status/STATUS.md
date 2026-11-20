@@ -1641,5 +1641,9 @@ Image.pth74.
 
 ## Chunk 264 (boot315: restore early BB_KILL + post-GMD analytics FORCE)
 
-| boot315 | Image.pth245 | Restore early BB_KILL (boot311 order); tighten analytics has_port; post-GMD analytics 0x9f+CLEAR not SOFT_OK; no SPIN_FAKE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot311 order needs early kill so SURFACE/SAS precede GMD; stop post-GMD analytics EXC that kills BB before UI. | out/logs/boot315 |
+| boot315 | Image.pth245 | Restore early BB_KILL (boot311 order); tighten analytics has_port; post-GMD analytics 0x9f+CLEAR not SOFT_OK; no SPIN_FAKE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+HID+**BB_GMD_OK**; **ANALYTICS_POST_GMD_FORCE** (no far=0x4); SAS still null; wall **POST_IOMFB_SPIN**. | out/logs/boot315 |
+
+## Chunk 265 (boot316: SPIN → MACH_SEND_TIMED_OUT after HID+GMD)
+
+| boot316 | Image.pth246 | Keep boot315 path; after hid+gmd+surface return SPIN as 0x10000004 TIMED_OUT×8 (not success); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: success-fake EXC'd; timeout lets BB retry/advance CA past notify-wait SPIN. | out/logs/boot316 |
 

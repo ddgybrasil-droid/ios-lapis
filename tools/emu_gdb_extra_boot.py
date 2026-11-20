@@ -1993,8 +1993,21 @@ def on_mach_msg2():
                             'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
-            # boot303/313: SPIN_FAKE (even post-HID+GMD) → BB EXC far=0x4.
-            # boot314: observe-only; do not fake SPIN.
+            # boot303/313: SPIN_FAKE x0=0 success → BB EXC far=0x4.
+            # boot315: SPINs fire during GMD (post_iomfb) before bb_gmd_ok.
+            # boot316: after hid+surface+(gmd|post_iomfb), return
+            # MACH_SEND_TIMED_OUT (0x10000004) so callers retry.
+            if (_mm2.get('hid_evt_seen') and _mm2.get('surface_ok')
+                    and (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb'))
+                    and _mm2.get('spin_timeout_n', 0) < 8):
+                _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0x10000004', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x' % (
+                        _mm2['spin_timeout_n'], remote))
+                except Exception as ef:
+                    P('POST_SAS_SPIN_TIMEOUT_ERR=%r' % ef)
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
