@@ -630,11 +630,17 @@ class _RetSite(gdb.Breakpoint):
                                 continue
                             try:
                                 v = m64(ptr) & 0xffffffffffffffff
-                                # boot244: 0x100000000 alone is a sentinel (boot243
-                                # x0=1 + x7*=0x100000000 skipped BAD_FORCE).
-                                if v and v != 0x100000000 and (
-                                        v < 0x10000
-                                        or 0x100000000 < v < 0x300000000):
+                                # boot244: 0x100000000 alone is a sentinel.
+                                # boot315: do NOT treat raw userspace ptrs
+                                # (0x16… stack) as ports — caused REAL_POST_IOMFB
+                                # + EXC far=0x4 after GMD (boot314).
+                                if not v or v == 0x100000000:
+                                    continue
+                                if v < 0x10000:
+                                    has_port = True
+                                    break
+                                low = v & 0xffffffff
+                                if 0x100 < low < 0x10000:
                                     has_port = True
                                     break
                             except Exception:
@@ -679,39 +685,22 @@ class _RetSite(gdb.Breakpoint):
                                     extra += ' x0clr_err=%r' % e
                         elif (_mm2.get('analytics_port') and x7
                                 and ((x0 & 0xffffffff) != 0 or not has_port)):
-                            # boot297: SEED_BADPATH (boot295) stuck tagged port
-                            # but SAS stayed null; boot296 NULL_SKIP (0 stash)
-                            # got SAS_PORT_REAL. Do not seed — soft-skip like
-                            # no-stash path so BB can publish system-app-server.
+                            # boot297: do not seed — skip for SAS pre-SURFACE.
+                            # boot315: after GMD, SOFT_OK left sentinel
+                            # x7*=0x100000000 → EXC far=0x4 (boot314). Force
+                            # 0x9f+CLEAR instead of x0=0 with dirty outs.
                             extra += ' ANALYTICS_SEED_SKIP_FOR_SAS'
                             if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
-                                try:
-                                    gdb.execute('set $x0 = 0', to_string=True)
-                                    x0 = 0
-                                    extra += ' ANALYTICS_BAD_SOFT_OK'
-                                except Exception as e:
-                                    extra += ' bad_soft_err=%r' % e
+                                need_force, tag = True, ' ANALYTICS_POST_GMD_FORCE_0x9f'
                             else:
                                 extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
                         elif (x0 & 0xffffffff) != 0:
-                            # boot280: no stash all boot (timed/ReportCrash
-                            # x7*=None) → BAD_FORCE cleared BB analytics →
-                            # SAS null. Skip force so BB can retry when
-                            # analyticsd publishes (boot239 REAL path).
-                            # boot292: boot291 SURFACE+6001012 but analytics
-                            # BAD_SKIP (x0=1, 0 stash) → SAS null. Soft-clear
-                            # x0=0 after GMD (natural RET, not SHORTCIRCUIT_NULL
-                            # which EXC'd BB in boot290) so BB can publish SAS.
+                            # boot280/292: pre-SURFACE skip force for retry.
+                            # boot315: post-GMD SOFT_OK+sentinel → EXC; force.
                             if not _mm2.get('rb_sel32'):
                                 extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
                                 if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
-                                    try:
-                                        gdb.execute('set $x0 = 0', to_string=True)
-                                        x0 = 0
-                                        _mm2['analytics_ok'] = 1
-                                        extra += ' ANALYTICS_BAD_SOFT_OK'
-                                    except Exception as e:
-                                        extra += ' bad_soft_err=%r' % e
+                                    need_force, tag = True, ' ANALYTICS_POST_GMD_FORCE_0x9f'
                             else:
                                 need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
                         elif has_port:
@@ -1265,24 +1254,17 @@ def _ufn(n):
                     pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
                 if pn == 'SpringBoard':
                     _mm2['sb_alive'] = 1
-                # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
-                # boot301–311: early pre-GMD kill → often SAS_PORT_REAL, but
-                # boot312/313 raced: kill before BB publish, SB saw SAS null.
-                # boot314: defer kill until SB has attempted SAS and got null
-                # so BB#1 can publish for the first lookup; kill only to recover.
-                if (pn == 'SpringBoard'
-                        and name == 'com.apple.backboard.system-app-server'):
-                    _mm2['sas_lookup_seen'] = 1
+                # boot314: deferring kill → BB hit GMD→analytics→EXC far=0x4
+                # before SURFACE; SAS lookup ran with no live BB.
+                # boot315: restore early pre-GMD kill (boot311 SAS+HID order).
                 if (pn == 'backboardd'
                         and _mm2.get('sb_alive')
                         and not _mm2.get('bb_gmd_ok')
-                        and not _mm2.get('bb_kill_for_sas')
-                        and _mm2.get('sas_lookup_seen')
-                        and not _mm2.get('sas_ok')):
+                        and not _mm2.get('bb_kill_for_sas')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_sas'] = 1
-                        P('BB_KILL_FOR_SAS post-SAS-null via XPC name=%r pc=%#x' % (
+                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
                             name, pc))
                         try:
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)

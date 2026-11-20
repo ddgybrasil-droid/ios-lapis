@@ -1637,5 +1637,9 @@ Image.pth74.
 
 ## Chunk 263 (boot314: defer BB_KILL until SAS-null; no SPIN_FAKE)
 
-| boot314 | Image.pth244 | Disable SPIN_FAKE; defer BB_KILL until after SB SAS lookup null; recognize PAC-tagged ports; keep BB_EXIT_CLEAR; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early kill races SAS publish; let BB#1 serve first SAS lookup; tagged-port detect fixes false-null XPC. | out/logs/boot314 |
+| boot314 | Image.pth244 | Disable SPIN_FAKE; defer BB_KILL until after SB SAS lookup null; recognize PAC-tagged ports; keep BB_EXIT_CLEAR; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: deferred kill → BB GMD→analytics (sentinel/stack-as-port) **EXC far=0x4** before SURFACE; SAS with no live BB. FB_SAS_POST_SURFACE_REAL (tagged fix) ok; HID+SPIN observe. | out/logs/boot314 |
+
+## Chunk 264 (boot315: restore early BB_KILL + post-GMD analytics FORCE)
+
+| boot315 | Image.pth245 | Restore early BB_KILL (boot311 order); tighten analytics has_port; post-GMD analytics 0x9f+CLEAR not SOFT_OK; no SPIN_FAKE; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: boot311 order needs early kill so SURFACE/SAS precede GMD; stop post-GMD analytics EXC that kills BB before UI. | out/logs/boot315 |
 
