@@ -484,13 +484,20 @@ class _RetSite(gdb.Breakpoint):
                             if not ptr:
                                 continue
                             try:
-                                v = m64(ptr)
+                                v = m64(ptr) & 0xffffffffffffffff
                                 if v and v < 0x10000:
                                     nullish = False
                                     saw_port = True
                                     break
-                                if v and 0x100000000 <= (v & 0xffffffffffffffff) < 0x300000000:
+                                if v and 0x100000000 <= v < 0x300000000:
                                     nullish = False
+                                    break
+                                # boot314: PAC/tagged ports (e.g. 0x83cc..00455b)
+                                # were treated as null → wrong FORCE/SKIP paths.
+                                low = v & 0xffffffff
+                                if v and 0x100 < low < 0x10000:
+                                    nullish = False
+                                    saw_port = True
                                     break
                             except Exception:
                                 pass
@@ -1259,19 +1266,23 @@ def _ufn(n):
                 if pn == 'SpringBoard':
                     _mm2['sb_alive'] = 1
                 # boot300: kill in mach_msg2 was KERNEL pc → PANIC.
-                # boot301–304: pre-GMD userspace kill → SAS+HID when respawn
-                # reaches GMD (boot302). boot305 post-GMD kill: first BB did
-                # GMD/IOMFB, but SB stalled at cfprefs (0 SB_RB/6001012) —
-                # kill mid-SB-init breaks the wait. boot306: restore pre-GMD
-                # kill (boot302 path) + keep 3240/NOTE64 probes.
+                # boot301–311: early pre-GMD kill → often SAS_PORT_REAL, but
+                # boot312/313 raced: kill before BB publish, SB saw SAS null.
+                # boot314: defer kill until SB has attempted SAS and got null
+                # so BB#1 can publish for the first lookup; kill only to recover.
+                if (pn == 'SpringBoard'
+                        and name == 'com.apple.backboard.system-app-server'):
+                    _mm2['sas_lookup_seen'] = 1
                 if (pn == 'backboardd'
                         and _mm2.get('sb_alive')
                         and not _mm2.get('bb_gmd_ok')
-                        and not _mm2.get('bb_kill_for_sas')):
+                        and not _mm2.get('bb_kill_for_sas')
+                        and _mm2.get('sas_lookup_seen')
+                        and not _mm2.get('sas_ok')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_sas'] = 1
-                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
+                        P('BB_KILL_FOR_SAS post-SAS-null via XPC name=%r pc=%#x' % (
                             name, pc))
                         try:
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)
@@ -2000,23 +2011,8 @@ def on_mach_msg2():
                             'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
-            # boot303: SPIN_FAKE before HID → lost iohidevent.
-            # boot312: sas_ok gate never fired (SAS null after BB churn).
-            # boot313: after hid+gmd+(sas|surface); BB exit clears gmd so
-            # only the live BB instance can arm the fake.
-            if (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
-                    and (_mm2.get('sas_ok') or _mm2.get('surface_ok'))
-                    and _mm2.get('spin_fake_n', 0) < 8):
-                _mm2['spin_fake_n'] = _mm2.get('spin_fake_n', 0) + 1
-                try:
-                    gdb.execute('set $x0 = 0', to_string=True)
-                    gdb.execute('set $pc = $x30', to_string=True)
-                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x sas=%s surf=%s' % (
-                        _mm2['spin_fake_n'], remote,
-                        bool(_mm2.get('sas_ok')),
-                        bool(_mm2.get('surface_ok'))))
-                except Exception as ef:
-                    P('POST_SAS_SPIN_FAKE_ERR=%r' % ef)
+            # boot303/313: SPIN_FAKE (even post-HID+GMD) → BB EXC far=0x4.
+            # boot314: observe-only; do not fake SPIN.
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.

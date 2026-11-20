@@ -1633,5 +1633,9 @@ Image.pth74.
 
 ## Chunk 262 (boot313: BB_EXIT_CLEAR + SPIN_FAKE on surface|sas)
 
-| boot313 | Image.pth243 | Clear bb_gmd_ok/post_iomfb/hid on BB exit; SPIN_FAKE after hid+gmd+(sas\|surface); T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: dead-BB GMD flags blocked SAS path + SPIN_FAKE; clear-on-exit restores boot311 SAS and arms post-HID SPIN clear. | out/logs/boot313 |
+| boot313 | Image.pth243 | Clear bb_gmd_ok/post_iomfb/hid on BB exit; SPIN_FAKE after hid+gmd+(sas\|surface); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB_EXIT_CLEAR ok; SURFACE+HID+GMD; **SPIN_FAKE×8 → BB EXC far=0x4** (harmful); SAS still null. | out/logs/boot313 |
+
+## Chunk 263 (boot314: defer BB_KILL until SAS-null; no SPIN_FAKE)
+
+| boot314 | Image.pth244 | Disable SPIN_FAKE; defer BB_KILL until after SB SAS lookup null; recognize PAC-tagged ports; keep BB_EXIT_CLEAR; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: early kill races SAS publish; let BB#1 serve first SAS lookup; tagged-port detect fixes false-null XPC. | out/logs/boot314 |
 
