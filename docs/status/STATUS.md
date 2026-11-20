@@ -1593,5 +1593,9 @@ Image.pth74.
 
 ## Chunk 252 (boot303: post-SAS SPIN + CA past HID available)
 
-| boot303 | Image.pth233 | Keep boot302 kill+SURFACE; broaden SAS_MACH (any SB msgid after sas_ok); dump SPIN peer; watch IOSurface/CARender; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: after HID available, unblock SPIN / find real CA render server traffic. | out/logs/boot303 |
+| boot303 | Image.pth233 | Keep boot302 path + POST_SAS_SPIN_FAKE×8; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL+SURFACE+6001012; SPIN_FAKE×3; CA_MIG asl-only (**0 iohidevent** — regression vs boot302). SPIN fake skips useful wait. Revert. | out/logs/boot303 |
+
+## Chunk 253 (boot304: revert SPIN_FAKE; probe post-iohidevent)
+
+| boot304 | Image.pth234 | Revert SPIN_FAKE; keep boot302 kill+SURFACE; on iohidevent CA_MIG dump BB/SB frames + IOCONN; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: restore boot302 HID-available path; instrument next step after iohideventsystem.available. | out/logs/boot304 |
 

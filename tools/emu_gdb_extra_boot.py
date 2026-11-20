@@ -1785,7 +1785,7 @@ def on_mach_msg2():
                 and _mm2.get('rb_sel32')
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard'
                      or 'backboard' in pn0.lower())
-                and _mm2.get('dump_ca_mig', 0) < 8):
+                and _mm2.get('dump_ca_mig', 0) < 24):
             _mm2['dump_ca_mig'] = _mm2.get('dump_ca_mig', 0) + 1
             try:
                 raw = bytearray()
@@ -1808,6 +1808,17 @@ def on_mach_msg2():
                     raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
                 P('CA_MIG proc=%s msgid=%d remote=%#x buf=%#x [%s] ascii=%r' % (
                     pn0, msgid, remote, data_ptr, words, ascii_s[:80]))
+                # boot304: when HID event system announces, reopen mach window
+                # and dump frames — next wall after boot302.
+                if 'iohidevent' in ascii_s and not _mm2.get('hid_evt_seen'):
+                    _mm2['hid_evt_seen'] = 1
+                    _mm2['n'] = 0
+                    _mm2['post_surf_mach'] = 1
+                    P('HID_EVT_AVAILABLE reopen-mach')
+                    try:
+                        _uframes('HID_EVT_U', 'msgid=%d' % msgid)
+                    except Exception as eu:
+                        P('HID_EVT_U err=%r' % eu)
             except Exception as em:
                 P('CA_MIG err=%r' % em)
         # boot251: stash userspace buffer for 6001012 reply dump (boot250
@@ -1954,19 +1965,8 @@ def on_mach_msg2():
                             'n=%d' % _mm2['spin1'])
                     except Exception as e:
                         P('SPIN_U err=%r' % e)
-            # boot303: after SAS, fake-return first SPIN traps (like
-            # XPC388_FAKE) — boot302 spun forever post-iohideventsystem.
-            if (_mm2.get('sas_ok')
-                    and _mm2.get('spin_fake_n', 0) < 8):
-                _mm2['spin_fake_n'] = _mm2.get('spin_fake_n', 0) + 1
-                try:
-                    gdb.execute('set $x0 = 0', to_string=True)
-                    gdb.execute('set $pc = $x30', to_string=True)
-                    P('POST_SAS_SPIN_FAKE n=%d remote=%#x' % (
-                        _mm2['spin_fake_n'], remote))
-                except Exception as ef:
-                    P('POST_SAS_SPIN_FAKE_ERR=%r' % ef)
-                return False
+            # boot303: SPIN_FAKE×3 → lost iohideventsystem.available (boot302).
+            # boot304: do not fake SPIN; observe post-iohidevent instead.
             return False
         _mm2['n'] += 1
         # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
