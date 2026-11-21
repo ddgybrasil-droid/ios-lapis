@@ -1813,5 +1813,9 @@ Image.pth74.
 
 ## Chunk 307 (boot358: no SPIN_TIMEOUT after HID)
 
-| boot358 | Image.pth273 | Skip SPIN_TIMEOUT once hid_evt_seen (keep post-W00T FAKE_OK); keep BB_POST_SURF_MACH 3240 drop; W00T_FAKE; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot358 |
+| boot358 | Image.pth273 | Skip SPIN_TIMEOUT once hid_evt_seen (keep post-W00T FAKE_OK); keep BB_POST_SURF_MACH 3240 drop; W00T_FAKE; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE before GMD (no PRE_SURFACE) → **SAS_NULL** → DROP → MACH_UPC HID kill → BB respawn + BB_POST_SURF_MACH; **0 HID** ~8m. SPIN_TIMEOUT skip untested (no HID). Kill ~30m. | out/logs/boot358 |
+
+## Chunk 308 (boot359: re-enable SAS_NULL BB retry pre-HID)
+
+| boot359 | Image.pth273 | BB_KILL_SAS_RETRY on SAS_NULL after SURFACE if !hid; keep no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot359 |
 

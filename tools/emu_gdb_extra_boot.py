@@ -1431,12 +1431,15 @@ def _ufn(n):
                             P('BB_KILL_FOR_HID_ERR=%r' % ek)
                         return False
                 # boot328: second BB kill after SURFACE if SAS still null.
-                # boot337: boot336 retry killed BB after HID → respawn spun
-                # with 0 IOMFB. Disable; keep early BB_KILL_FOR_SAS + DROP.
-                if False and (pn == 'backboardd'
+                # boot337: disabled — killed after HID → 0 IOMFB. boot359:
+                # boot358 SURFACE-before-GMD → SAS_NULL → HID-kill late →
+                # still 0 HID. Re-arm retry only pre-HID so SAS can republish
+                # (boot357 HID path had SAS_PORT_REAL).
+                if (pn == 'backboardd'
                         and _mm2.get('bb_kill_sas_retry_armed')
                         and not _mm2.get('bb_kill_sas_retry')
-                        and not _mm2.get('sas_ok')):
+                        and not _mm2.get('sas_ok')
+                        and not _mm2.get('hid_evt_seen')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_sas_retry'] = 1
@@ -2152,29 +2155,45 @@ def on_mach_msg2():
         # boot352–355: BB peeks after DROP; mach BP is kernel — patch saved
         # userspace PC so return→EXC. boot355 killed on SAS W00T (0x77303074)
         # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
+        # boot359: also MACH_UPC when SAS_NULL_RETRY armed (XPC may not run).
+        _sas_retry_mach = (
+            _mm2.get('bb_kill_sas_retry_armed')
+            and not _mm2.get('bb_kill_sas_retry')
+            and not _mm2.get('sas_ok')
+            and not _mm2.get('hid_evt_seen'))
+        _hid_kill_mach = (
+            _mm2.get('drop_3240_n')
+            and _mm2.get('surface_ok')
+            and not _mm2.get('hid_evt_seen')
+            and not _mm2.get('bb_kill_for_hid'))
         if ('backboard' in (pn0 or '').lower()
-                and _mm2.get('drop_3240_n')
-                and _mm2.get('surface_ok')
-                and not _mm2.get('hid_evt_seen')
-                and not _mm2.get('bb_kill_for_hid')
-                and msgid in (0, 3228, 11602)):
+                and msgid in (0, 3228, 11602)
+                and (_sas_retry_mach or _hid_kill_mach)):
             try:
                 th = r('TPIDR_EL1')
                 ss = m64(th + 0x110) if th else 0
                 upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
                 upc = m64(upc_addr) if upc_addr else 0
                 if upc and upc < 0xffff000000000000:
-                    _mm2['bb_kill_for_hid'] = 1
-                    gdb.execute(
-                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
-                        to_string=True)
-                    P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
-                        msgid, upc, ss))
+                    if _sas_retry_mach:
+                        _mm2['bb_kill_sas_retry'] = 1
+                        _mm2['bb_kill_sas_retry_armed'] = 0
+                        gdb.execute(
+                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                            to_string=True)
+                        P('BB_KILL_SAS_RETRY via MACH_UPC msgid=%d upc=%#x' % (
+                            msgid, upc))
+                    else:
+                        _mm2['bb_kill_for_hid'] = 1
+                        gdb.execute(
+                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                            to_string=True)
+                        P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
+                            msgid, upc, ss))
                 else:
-                    P('BB_KILL_FOR_HID_MACH_SKIP upc=%#x ss=%#x' % (
-                        upc or 0, ss or 0))
+                    P('BB_KILL_MACH_SKIP upc=%#x ss=%#x' % (upc or 0, ss or 0))
             except Exception as ek:
-                P('BB_KILL_FOR_HID_MACH_ERR=%r' % ek)
+                P('BB_KILL_MACH_ERR=%r' % ek)
             return False
         # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
         # (no flood — boot260 uframes pre-SURFACE stalled RB).
