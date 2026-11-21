@@ -2106,6 +2106,22 @@ def on_mach_msg2():
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
+        # boot352: XPC-gated BB_KILL_FOR_HID never fired — BB stuck in mach
+        # peeks after DROP, no further XPC_LOOKUP. Kill on BB mach entry.
+        if ('backboard' in (pn0 or '').lower()
+                and _mm2.get('drop_3240_n')
+                and _mm2.get('surface_ok')
+                and not _mm2.get('hid_evt_seen')
+                and not _mm2.get('bb_kill_for_hid')):
+            pc = r('pc') & 0xffffffffffffffff
+            if pc < 0xffff000000000000:
+                _mm2['bb_kill_for_hid'] = 1
+                P('BB_KILL_FOR_HID via MACH msgid=%d pc=%#x' % (msgid, pc))
+                try:
+                    gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                except Exception as ek:
+                    P('BB_KILL_FOR_HID_MACH_ERR=%r' % ek)
+                return False
         # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
         # (no flood — boot260 uframes pre-SURFACE stalled RB).
         _sb_recv_keep = (

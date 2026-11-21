@@ -1789,5 +1789,9 @@ Image.pth74.
 
 ## Chunk 301 (boot352: BB_KILL_FOR_HID without sas_ok)
 
-| boot352 | Image.pth273 | After SURFACE+3240 DROP, kill BB once if no HID (drop sas_ok gate); keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot352 |
+| boot352 | Image.pth273 | After SURFACE+3240 DROP, kill BB once if no HID (drop sas_ok gate); keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB SURFACE + DROP×2; **BB_KILL_FOR_HID never fired** (BB stuck in peeks, no XPC). Kill ~24m. | out/logs/boot352 |
+
+## Chunk 302 (boot353: HID kill on BB mach after DROP)
+
+| boot353 | Image.pth273 | BB_KILL_FOR_HID on backboardd mach_msg after SURFACE+DROP (not only XPC); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot353 |
 
