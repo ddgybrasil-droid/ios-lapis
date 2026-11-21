@@ -1781,5 +1781,9 @@ Image.pth74.
 
 ## Chunk 299 (boot350: W00T_FAKE + SPIN_FAKE_OK)
 
-| boot350 | Image.pth273 | W00T_FAKE (skip dead FB send) + SPIN_FAKE_OK; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot350 |
+| boot350 | Image.pth273 | W00T_FAKE (skip dead FB send) + SPIN_FAKE_OK; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB SURFACE before GMD (no PRE_SURFACE kill) + SAS_NULL; **0 HID** ~5m. Kill ~26m. W00T_FAKE untested. | out/logs/boot350 |
+
+## Chunk 300 (boot351: retry W00T_FAKE path)
+
+| boot351 | Image.pth273 | Same boot350; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot351 |
 
