@@ -1793,5 +1793,9 @@ Image.pth74.
 
 ## Chunk 302 (boot353: HID kill on BB mach after DROP)
 
-| boot353 | Image.pth273 | BB_KILL_FOR_HID on backboardd mach_msg after SURFACE+DROP (not only XPC); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot353 |
+| boot353 | Image.pth273 | BB_KILL_FOR_HID on BB mach after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE + RB SURFACE + DROP; **0 BB traps after SURFACE** → mach HID kill never ran (kernel pc). Kill ~25m. | out/logs/boot353 |
+
+## Chunk 303 (boot354: HID kill on IOEXTMETHOD RetBP)
+
+| boot354 | Image.pth273 | BB_KILL_FOR_HID via RetBP2 on BB IOEXTMETHOD after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot354 |
 

@@ -1648,6 +1648,37 @@ def on_external_method():
         extra = ''
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
+        # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
+        if ('backboard' in pn0.lower()
+                and _mm2.get('drop_3240_n')
+                and _mm2.get('surface_ok')
+                and not _mm2.get('hid_evt_seen')
+                and not _mm2.get('bb_kill_for_hid')
+                and not _mm2.get('bb_hid_kill_retbp')):
+            try:
+                lr = r('x30') & 0xffffffffffffffff
+                if lr < 0xffff000000000000:
+                    _mm2['bb_hid_kill_retbp'] = 1
+
+                    def _hid_kill_ret():
+                        if (_mm2.get('bb_kill_for_hid')
+                                or _mm2.get('hid_evt_seen')):
+                            return False
+                        pn2 = cur_pname()
+                        pn20 = (pn2[0] if pn2 else '') or ''
+                        if 'backboard' not in pn20.lower():
+                            return False
+                        _mm2['bb_kill_for_hid'] = 1
+                        P('BB_KILL_FOR_HID via IOEXTMETHOD_RET')
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_FOR_HID_RET_ERR=%r' % ek)
+                        return False
+                    RetBP2(lr, _hid_kill_ret)
+                    P('BB_HID_KILL_RETBP_ARMED sel=%d lr=%#x' % (sel, lr))
+            except Exception as ea:
+                P('BB_HID_KILL_RETBP_ERR=%r' % ea)
         # Always keep BB/SB/RB/IOMFB method traffic; cap unrelated noise.
         # boot206: include runningboardd (IOGPU→sel13→32 path).
         keep = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
@@ -2473,7 +2504,8 @@ def on_prepexit():
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
                       'xpc388_n', 'w00t_n',
                       'spin_timeout_n', 'w00t_fake_n', 'w00t_ret_n',
-                      'spin_post_w00t_n', 'spin_fake_ok_n'):
+                      'spin_post_w00t_n', 'spin_fake_ok_n',
+                      'bb_hid_kill_retbp'):
                 if _mm2.pop(k, None) is not None:
                     cleared.append(k)
             if cleared:
