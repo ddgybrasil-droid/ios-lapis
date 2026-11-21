@@ -1761,5 +1761,9 @@ Image.pth74.
 
 ## Chunk 294 (boot345: retry hybrid for HID)
 
-| boot345 | Image.pth273 | Same boot344 hybrid; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **RUNNING** | out/logs/boot345 |
+| boot345 | Image.pth273 | Same boot344 hybrid; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → 2nd GMD **before SURFACE** (latch blocked retry) → GETSIZE+XPC388, **0 SURFACE/HID**. Kill ~20m. | out/logs/boot345 |
+
+## Chunk 295 (boot346: PRE_SURFACE kill cap=2)
+
+| boot346 | Image.pth273 | Allow up to 2× BB_KILL_PRE_SURFACE while !surface_ok (boot340 retry + boot341 keep-counter); keep post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot346 |
 

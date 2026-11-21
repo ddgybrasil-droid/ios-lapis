@@ -188,14 +188,19 @@ class _RetSite(gdb.Breakpoint):
                             # boot334/335: disabling kill → no SURFACE by 36m.
                             # boot336: restore kill (SURFACE needs it); keep
                             # SB 3240 RET kill off (panic) + DROP (boot332 HID).
-                            if (not _mm2.get('surface_ok')
-                                    and not _mm2.get('bb_kill_pre_surf')):
-                                _mm2['bb_kill_pre_surf'] = 1
+                            # boot341: keep counter across BB_EXIT (no clear).
+                            # boot345: once-only latch → 2nd GMD before SURFACE
+                            # (0 SURFACE, XPC388 w/o HID). Cap at 2 kills
+                            # (boot340 retry) while !surface_ok.
+                            _pre_n = int(_mm2.get('bb_kill_pre_surf') or 0)
+                            if (not _mm2.get('surface_ok') and _pre_n < 2):
+                                _mm2['bb_kill_pre_surf'] = _pre_n + 1
                                 try:
                                     gdb.execute('set $pc = 0xdeadbeef',
                                                 to_string=True)
                                     extra += ' BB_KILL_PRE_SURFACE_GMD'
-                                    P('BB_KILL_PRE_SURFACE_GMD')
+                                    P('BB_KILL_PRE_SURFACE_GMD n=%d' % (
+                                        _mm2['bb_kill_pre_surf']))
                                 except Exception as ek:
                                     extra += ' pre_surf_kill_err=%r' % ek
                         # boot296: after GMD, if SURFACE was NotReady-deferred,
