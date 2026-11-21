@@ -1737,5 +1737,9 @@ Image.pth74.
 
 ## Chunk 288 (boot339: retry after vnode_put panic)
 
-| boot339 | Image.pth269 | Same gdb levers as boot337/338; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid early vnode panic; reach boot332 HID→W00T. | out/logs/boot339 |
+| boot339 | Image.pth269 | Same gdb levers as boot337/338; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS_PORT_REAL `0x3e03`** + SAS_MACH + DROP sas=True; **0 HID** (~32m). SAS-win ↔ no-HID (vs boot332 null-SAS+HID). | out/logs/boot339 |
+
+## Chunk 289 (boot340: BB kill for HID after SAS+DROP)
+
+| boot340 | Image.pth270 | After 3240 DROP, if sas_ok and no HID, one userspace `BB_KILL_FOR_HID`; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: BB respawn after SAS publish → HID like boot332. | out/logs/boot340 |
 
