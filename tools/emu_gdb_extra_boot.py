@@ -2418,9 +2418,11 @@ def on_prepexit():
         pn = triage_pname()
         if isinstance(pn, str) and 'backboard' in pn.lower():
             cleared = []
+            # boot341: do NOT clear bb_kill_pre_surf — boot340 cleared it on
+            # BB exit → PRE_SURFACE kill loop (×2) before SURFACE.
             for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
-                      'xpc388_n', 'w00t_n', 'bb_kill_pre_surf',
+                      'xpc388_n', 'w00t_n',
                       'spin_timeout_n', 'w00t_fake_n', 'w00t_ret_n',
                       'spin_post_w00t_n'):
                 if _mm2.pop(k, None) is not None:

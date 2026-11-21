@@ -1741,5 +1741,9 @@ Image.pth74.
 
 ## Chunk 289 (boot340: BB kill for HID after SAS+DROP)
 
-| boot340 | Image.pth270 | After 3240 DROP, if sas_ok and no HID, one userspace `BB_KILL_FOR_HID`; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: BB respawn after SAS publish → HID like boot332. | out/logs/boot340 |
+| boot340 | Image.pth270 | After 3240 DROP, if sas_ok and no HID, one userspace `BB_KILL_FOR_HID`; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `BB_KILL_PRE_SURFACE_GMD` **×2** — `bb_kill_pre_surf` cleared on BB_EXIT → kill loop, no SURFACE. Kill ~20m. | out/logs/boot340 |
+
+## Chunk 290 (boot341: keep bb_kill_pre_surf across BB exit)
+
+| boot341 | Image.pth271 | Do not clear `bb_kill_pre_surf` in BB_EXIT_CLEAR; keep BB_KILL_FOR_HID + DROP; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: one PRE_SURFACE kill → SURFACE → HID/SAS path. | out/logs/boot341 |
 
