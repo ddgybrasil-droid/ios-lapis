@@ -1821,5 +1821,9 @@ Image.pth74.
 
 ## Chunk 309 (boot360: SAS reopen without post_surf_mach)
 
-| boot360 | Image.pth273 | post-SAS mach reopen does NOT set post_surf_mach (SURFACE-only); keep SAS_NULL retry + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot360 |
+| boot360 | Image.pth273 | post-SAS mach reopen does NOT set post_surf_mach (SURFACE-only); keep SAS_NULL retry + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → SURFACE → SAS_NULL → **BB_KILL_SAS_RETRY MACH_UPC** + SB_KILL_ARMED; SB stuck in 3240 (no XPC kill) → **0 HID**. Kill ~22m. | out/logs/boot360 |
+
+## Chunk 310 (boot361: SB SAS relookup via MACH_UPC on 3240)
+
+| boot361 | Image.pth273 | When SB_KILL_SAS armed, MACH_UPC-kill SB on msgid 3240; keep boot360 SAS/SURFACE fixes; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot361 |
 

@@ -1983,11 +1983,36 @@ def on_mach_msg2():
         # boot357: PRE_SURFACE×2 leaves BB late (SOURCE_ATTACH only); SB 3240
         # dump/zero before DROP still starves BB → 0 mach / 0 HID (boot356).
         # Drop SB 3240 immediately after SURFACE until BB posts any mach.
+        # boot361: boot360 armed SB_KILL but SB stuck in 3240 (no XPC) —
+        # MACH_UPC kill on 3240 when armed (kernel $pc panic in boot334).
         if 'backboard' in (pn0 or '').lower() and _mm2.get('surface_ok'):
             if not _mm2.get('bb_post_surf_mach'):
                 _mm2['bb_post_surf_mach'] = 1
                 _mm2['n'] = 0
                 P('BB_POST_SURF_MACH msgid=%d reopen' % msgid)
+        if (msgid == 3240
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('sb_kill_sas_armed')
+                and not _mm2.get('sb_kill_sas_relookup')
+                and not _mm2.get('sas_ok')):
+            try:
+                th = r('TPIDR_EL1')
+                ss = m64(th + 0x110) if th else 0
+                upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
+                upc = m64(upc_addr) if upc_addr else 0
+                if upc and upc < 0xffff000000000000:
+                    _mm2['sb_kill_sas_relookup'] = 1
+                    _mm2['sb_kill_sas_armed'] = 0
+                    gdb.execute(
+                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                        to_string=True)
+                    P('SB_KILL_SAS_RELOOKUP via MACH_UPC upc=%#x' % upc)
+                else:
+                    P('SB_KILL_SAS_MACH_SKIP upc=%#x ss=%#x' % (
+                        upc or 0, ss or 0))
+            except Exception as ek:
+                P('SB_KILL_SAS_MACH_ERR=%r' % ek)
+            return False
         if (msgid == 3240
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
                 and not _mm2.get('sb_kill_sas_armed')
