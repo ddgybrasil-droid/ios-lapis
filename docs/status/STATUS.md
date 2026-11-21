@@ -1713,5 +1713,9 @@ Image.pth74.
 
 ## Chunk 282 (boot333: dump IOMFB_GETSIZE out)
 
-| boot333 | Image.pth263 | Dump GETSIZE soutp w/h on RET; keep DROP+HID+W00T path; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: size/scalars wrong → no further IOMFB sels. | out/logs/boot333 |
+| boot333 | Image.pth263 | Dump GETSIZE soutp w/h on RET; keep DROP+HID+W00T path; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE = **u64 2420×1668** (OK). SAS `0x181b`+DROP; **0 HID** — `BB_KILL_PRE_SURFACE_GMD` before SURFACE (boot332: GMD after SURFACE → HID). Kill ~30m. | out/logs/boot333 |
+
+## Chunk 283 (boot334: disable PRE_SURFACE GMD kill)
+
+| boot334 | Image.pth264 | Disable `BB_KILL_PRE_SURFACE_GMD`; keep DROP+ZERO+GETSIZE dump; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: keep early GMD alive → HID like boot332, plus SAS when race wins. | out/logs/boot334 |
 

@@ -48,14 +48,15 @@ class _RetSite(gdb.Breakpoint):
                     except Exception as e8:
                         extra += ' limits_err=%r/%r' % (e7, e8)
             # boot333: dump GetDisplaySize scalars (boot332 wall = GETSIZE
-            # then W00T/SPIN/XPC388, 0 sels past 8).
+            # then W00T/SPIN/XPC388, 0 sels past 8). Layout is two uint64
+            # (raw 0974 0 0684 0 → 2420×1668), not packed u32.
             if (t.startswith('IOEXTMETHOD_RET') and 'IOMFB_GETSIZE' in t
                     and _mm2.get('getsize_soutp')):
                 try:
                     sp = int(_mm2['getsize_soutp'])
                     raw = bytes(gdb.selected_inferior().read_memory(sp, 16))
-                    w = int.from_bytes(raw[0:4], 'little')
-                    h = int.from_bytes(raw[4:8], 'little')
+                    w = int.from_bytes(raw[0:8], 'little')
+                    h = int.from_bytes(raw[8:16], 'little')
                     extra += ' GETSIZE_OUT w=%d h=%d raw=%s' % (
                         w, h, ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 16, 4)))
