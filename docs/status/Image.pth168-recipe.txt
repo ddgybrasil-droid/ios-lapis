@@ -1,0 +1,7 @@
+Image.pth168 = Image.pth167 retest
+  boot237: first real system-app-server endpoint after ANALYTICS_REAL;
+  SB mach flood; 0 SURFACE.
+  boot238: same GDB/DSC; confirm + catch SURFACE/CA; T=1800.
+
+Build:
+  cp /tmp/Image.pth167 /tmp/Image.pth168

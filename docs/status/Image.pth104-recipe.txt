@@ -1,0 +1,9 @@
+Image.pth104 = Image.pth103 kernel + DSC wrap REVERTED + GDB W00T_FAKE
+  boot173: IOSOPEN→sel8 wrap EXC'd BB (FAR=0) right after IOMFB open; 0 sel8.
+  - Revert: restore .45 IOSOPEN stub + .44 Open-wrap sel5; rehash
+  - GDB: after post_iomfb, fake mach_msg2 success for BB w00t/0x40000000
+    (set x0=0; pc=lr) up to 64 times
+
+Build:
+  cp /tmp/Image.pth103 /tmp/Image.pth104
+  # DSC already reverted on /tmp/fullroot-mnt2.img

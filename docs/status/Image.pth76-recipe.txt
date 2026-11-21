@@ -1,0 +1,8 @@
+Image.pth76 = Image.pth75 + lapis_iomfb.c:
+  - empty OSDictionary IOCFPlugInTypes on HID + IOMFB stubs (boot144 0xe00002f0)
+  - NUC seeds panel geometry props on the user client
+  - externalMethod: 8/16-byte outs return 2420×1668 panel size
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth75 /tmp/Image.pth76

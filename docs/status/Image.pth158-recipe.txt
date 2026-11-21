@@ -1,0 +1,8 @@
+Image.pth158 = Image.pth157 + WRAP_SEL8 private stack
+  boot227: sel5+8 fire but GMD never returns (SP smash).
+  boot228: WRAP sub sp,#0x20 around CallMethod; T=1800.
+
+Build:
+  cp /tmp/Image.pth157 /tmp/Image.pth158
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  python3 tools/dsc_cd_rehash.py /tmp/fullroot-mnt2.img --write

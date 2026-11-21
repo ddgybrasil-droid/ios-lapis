@@ -1,0 +1,9 @@
+Image.pth184 = Image.pth183 + SAS clean-port only (high32==0)
+  boot253: kept 0xf88754e8…3a03 → SpringBoard EXC/PREPAREEXIT; no SURFACE.
+  High32 is stale stack; low32 "port" is not a live send right.
+  boot254: SAS_PORT_REAL only when high32==0 && 0<low<0x10000;
+  otherwise SAS_NULL_FORCE_0x9f (boot249 SURFACE path). T=3000.
+
+Build:
+  cp /tmp/Image.pth183 /tmp/Image.pth184
+  # DSC unchanged; GDB only

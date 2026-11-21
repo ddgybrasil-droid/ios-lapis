@@ -14,11 +14,908 @@ class _RetSite(gdb.Breakpoint):
         if t is not None:
             x0=r('x0'); extra=''
             if (x0 & 0xffffffff) == 0x9f: extra=' (xpcerr=159 Sandbox restriction)'
-            P('RET %s x0=%#x%s'%(t,x0,extra))
+            if (x0 & 0xffffffff) == 0x35: extra=' (container err 0x35 null-path)'
+            # Userland C-string return (CM_SYSPATH path, etc.)
+            if 0x100000000 <= x0 < 0x300000000:
+                try:
+                    s=ustr(x0,256)
+                    if s: extra+=' str=%r'%s
+                except Exception: pass
+            if 'outp=0x' in t:
+                try:
+                    op=int(t.split('outp=')[1].split()[0],16)
+                    if op: extra+=' obj=%#x'%(m32(op)&0xffffffff)
+                except Exception as e:
+                    extra+=' obj_err=%r'%e
+            # boot187–189: after GMD body, dump *out, size @+0x30/+0x34,
+            # conn @+0x14, and first 0x40 bytes (CA may bail on sparse object).
+            # out* is userspace — use inferior read_memory, not kernel m64.
+            # boot209: SEL32_SCALAR1 did not unlock POST_SEL32 — leave scalar0.
+            if t.startswith('IOEXTMETHOD_RET') and 'sel=13' in t and 'stoutp=0x' in t:
+                try:
+                    sp = int(t.split('stoutp=')[1].split()[0], 16)
+                    raw = bytes(gdb.selected_inferior().read_memory(sp, 40))
+                    words = ' '.join('%04x' % int.from_bytes(raw[i:i+2], 'little')
+                                    for i in range(0, 40, 2))
+                    gate = int.from_bytes(raw[0x22:0x24], 'little')
+                    extra += ' limits40=[%s] gate+0x22=%d' % (words, gate)
+                except Exception as e7:
+                    # kernel stout may need m64 path
+                    try:
+                        sp = int(t.split('stoutp=')[1].split()[0], 16)
+                        gate = m32(sp + 0x22) & 0xffff
+                        extra += ' limits_gate+0x22=%d' % gate
+                    except Exception as e8:
+                        extra += ' limits_err=%r/%r' % (e7, e8)
+            # boot333: dump GetDisplaySize scalars (boot332 wall = GETSIZE
+            # then W00T/SPIN/XPC388, 0 sels past 8). Layout is two uint64
+            # (raw 0974 0 0684 0 → 2420×1668), not packed u32.
+            if (t.startswith('IOEXTMETHOD_RET') and 'IOMFB_GETSIZE' in t
+                    and _mm2.get('getsize_soutp')):
+                try:
+                    sp = int(_mm2['getsize_soutp'])
+                    raw = bytes(gdb.selected_inferior().read_memory(sp, 16))
+                    w = int.from_bytes(raw[0:8], 'little')
+                    h = int.from_bytes(raw[8:16], 'little')
+                    extra += ' GETSIZE_OUT w=%d h=%d raw=%s' % (
+                        w, h, ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 16, 4)))
+                    # boot373: mark post-HID GETSIZE so SPIN policy can change.
+                    if (_mm2.get('hid_evt_seen') and 'backboard' in t
+                            and w > 0 and h > 0):
+                        _mm2['getsize_ok'] = 1
+                        extra += ' GETSIZE_OK'
+                except Exception as eg:
+                    extra += ' GETSIZE_OUT_err=%r' % eg
+            # boot373: W00T_RET via MACHMSG2_RET (RetBP2 on PAC'd lr missed
+            # in boot371/372). Stash set at W00T_REAL entry.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=%d' % 0x77303074 in t
+                    and 'backboard' in t and _mm2.get('w00t_pending')):
+                try:
+                    n = _mm2.pop('w00t_pending', 0)
+                    extra += ' POST_SAS_W00T_RET n=%d x0=%#x' % (
+                        n, r('x0') & 0xffffffffffffffff)
+                except Exception as ew:
+                    extra += ' POST_SAS_W00T_RET_ERR=%r' % ew
+            # boot309: RB_REMATCH_KILL via mach_msg2 set pc=0xbad0dead in
+            # KERNEL → PANIC (same class as boot300). boot310: always allow
+            # SURFACE (boot302/306 HID path); no NotReady / no RB rematch kill.
+            if t.startswith('GMD_BODY_RET') and 'out=0x' in t:
+                try:
+                    op = int(t.split('out=')[1].split()[0], 16)
+                    obj = 0
+                    if op:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(op, 8))
+                            obj = int.from_bytes(raw, 'little')
+                        except Exception as e0:
+                            obj = 0
+                            extra += ' *out_read_err=%r' % e0
+                            # boot204: stack *out sometimes MemoryError under
+                            # the wrong thread — fall back to gdb x/gx.
+                            try:
+                                xs = gdb.execute('x/gx %#x' % op, to_string=True)
+                                extra += ' *out_x=%r' % xs.strip()[:80]
+                                # gdb prints "ADDR:\tVALUE" — take the last 0x
+                                # token (VALUE), not the address.
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                if toks:
+                                    obj = int(toks[-1], 16)
+                            except Exception as e1:
+                                extra += ' *out_x_err=%r' % e1
+                    extra += ' *out=%#x' % (obj or 0)
+                    if not obj:
+                        extra += ' GMD_OUT_NULL'
+                        # boot195: dump callee-saved regs at cave return to
+                        # see if x19/x21 survived Open when *out stays null.
+                        try:
+                            def _reg(n):
+                                return int(gdb.parse_and_eval('$' + n)) & 0xffffffffffffffff
+                            extra += ' regs=x19=%#x,x20=%#x,x21=%#x,x22=%#x,x23=%#x' % (
+                                _reg('x19'), _reg('x20'), _reg('x21'),
+                                _reg('x22'), _reg('x23'))
+                        except Exception as er:
+                            extra += ' regs_err=%r' % er
+                    if obj and 0x100000000 <= (obj & 0xffffffffffffffff) < 0x300000000:
+                        def _uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                # boot204/205: GDB often MemoryError on heap
+                                # under the wrong thread — x/gx still works.
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
+                        w = h = 0
+                        try:
+                            raw = _uread(obj + 0x30, 8)
+                            w = int.from_bytes(raw[0:4], 'little')
+                            h = int.from_bytes(raw[4:8], 'little')
+                            extra += ' size=%dx%d' % (w, h)
+                        except Exception as e2:
+                            extra += ' size_err=%r' % e2
+                        try:
+                            raw = _uread(obj + 0x14, 8)[:4]
+                            extra += ' conn=%#x' % int.from_bytes(raw, 'little')
+                        except Exception as e3:
+                            extra += ' conn_err=%r' % e3
+                        isa = 0
+                        try:
+                            raw = _uread(obj, 0x40)
+                            words = ' '.join('%08x' % int.from_bytes(
+                                raw[i:i+4], 'little') for i in range(0, 0x40, 4))
+                            extra += ' obj40=[%s]' % words
+                            isa = int.from_bytes(raw[0:8], 'little')
+                            extra += ' isa=%#x' % isa
+                            # boot193: cave restores typed_malloc isa after Open.
+                            # If still zero, copy an earlier same-boot capture
+                            # (FDR) — never a cross-boot PAC'd constant (ASLR).
+                            if isa == 0:
+                                seed = int(_dsc.get('gmd_isa_seed', 0) or 0)
+                                if seed:
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            obj, seed.to_bytes(8, 'little'))
+                                        isa = seed
+                                        extra += ' ISA_SEEDED=%#x' % seed
+                                    except Exception as e6:
+                                        extra += ' isa_seed_err=%r' % e6
+                            else:
+                                _dsc['gmd_isa_seed'] = isa
+                                extra += ' ISA_CAPTURED'
+                        except Exception as e4:
+                            extra += ' obj40_err=%r' % e4
+                        f838 = fc08 = 0
+                        try:
+                            raw = _uread(obj + 0x838, 8)[:4]
+                            f838 = int.from_bytes(raw, 'little')
+                            extra += ' f838=%#x' % f838
+                            raw = _uread(obj + 0xc08, 8)[:4]
+                            fc08 = int.from_bytes(raw, 'little')
+                            extra += ' fc08=%#x' % fc08
+                        except Exception as e5:
+                            extra += ' flag_err=%r' % e5
+                        # boot211: BB_GMD_FORCE wrote panel fields into *out.
+                        # boot310: FORCE hit a non-GMD object (obj40 ASCII
+                        # "AutomaticDiskAllocation") → asl-only CA, 0 iohidevent.
+                        # boot311: never FORCE; require clean BB_GMD_OK.
+                        if False and ('backboardd' in t and obj
+                                and (w == 0 or h == 0 or not isa
+                                     or f838 == 0 or fc08 == 0)):
+                            pass
+                        if 'backboardd' in t and w and h and isa:
+                            _mm2['bb_gmd_ok'] = 1
+                            if 'BB_GMD_FORCE' not in extra:
+                                extra += ' BB_GMD_OK'
+                            # boot316/317: GMD before SURFACE → SPIN stuck /
+                            # SIGBUS, 0 HID (boot311 order was SURFACE→SAS→
+                            # HID→GMD). Kill pre-SURFACE GMD to respawn later.
+                            # boot334/335: disabling kill → no SURFACE by 36m.
+                            # boot336: restore kill (SURFACE needs it); keep
+                            # SB 3240 RET kill off (panic) + DROP (boot332 HID).
+                            # boot341: keep counter across BB_EXIT (no clear).
+                            # boot345: once-only latch → 2nd GMD before SURFACE
+                            # (0 SURFACE, XPC388 w/o HID). Cap at 2 kills
+                            # (boot340 retry) while !surface_ok.
+                            _pre_n = int(_mm2.get('bb_kill_pre_surf') or 0)
+                            if (not _mm2.get('surface_ok') and _pre_n < 2):
+                                _mm2['bb_kill_pre_surf'] = _pre_n + 1
+                                try:
+                                    gdb.execute('set $pc = 0xdeadbeef',
+                                                to_string=True)
+                                    extra += ' BB_KILL_PRE_SURFACE_GMD'
+                                    P('BB_KILL_PRE_SURFACE_GMD n=%d' % (
+                                        _mm2['bb_kill_pre_surf']))
+                                except Exception as ek:
+                                    extra += ' pre_surf_kill_err=%r' % ek
+                        # boot296: after GMD, if SURFACE was NotReady-deferred,
+                        # arm runningboardd kill so IOKit rematches sel32.
+                        if (_mm2.get('bb_gmd_ok')
+                                and _mm2.get('surf_defer_n')
+                                and not _mm2.get('rb_sel32')
+                                and not _mm2.get('need_rb_rematch')
+                                and not _mm2.get('rb_rematch_kill')):
+                            _mm2['need_rb_rematch'] = 1
+                            P('RB_REMATCH_ARMED defer_n=%d sas_ok=%s' % (
+                                _mm2.get('surf_defer_n', 0),
+                                _mm2.get('sas_ok')))
+                            extra += ' RB_REMATCH_ARMED'
+                        # boot220/221: CA may require main/fulfilled flag @+0x98
+                        # (boot116 RE). Seed 1 and read back + dump nearby.
+                        if obj and w and h:
+                            try:
+                                gdb.selected_inferior().write_memory(
+                                    obj + 0x98, (1).to_bytes(4, 'little'))
+                                extra += ' FLAG98=1'
+                            except Exception:
+                                try:
+                                    gdb.execute(
+                                        'set {unsigned int}%#x = 1' % (obj + 0x98),
+                                        to_string=True)
+                                    extra += ' FLAG98=1'
+                                except Exception as e98:
+                                    extra += ' flag98_err=%r' % e98
+                            try:
+                                raw98 = _uread(obj + 0x90, 32)
+                                words98 = ' '.join(
+                                    '%08x' % int.from_bytes(raw98[i:i+4], 'little')
+                                    for i in range(0, 32, 4))
+                                extra += ' obj90=[%s]' % words98
+                            except Exception as e90:
+                                extra += ' obj90_err=%r' % e90
+                except Exception as e:
+                    extra += ' gmd_out_err=%r' % e
+            # boot211/212: BB HID path sees IOHID* CONFORMS → 0; force 1 so
+            # digitizer/event service matching can proceed toward UI.
+            if (t.startswith('CONFORMS_RET')
+                    and ('IOHIDEventService' in t or 'IOHIDDevice' in t)
+                    and 'backboardd' in t and (x0 & 0xffffffff) == 0):
+                try:
+                    gdb.execute('set $x0 = 1', to_string=True)
+                    x0 = 1
+                    extra += ' HID_CONFORMS_FORCE'
+                except Exception as eh:
+                    extra += ' hid_conforms_err=%r' % eh
+            # boot265: dump stashed ENTER args (userspace buf) — RET x4 was zero.
+            # boot305: boot304 BRK'd right after HID NOTE64 pre-GMD — sample
+            # userspace frames on first NOTE64 before Paravirt/IOMFB.
+            if (t.startswith('IOCONN_NOTE64_RET')
+                    and 'backboard' in t.lower()
+                    and not _mm2.get('bb_gmd_ok')
+                    and _mm2.get('note64_pre_gmd_uf', 0) < 2):
+                _mm2['note64_pre_gmd_uf'] = _mm2.get('note64_pre_gmd_uf', 0) + 1
+                try:
+                    _uframes('NOTE64_PRE_GMD_U', 'n=%d x0=%#x' % (
+                        _mm2['note64_pre_gmd_uf'], x0))
+                except Exception as en:
+                    extra += ' note64_uf_err=%r' % en
+            if (t.startswith('IOREGPROP_buf_RET')
+                    and 'HIDEventServiceProperties' in t
+                    and 'backboardd' in t
+                    and _mm2.get('hid_prop_dump', 0) < 2):
+                _mm2['hid_prop_dump'] = _mm2.get('hid_prop_dump', 0) + 1
+                try:
+                    x0 = int(gdb.parse_and_eval('$x0')) & 0xffffffffffffffff
+                    extra += ' HIDPROP_RET x0=%#x' % x0
+                    args = _mm2.get('hidprop_args') or ()
+                    for i, a in enumerate(args):
+                        # Userspace pointers (stack/heap in BB).
+                        if 0x100000000 <= a < 0x300000000:
+                            try:
+                                raw = bytearray()
+                                for off in range(0, 64, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (a + off), to_string=True)
+                                    toks = [tt for tt in xs.replace(':', ' ').split()
+                                            if tt.startswith('0x') and len(tt) > 5]
+                                    raw += int(toks[-1], 16).to_bytes(8, 'little')
+                                words = ' '.join('%08x' % int.from_bytes(
+                                    raw[i2:i2+4], 'little')
+                                    for i2 in range(0, 64, 4))
+                                extra += ' HIDPROP_U_x%d=%#x[%s]' % (i, a, words)
+                            except Exception as eb:
+                                extra += ' hidu_x%d_err=%r' % (i, eb)
+                except Exception as ep:
+                    extra += ' hidprop_err=%r' % ep
+            # boot214–217: msgid 3228 = mach_port_peek. boot217: PEEK_FAIL ×3
+            # then BB SPAWN respawn + w00t — revert the RetCode patch; keep dump.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3228' in t
+                    and 'backboardd' in t and _mm2.get('bb_3228', 0) <= 12):
+                try:
+                    data = int(_mm2.get('bb_3228_data') or 0)
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        def _peek_uread(addr, n):
+                            try:
+                                return bytes(gdb.selected_inferior().read_memory(
+                                    addr, n))
+                            except Exception:
+                                out = bytearray()
+                                for off in range(0, n, 8):
+                                    xs = gdb.execute(
+                                        'x/gx %#x' % (addr + off),
+                                        to_string=True)
+                                    toks = [t for t in xs.replace(':', ' ').split()
+                                            if t.startswith('0x') and len(t) > 5]
+                                    if not toks:
+                                        raise RuntimeError('x/gx empty')
+                                    out += int(toks[-1], 16).to_bytes(8, 'little')
+                                return bytes(out[:n])
+                        raw = _peek_uread(data, 52)
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 52, 4))
+                        extra += ' reply=[%s]' % words
+                except Exception as er:
+                    extra += ' reply_err=%r' % er
+            # boot330: SB stuck in 3240 mach loop — tried kill on MACHMSG2_RET.
+            # boot334: set $pc=0xdeadbeef here → kernel PC-alignment PANIC
+            # (lr still kernel). Disabled; rely on DROP + no PRE_SURFACE kill
+            # (boot332 HID path).
+            if False and (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
+                    and 'SpringBoard' in t
+                    and _mm2.get('sb_kill_sas_armed')
+                    and not _mm2.get('sb_kill_sas_relookup')
+                    and not _mm2.get('sas_ok')):
+                _mm2['sb_kill_sas_relookup'] = 1
+                _mm2['sb_kill_sas_armed'] = 0
+                try:
+                    gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                    extra += ' SB_KILL_SAS_RELOOKUP_3240'
+                except Exception as ek:
+                    extra += ' SB_KILL_SAS_RELOOKUP_ERR=%r' % ek
+            # boot325: dump 3240 reply via MACHMSG2_RET (RetBP tag collide).
+            # boot325 reply: id=0xd0c body … 0x2e/8 — SB polls forever.
+            # boot326: after SAS, zero the 0x2e slot (off+0x20) if present.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
+                    and 'SpringBoard' in t
+                    and _mm2.get('dump_3240_ret', 0) < 6):
+                _mm2['dump_3240_ret'] = _mm2.get('dump_3240_ret', 0) + 1
+                try:
+                    buf = int(_mm2.get('buf_3240') or 0)
+                    raw = bytearray()
+                    if buf:
+                        for off in range(0, 96, 8):
+                            try:
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (buf + off), to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            except Exception:
+                                raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little')
+                            for i in range(0, len(raw), 4))
+                        extra += ' SB_3240_REPLY n=%d [%s]' % (
+                            _mm2['dump_3240_ret'], words)
+                        # boot326 gated on sas_ok → miss when SAS null.
+                        # boot327: always zero 0x2e (pre- and post-SAS).
+                        if (buf and len(raw) >= 0x24
+                                and int.from_bytes(raw[0x20:0x24], 'little')
+                                == 0x2e
+                                and _mm2.get('fix_3240_2e', 0) < 12):
+                            try:
+                                gdb.execute(
+                                    'set {unsigned int}%#x = 0' % (buf + 0x20),
+                                    to_string=True)
+                                _mm2['fix_3240_2e'] = _mm2.get(
+                                    'fix_3240_2e', 0) + 1
+                                extra += ' SB_3240_ZERO_0x2e n=%d sas=%s' % (
+                                    _mm2['fix_3240_2e'],
+                                    bool(_mm2.get('sas_ok')))
+                            except Exception as ez:
+                                extra += ' zero_err=%r' % ez
+                    else:
+                        extra += ' SB_3240_REPLY n=%d empty' % _mm2[
+                            'dump_3240_ret']
+                except Exception as e3240r:
+                    extra += ' SB_3240_REPLY_err=%r' % e3240r
+            # boot251/252/259: dump 6001012 reply + RET FP walk (boot258
+            # quiet after BKS→FrontBoard; need where SB goes next).
+            if (t.startswith('MACHMSG2_RET') and 'msgid=6001012' in t
+                    and 'SpringBoard' in t and _mm2.get('dump_6001012', 0) < 1):
+                _mm2['dump_6001012'] = 1
+                _mm2['post_6001012'] = 1
+                try:
+                    buf = int(_mm2.get('msg_6001012_buf') or 0)
+                    raw = bytearray()
+                    if buf:
+                        for off in range(0, 96, 8):
+                            try:
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (buf + off), to_string=True)
+                                toks = [tt for tt in xs.replace(':', ' ').split()
+                                        if tt.startswith('0x') and len(tt) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            except Exception:
+                                raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, len(raw), 4))
+                        extra += ' buf=%#x [%s]' % (buf, words)
+                    else:
+                        extra += ' buf=%#x unreadable' % (buf or 0)
+                except Exception as e6:
+                    extra += ' buf_err=%r' % e6
+                try:
+                    fps = []
+                    fp = int(gdb.parse_and_eval('$x29')) & 0xffffffffffffffff
+                    lr0 = int(gdb.parse_and_eval('$x30')) & 0xffffffffffffffff
+                    fps.append(lr0)
+                    for _ in range(20):
+                        if not (0x100000000 <= fp < 0x300000000):
+                            break
+                        xs = gdb.execute('x/2gx %#x' % fp, to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        if len(toks) < 2:
+                            break
+                        nfp = int(toks[-2], 16) & 0xffffffffffffffff
+                        nlr = int(toks[-1], 16) & 0xffffffffffffffff
+                        fps.append(nlr)
+                        if nfp <= fp:
+                            break
+                        fp = nfp
+                    if fps:
+                        extra += ' RET_FRAMES ' + ' '.join(
+                            '%#x' % x for x in fps[:16])
+                except Exception as ef:
+                    extra += ' ret_fr_err=%r' % ef
+            # boot258: ANY SAS mutation crashes SB (keep/0x9f/soft-null all
+            # EXC far=0x100000000). boot249 left the lookup untouched
+            # (x0=0 x7*=None) and reached SURFACE+6001012. Observe only.
+            if (t.startswith('XPC_LOOKUP_RET')
+                    and "name='com.apple.backboard.system-app-server'" in t
+                    and 'proc=SpringBoard' in t):
+                try:
+                    out7 = 0
+                    if 'out7=0x' in t:
+                        out7 = int(t.split('out7=')[1].split()[0], 16)
+                    v = None
+                    if out7:
+                        try:
+                            v = m64(out7)
+                        except Exception:
+                            v = None
+                    if v is None:
+                        extra += ' SAS_OBSERVE v=None'
+                        # boot328: SAS race often null post-SURFACE (boot326/327).
+                        # Arm one more userspace BB kill so SAS can republish.
+                        if (_mm2.get('surface_ok')
+                                and not _mm2.get('sas_ok')
+                                and not _mm2.get('bb_kill_sas_retry')):
+                            _mm2['bb_kill_sas_retry_armed'] = 1
+                            extra += ' SAS_NULL_RETRY_ARMED'
+                    else:
+                        raw = v & 0xffffffffffffffff
+                        low = raw & 0xffffffff
+                        high = (raw >> 32) & 0xffffffff
+                        # boot254: high==0 only. boot253 kept tagged low32.
+                        # boot281: garbage low=0x2 with high tag — not a port.
+                        # boot282: observe tagged ports with plausible low
+                        # (0x100..0x10000); still observe-only (no mutate).
+                        if 0x100 < low < 0x10000:
+                            extra += ' SAS_PORT_REAL port=%#x' % low
+                            if high:
+                                extra += '(tagged)'
+                            _mm2['sas_ok'] = 1
+                            _mm2['sas_port'] = low
+                        else:
+                            extra += ' SAS_OBSERVE v=%#x' % raw
+                except Exception as es2:
+                    extra += ' sas_check_err=%r' % es2
+            if t.startswith('XPC_LOOKUP_RET'):
+                # boot137/139: force BB ACCHW/RB → 0x9f + CLEAR ports (boot55 HID path).
+                # boot145: ACCHW-only left BB with a real RB port; it hung on RB
+                # check-in and never reached HIDServiceSupport/IOMFB. RB force is
+                # required to skip that hang; post-open silence is a separate wall.
+                # Out-port ptrs are embedded in the RetBP tag (out4=/out6=/out7=).
+                # boot155/156: BB waits on frontboard.systemappservices (SB) after
+                # IOMFB open with 0 post-open IOCONN and burns CPU. Force 0x9f like
+                # RB so display/CA init can proceed without SB frontboard publish.
+                # boot162/163: after IOMFB open BB sends msgid 11602→0x1903 then
+                # spins — allow real RB/frontboard once post_iomfb so display
+                # assertions can check in; keep ACCHW forced always.
+                # boot168–171: null-port XPC success → MACH_SEND_NOTIFY SPIN.
+                # boot171: gestalt/locationd forced pre-open, but analyticsd was
+                # looked up *after* IOMFB open (post_iomfb gate skipped it) and
+                # returned x0=0/null — boot172: always force analyticsd for BB.
+                # boot185: real analyticsd → x0=1 + null ports then quiet.
+                # boot186: always force analyticsd again.
+                # boot236: after GETSIZE/GMD, forcing analyticsd leaves BB quiet
+                # (boot235). Allow real analyticsd once post_iomfb; still force
+                # pre-GMD to avoid early hang.
+                _force_names = [
+                    "name='com.apple.ACCHWComponentAuthService'",
+                    "name='com.apple.locationd.registration'",
+                    # boot218: oscard returned x0=3 then BB w00t/respawn path;
+                    # force 0x9f like other auth services.
+                    "name='com.apple.oscard'",
+                ]
+                if not _mm2.get('post_iomfb'):
+                    # boot243: do NOT force analyticsd via force_names — boot242
+                    # completed analytics RET before BB_IOMFB_MATCH and got
+                    # FORCED_XPCERR, never retried; SAS stayed null. Rely on
+                    # nullport/REAL/BAD_FORCE paths below instead.
+                    # boot221: real frontboard/MG → only NULLPORT + W00T.
+                    # boot222: restore blanket force (boot220 stable, no W00T).
+                    # boot248: do NOT force frontboard.systemappservices —
+                    # BB only looks it up pre-MATCH; FORCED_XPCERR never
+                    # retries (boot245/247). Handled via FB_SAS_REAL below.
+                    _force_names += [
+                        "name='com.apple.runningboard'",
+                        "name='com.apple.mobilegestalt.xpc'",
+                    ]
+                    # Pre-MATCH BB analytics with a real port still hangs
+                    # (boot214). Force only that case via dedicated check later.
+                # boot177: BB early XPC logged as proc=? (pname miss) so
+                # ACCHW/RB were NOT forced → real RB port → hang, no IOMFB.
+                # boot178: treat proc=? like backboardd for force-name list.
+                # boot186: SB got real RB with null ports after BB GMD ok —
+                # boot187: force RB (and frontboard) for SpringBoard too.
+                force_bb = (("proc=backboardd" in t or "proc=?" in t) and
+                            any(n in t for n in _force_names))
+                # boot187: force SB RB to avoid null-port hang before GMD.
+                # boot203: once BB GMD published *out with typed isa, allow real
+                # SB↔runningboard so display/CA assertion can reach IOSurface.
+                # boot250: stop forcing SB frontboard.systemappservices —
+                # SB hosts FrontBoard; 0x9f blocked system-app services that
+                # BB/CA need after BKS→FB (6001012). Keep analytics force.
+                _sb_force = [
+                    "name='com.apple.analyticsd'",
+                ]
+                if not _dsc.get('gmd_isa_seed'):
+                    _sb_force.append("name='com.apple.runningboard'")
+                force_sb = ("proc=SpringBoard" in t and
+                            any(n in t for n in _sb_force))
+                force_bb = force_bb or force_sb
+                if ("proc=SpringBoard" in t
+                        and "name='com.apple.runningboard'" in t
+                        and _dsc.get('gmd_isa_seed')):
+                    extra += ' SB_RB_REAL_POST_GMD_ISA'
+                if ("proc=SpringBoard" in t
+                        and "name='com.apple.frontboard.systemappservices'"
+                        in t):
+                    extra += ' SB_FB_SAS_REAL'
+                if force_bb:
+                    try:
+                        gdb.execute('set $x0 = 0x9f', to_string=True)
+                        x0 = 0x9f
+                        extra += ' FORCED_XPCERR_0x9f'
+                    except Exception as e:
+                        extra += ' force_err=%r' % e
+                try:
+                    def _tag_ptr(key):
+                        if key not in t:
+                            return 0
+                        try:
+                            return int(t.split(key)[1].split()[0], 16)
+                        except Exception:
+                            return 0
+                    x4, x6, x7 = _tag_ptr('out4='), _tag_ptr('out6='), _tag_ptr('out7=')
+                    if not (x4 or x6 or x7):
+                        # Fallback for older tags.
+                        sp0, x4, x6, x7 = _dsc.get('_xl_out', (0, 0, 0, 0))
+                    # boot175–179: skip cfprefs NULLPORT (BRK). boot180: only
+                    # NULLPORT for proc=backboardd (not bare proc=? — that hit
+                    # wirelessinsightsd in boot179).
+                    # boot233: skip all SB RB NULLPORT → SB loops on x0=0 with
+                    # x7*=None, never reaches system-app-server.
+                    # boot234: after GMD, NULLPORT SB RB only when no readable
+                    # port; keep when x7 shows a real port name (<0x10000).
+                    _null_proc = ('proc=backboardd' in t or
+                                  ('proc=SpringBoard' in t and
+                                   "name='com.apple.runningboard'" in t))
+                    if (not force_bb
+                            and _null_proc
+                            and 'cfprefsd' not in t
+                            and (x0 & 0xffffffff) == 0):
+                        nullish = True
+                        saw_port = False
+                        for ptr in (x4, x6, x7):
+                            if not ptr:
+                                continue
+                            try:
+                                v = m64(ptr) & 0xffffffffffffffff
+                                if v and v < 0x10000:
+                                    nullish = False
+                                    saw_port = True
+                                    break
+                                if v and 0x100000000 <= v < 0x300000000:
+                                    nullish = False
+                                    break
+                                # boot314: PAC/tagged ports (e.g. 0x83cc..00455b)
+                                # were treated as null → wrong FORCE/SKIP paths.
+                                low = v & 0xffffffff
+                                if v and 0x100 < low < 0x10000:
+                                    nullish = False
+                                    saw_port = True
+                                    break
+                            except Exception:
+                                pass
+                        # After GMD: keep real RB ports; soft-keep null only
+                        # until the first real port, then force 0x9f again.
+                        # boot269/275: sticky soft-keep after PORT_KEPT →
+                        # SURFACE then endless msgid 1073742628 → 0 SAS/6001012.
+                        # boot274: early null→0x9f while RB late → 0 SURFACE.
+                        # boot276: soft-keep until sb_rb_seen, then 0x9f (boot271).
+                        if (_dsc.get('gmd_isa_seed') and 'proc=SpringBoard' in t
+                                and "name='com.apple.runningboard'" in t):
+                            if saw_port:
+                                nullish = False
+                                _mm2['sb_rb_seen'] = True
+                                extra += ' SB_RB_PORT_KEPT'
+                            elif not _mm2.get('sb_rb_seen'):
+                                # boot293: boot292 ANALYTICS_REAL+SURFACE but
+                                # first SB_RB was null → soft-keep forever →
+                                # 1073742628 spin, 0 SAS/6001012. After SURFACE
+                                # stop soft-keeping even without PORT_KEPT.
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' SB_RB_NULL_POST_SURFACE_FORCE'
+                                else:
+                                    nullish = False
+                                    extra += ' SB_RB_NULL_SOFT_KEEP'
+                            else:
+                                extra += ' SB_RB_NULL_POST_SEEN_FORCE'
+                        # boot248: boot247 sticky-kept null SB_RB (x0=0) and
+                        # spun on msgid 1073742628 — never reached SAS/6001012.
+                        # Reverted sticky; force 0x9f on true null again.
+                        # boot237: boot236 still NULLPORTed BB analyticsd via
+                        # this path after removing it from force_names.
+                        # boot242: boot241 tagged ANALYTICS_REAL with x4/x7=None
+                        # (unconditional nullish=False) → x0=0+null → W00T/slow
+                        # BB, RB timed out pre-SURFACE. Only keep real when a
+                        # port was already seen (nullish already False).
+                        # boot249: always force BB analytics pre-SURFACE.
+                        # boot267/271: keep real after post_iomfb (boot239 SAS).
+                        # boot272: soft-keep null → BB EXC/W00T mid-analytics.
+                        # boot273: if BB null after post_iomfb but we stashed a
+                        # port from timed/others, seed it into *out7 (boot239).
+                        if ('proc=backboardd' in t
+                                and "name='com.apple.analyticsd'" in t):
+                            _keep = False
+                            if not nullish and (
+                                    _mm2.get('rb_sel32')
+                                    or _mm2.get('post_iomfb')):
+                                for ptr in (x4, x6, x7):
+                                    if not ptr:
+                                        continue
+                                    try:
+                                        v = m64(ptr) & 0xffffffffffffffff
+                                        if 0 < v < 0x10000:
+                                            _keep = True
+                                            break
+                                        if (v
+                                                and v != 0x100000000
+                                                and 0x100000000 < v < 0x300000000):
+                                            _keep = True
+                                            break
+                                    except Exception:
+                                        pass
+                            if _keep:
+                                nullish = False
+                                _mm2['analytics_ok'] = 1
+                                if _mm2.get('rb_sel32'):
+                                    extra += ' ANALYTICS_POST_SURFACE_KEEP'
+                                else:
+                                    extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            elif (_mm2.get('analytics_port') and x7):
+                                # boot297: do not seed stashed analytics —
+                                # boot296 SAS_PORT_REAL came with NULL_SKIP
+                                # (0 stash); boot295 SEED → SAS null.
+                                nullish = False
+                                extra += ' ANALYTICS_SEED_SKIP_FOR_SAS'
+                            else:
+                                # boot282: ALWAYS_FORCE pre-SURFACE (no stash)
+                                # cleared analytics → no post-SURFACE REAL
+                                # (unlike boot281 BAD_SKIP path). Skip force
+                                # until SURFACE so BB can get a late port.
+                                if not _mm2.get('rb_sel32'):
+                                    nullish = False
+                                    extra += ' ANALYTICS_ALWAYS_SKIP_NO_STASH'
+                                else:
+                                    nullish = True
+                                    extra += ' ANALYTICS_ALWAYS_FORCE'
+                        # boot267: FB_SAS_NULL_KEEP (x0=0) → SURFACE ok but SB
+                        # never reached RB/SAS/6001012 (stuck pre-SURFACE 11602).
+                        # boot268: restore 0x9f on null (boot265 path); keep real.
+                        if ('proc=backboardd' in t
+                                and "name='com.apple.frontboard.systemappservices'"
+                                in t):
+                            if _mm2.get('rb_sel32') and not nullish:
+                                nullish = False
+                                extra += ' FB_SAS_POST_SURFACE_REAL'
+                            elif not nullish:
+                                nullish = False
+                                extra += ' FB_SAS_REAL_BB'
+                            elif _mm2.get('rb_sel32'):
+                                # boot281: post-SURFACE analytics REAL but SAS
+                                # still garbage (SB looked up before BB finished
+                                # analytics). Don't 0x9f BB↔FB so SB FrontBoard
+                                # can publish system-app-server for a retry.
+                                nullish = False
+                                extra += ' FB_SAS_NULL_SKIP_POST_SURFACE'
+                            else:
+                                extra += ' FB_SAS_NULL_WILL_FORCE'
+                        # boot256: do not 0x9f SpringBoard system-app-server
+                        # (soft-null above; 0x9f → EXC in boot255).
+                        if ('proc=SpringBoard' in t
+                                and "name='com.apple.backboard.system-app-server'"
+                                in t):
+                            nullish = False
+                            extra += ' SAS_SKIP_NULLPORT'
+                        if nullish:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                force_bb = True
+                                extra += ' FORCED_NULLPORT_0x9f'
+                            except Exception as e:
+                                extra += ' nullforce_err=%r' % e
+                    # boot241/244: BB analytics hygiene outside the x0==0 block.
+                    if ('proc=backboardd' in t
+                            and "name='com.apple.analyticsd'" in t
+                            and not force_bb):
+                        has_port = False
+                        for ptr in (x4, x6, x7):
+                            if not ptr:
+                                continue
+                            try:
+                                v = m64(ptr) & 0xffffffffffffffff
+                                # boot244: 0x100000000 alone is a sentinel.
+                                # boot315: do NOT treat raw userspace ptrs
+                                # (0x16… stack) as ports — caused REAL_POST_IOMFB
+                                # + EXC far=0x4 after GMD (boot314).
+                                if not v or v == 0x100000000:
+                                    continue
+                                if v < 0x10000:
+                                    has_port = True
+                                    break
+                                low = v & 0xffffffff
+                                if 0x100 < low < 0x10000:
+                                    has_port = True
+                                    break
+                            except Exception:
+                                pass
+                        # boot249: always force BB analytics (REAL→W00T boot248).
+                        # Pre-MATCH real port → hang (boot214); force 0x9f.
+                        # boot244: any x0!=0 → always BAD_FORCE (ignore sentinel).
+                        # boot262: boot261b NOFORCE kept x0=1+0x100000000 — bad.
+                        # boot267: after post_iomfb keep a real analytics port
+                        # (boot239 SURFACE+SAS); still BAD_FORCE sentinel;
+                        # pre-IOMFB still force real/null.
+                        need_force = False
+                        tag = ''
+                        clean_port = False
+                        if _mm2.get('rb_sel32') and has_port:
+                            for ptr in (x4, x6, x7):
+                                if not ptr:
+                                    continue
+                                try:
+                                    v = m64(ptr) & 0xffffffffffffffff
+                                    if 0 < v < 0x10000:
+                                        clean_port = True
+                                        break
+                                except Exception:
+                                    pass
+                        # boot270: BAD_FORCE ran before has_port check and
+                        # cleared a post-GMD analytics lookup (handle odd,
+                        # x0!=0) — boot239 SAS needs REAL kept. Prefer port
+                        # keep after post_iomfb over BAD_FORCE.
+                        if clean_port:
+                            _mm2['analytics_ok'] = 1
+                            extra += ' ANALYTICS_POST_SURFACE_REAL'
+                        elif has_port and _mm2.get('post_iomfb'):
+                            _mm2['analytics_ok'] = 1
+                            extra += ' ANALYTICS_REAL_POST_IOMFB'
+                            if (x0 & 0xffffffff) != 0:
+                                try:
+                                    gdb.execute('set $x0 = 0', to_string=True)
+                                    x0 = 0
+                                    extra += '+X0CLR'
+                                except Exception as e:
+                                    extra += ' x0clr_err=%r' % e
+                        elif (_mm2.get('analytics_port') and x7
+                                and ((x0 & 0xffffffff) != 0 or not has_port)):
+                            # boot297: do not seed — skip for SAS pre-SURFACE.
+                            # boot315: after GMD, SOFT_OK left sentinel
+                            # x7*=0x100000000 → EXC far=0x4 (boot314). Force
+                            # 0x9f+CLEAR instead of x0=0 with dirty outs.
+                            extra += ' ANALYTICS_SEED_SKIP_FOR_SAS'
+                            if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
+                                need_force, tag = True, ' ANALYTICS_POST_GMD_FORCE_0x9f'
+                            else:
+                                extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
+                        elif (x0 & 0xffffffff) != 0:
+                            # boot280/292: pre-SURFACE skip force for retry.
+                            # boot315: post-GMD SOFT_OK+sentinel → EXC; force.
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_BAD_SKIP_NO_STASH'
+                                if _mm2.get('post_iomfb') or _mm2.get('bb_gmd_ok'):
+                                    need_force, tag = True, ' ANALYTICS_POST_GMD_FORCE_0x9f'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_BAD_FORCE_0x9f'
+                        elif has_port:
+                            # boot285: keep REAL pre-SURFACE. boot297: REAL
+                            # `0x4603` kept → SAS null; boot296 NULL_SKIP →
+                            # SAS_PORT_REAL. boot298: pre-SURFACE drop REAL
+                            # (clear outs, x0=0) to recreate boot296 window.
+                            # boot322: DROP+x0=0+CLEARED → BB EXC far=0x4
+                            # before PRE_SURFACE kill, SAS null. boot323: on
+                            # DROP force 0x9f so BB errors instead of null-deref.
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_REAL_DROP_FORCE_0x9f'
+                                force_bb = True  # clear x4/x6/x7 below
+                                try:
+                                    gdb.execute('set $x0 = 0x9f', to_string=True)
+                                    x0 = 0x9f
+                                except Exception as e:
+                                    extra += ' drop_x0_err=%r' % e
+                            else:
+                                _mm2['analytics_ok'] = 1
+                                extra += ' ANALYTICS_REAL_KEEP_PRE'
+                                if (x0 & 0xffffffff) != 0:
+                                    try:
+                                        gdb.execute('set $x0 = 0', to_string=True)
+                                        x0 = 0
+                                        extra += '+X0CLR'
+                                    except Exception as e:
+                                        extra += ' x0clr_err=%r' % e
+                        elif (x0 & 0xffffffff) == 0 and not has_port:
+                            if not _mm2.get('rb_sel32'):
+                                extra += ' ANALYTICS_NULL_SKIP_NO_STASH'
+                            else:
+                                need_force, tag = True, ' ANALYTICS_NULL_FORCE_0x9f'
+                        if need_force:
+                            try:
+                                gdb.execute('set $x0 = 0x9f', to_string=True)
+                                x0 = 0x9f
+                                force_bb = True
+                                extra += tag
+                            except Exception as e:
+                                extra += ' analytics_force_err=%r' % e
+                    for label, ptr in (('x4', x4), ('x6', x6), ('x7', x7)):
+                        if not ptr:
+                            continue
+                        if 0x100000000 <= ptr < 0x300000000 or (ptr >> 40) == 0xfffffe:
+                            try:
+                                if force_bb:
+                                    # boot161: 8-byte CLEARED smashed stack. boot164:
+                                    # write_memory often MemoryError — fall back to
+                                    # gdb set {unsigned int}.
+                                    try:
+                                        gdb.selected_inferior().write_memory(
+                                            ptr, b'\x00\x00\x00\x00')
+                                    except Exception:
+                                        gdb.execute(
+                                            'set {unsigned int}%#x = 0' % ptr,
+                                            to_string=True)
+                                    extra += ' %s*=CLEARED' % label
+                                else:
+                                    v = m64(ptr)
+                                    if v is None:
+                                        extra += ' %s*=None' % label
+                                    else:
+                                        extra += ' %s*=%#x' % (label, v)
+                                        # boot253: port name may sit in low32
+                                        # with high tag bits (SAS endpoints).
+                                        low = v & 0xffffffff
+                                        if low and low < 0x10000:
+                                            extra += '(port?%#x)' % low
+                                            # boot273: stash analytics ports from
+                                            # timed/others for BB seed.
+                                            if ("name='com.apple.analyticsd'"
+                                                    in t):
+                                                # Prefer full tagged value when
+                                                # present (boot284 seed format).
+                                                if 0x100000000 < v < 0x300000000:
+                                                    _mm2['analytics_port'] = v
+                                                else:
+                                                    _mm2['analytics_port'] = (
+                                                        0x100000000 | low)
+                                                extra += ' ANALYTICS_PORT_STASH'
+                            except Exception as e:
+                                try:
+                                    extra += ' %s*=w:%#x' % (label, m32(ptr))
+                                except Exception:
+                                    extra += ' %s*=err:%r' % (label, e)
+                except Exception as e:
+                    extra += ' xl_err=%r' % e
+            P('RET %s x0=%#x%s' % (t, x0, extra))
         return False
 def RetBP(addr,tag):
     if addr not in _ret_bps:
-        if len(_ret_bps)>=64: return
+        if len(_ret_bps)>=128: return
         _ret_bps[addr]=_RetSite(addr)
     _ret_pend[(addr,r('sp'))]=tag
 def mk(name,limit):
@@ -95,14 +992,38 @@ def on_namei_ret():
         NAMEI['fail']+=1
         k=(rv,path)
         if k not in NAMEI.setdefault('seen',set()) and len(NAMEI['seen'])<6000:
-            NAMEI['seen'].add(k); P('NAMEI_FAIL err=%d path=%r proc=%s'%(rv,path,cur_pname()))
+            NAMEI['seen'].add(k)
+            pn = cur_pname()
+            # boot143: SpringBoard often shows as proc=? — cache TPIDR from path.
+            try:
+                th = r('TPIDR_EL1')
+                if path and th and (pn == ['?'] or (pn and pn[0] == '?')):
+                    pl = path.lower()
+                    if 'springboard' in pl:
+                        _pname_by_tpidr[th] = ['SpringBoard']
+                        pn = ['SpringBoard']
+                    elif 'backboardd' in pl:
+                        _pname_by_tpidr[th] = ['backboardd']
+                        pn = ['backboardd']
+            except Exception:
+                pass
+            P('NAMEI_FAIL err=%d path=%r proc=%s' % (rv, path, pn))
     return False
 BP('_namei',on_namei); BP('namei_ret',on_namei_ret,NAMEI_RET)
 SPAWN={'n':0}
 def on_spawn():
     a=r('x1'); path=m64(a+8)
     SPAWN['n']+=1
-    if SPAWN['n']<=300: P('SPAWN #%d path=%r'%(SPAWN['n'],ustr(path,256)))
+    pth = ustr(path, 256)
+    if SPAWN['n']<=300: P('SPAWN #%d path=%r'%(SPAWN['n'], pth))
+    # boot329: after BB_KILL_SAS_RETRY, BB respawned but SB never re-looked
+    # up SAS (boot328). Arm one SB kill so SB restarts and re-looks up.
+    if (pth and 'backboardd' in pth
+            and _mm2.get('bb_kill_sas_retry')
+            and not _mm2.get('sas_ok')
+            and not _mm2.get('sb_kill_sas_relookup')):
+        _mm2['sb_kill_sas_armed'] = 1
+        P('SB_KILL_SAS_ARMED after BB respawn')
     return False
 BP('_posix_spawn',on_spawn)
 def on_rk():
@@ -237,10 +1158,27 @@ def on_persona():
         P('PERSONA op=%d proc=%s'%(op,pname(r('x0'))[:2]))  # no return hook: x30 of a syscall handler is unix_syscall's return path (persistent bp there = every syscall)
     return False
 BP('_persona',on_persona)
+# boot134: TPIDR→proc walk intermittently fails (esp. runningboardd) with
+# "Cannot access memory at address 0xfffffe…"; cache last good name per TPIDR.
+_pname_by_tpidr={}
 def cur_pname():
+    """Return up to 2 name candidates from the proc struct (was [:1] → 'C' on errors)."""
+    th=0
     try:
-        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18); return pname(p)[:1]
-    except Exception as e: return ['?']
+        th=r('TPIDR_EL1'); tro=m64(th+0x4e8); p=m64(tro+0x18)
+        n=pname(p)
+        if isinstance(n,str):
+            if n.startswith('Cannot access') or n.startswith('<'):
+                return list(_pname_by_tpidr.get(th, ['?']))[:2]
+            _pname_by_tpidr[th]=[n[:48]]
+            return [n[:48]]
+        if n:
+            _pname_by_tpidr[th]=list(n[:2])
+            return n[:2]
+        return list(_pname_by_tpidr.get(th, ['?']))[:2]
+    except Exception:
+        return list(_pname_by_tpidr.get(th, ['?']))[:2] if th else ['?']
+
 _iok_seen=set()
 def _iok(tag,ma,cnt):
     n=cur_pname()
@@ -249,11 +1187,71 @@ def _iok(tag,ma,cnt):
         s=[x.decode() for x in _re.findall(rb'[ -~]{3,}',b)]
     except Exception as e: s=['<%s>'%e]
     k=(n[0] if n else '?',tag,tuple(s))
-    if k in _iok_seen: return False
-    _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12])); return False
+    pn0=(n[0] if n else '') or ''
+    ui = ('backboard' in pn0.lower() or 'SpringBoard' in pn0 or 'springboard' in pn0.lower()
+          or 'runningboard' in pn0.lower())
+    interesting=any(x in ('IOGPU','IOMobileFramebuffer','IOSurfaceRoot','IOCoreSurfaceRoot','AGXAccelerator','IOAccelerator','AppleCLCD','AppleKeyStore','IOHIDEventService','AppleParavirtGPU','DisplayPortCount','HIDServiceSupport') for x in s)
+    if k not in _iok_seen or ui:
+        _iok_seen.add(k); P('IOKMATCH %s proc=%s %s'%(tag,n,s[:12]))
+    # boot176: arm post_iomfb on BB IOMobileFramebuffer match (not Nth open).
+    # boot182: also armed for proc=? — boot256 MATCH proc=? armed early,
+    # SURFACE before real BB GETSIZE, SB exited after 6001012 w/o SAS.
+    # boot257: only arm for real backboardd; still LOG proc=? MATCH.
+    if any('IOMobileFramebuffer' in x for x in s):
+        if 'backboard' in pn0.lower() or pn0 in ('', '?'):
+            _mm2['bb_iomfb_match'] = 1
+            P('BB_IOMFB_MATCH tag=%s proc=%s' % (tag, pn0 or '?'))
+        if 'backboard' in pn0.lower() and not _mm2.get('post_iomfb'):
+            # boot243: arm at MATCH (not wait for IOSOPEN).
+            _mm2['post_iomfb'] = 1
+            _mm2['spin1'] = 0
+            _mm2['post_spin_uf'] = 0
+            _mm2['post_uf'] = 0
+            _mm2['w00t_n'] = 0
+            # boot261: n=300 immediately exceeded post_iomfb cap (180) and
+            # dropped ALL mach logs until SURFACE — plus early SB_RECV uframes
+            # dragged GDB so RB missed SURFACE. Reset to 0.
+            _mm2['n'] = 0
+            P('MACHMSG2_WINDOW post-IOMFB reopen (at MATCH)')
+    # boot185/189: watch CA/IOSurface bind after GMD (any proc — not just BB).
+    if any(x in ('IOSurfaceRoot', 'IOSurface', 'AppleCLCD', 'IOCoreSurfaceRoot')
+           for x in s):
+        P('SURFACE_MATCH tag=%s proc=%s keys=%s' % (
+            tag, pn0 or '?', ','.join(s[:6])))
+    # Return value: for getMatchingService, x0=service (0 = no match). Critical for IOGPU wall.
+    # boot133: always ret-log UI stack (SB/BB/RB) — they may match via property dicts we don't key on.
+    if interesting or tag=='service' or ui:
+        try: RetBP(r('x30'), 'IOKMATCH_RET %s proc=%s keys=%s'%(tag, pn0 or '?', ','.join(s[:6])))
+        except Exception as e: P('ERR iok_ret %s'%e)
+    return False
 BP('_is_io_service_get_matching_services_bin',lambda: _iok('services',r('x1'),r('x2')))
 BP('_is_io_service_get_matching_service_bin',lambda: _iok('service',r('x1'),r('x2')))
 BP('_is_io_service_add_notification_bin_64',lambda: _iok('notify',r('x2'),r('x3')))
+# boot108: 8 deferred pings, no poison panic, still no FDR IOSOPEN.
+# Log whether FDR ever drains the notify iterator (and what Next returns).
+_ionext_n = {'n': 0}
+def on_io_iterator_next():
+    try:
+        pn = cur_pname()
+        pn0 = (pn[0] if pn else '') or ''
+        pl = pn0.lower()
+        if ('IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pl and
+            'SpringBoard' not in pn0 and 'springboard' not in pl):
+            return False
+        _ionext_n['n'] += 1
+        if _ionext_n['n'] > 80:
+            return False
+        # is_io_iterator_next(iterator, io_object_t *out): x0=kr on return; *x1=object.
+        try:
+            outp = r('x1'); obj0 = m32(outp) if outp else 0
+        except Exception:
+            outp, obj0 = 0, 0
+        P('IOITER_NEXT proc=%s outp=%#x obj_before=%#x' % (pn, outp, obj0))
+        RetBP(r('x30'), 'IOITER_NEXT_RET proc=%s outp=%#x' % (pn0 or '?', outp))
+    except Exception as e:
+        P('ERR ioiter %s' % e)
+    return False
+BP('_is_io_iterator_next', on_io_iterator_next, addr=0xfffffe0007b13c88)
 def _uframes(tag, extra=''):
     th=r('TPIDR_EL1'); ss=m64(th+0x110)
     fp,lr,sp,pc=[m64(ss+8+0xe8+8*i) for i in range(4)]
@@ -267,6 +1265,7 @@ def _uframes(tag, extra=''):
     P('%s proc=%s pc=%#x lr=%#x %s FRAMES %s'%(tag,cur_pname(),pc,lr,extra,' '.join('%#x'%x for x in ch)))
 def on_pkill():
     try:
+        if '_dsc_arm' in globals(): _dsc_arm()
         sig=m64(r('x1')+8)&0xffffffff
         if sig==6: _uframes('SIGABRT_PTHREAD_KILL')
     except Exception as e: P('PKILL err %r'%e)
@@ -312,7 +1311,18 @@ BP('ramfs_setattr',on_rsetattr,RAMFS_SETATTR)
 # The cache slide is per boot: taken from vm_shared_region_start_address() (unslid base 0x180000000).
 DSC_BASE=0x180000000
 DSC_SYMS={'xpc_look_up_endpoint':0x197f20fbc,'container_xpc_create_connection':0x1e2761b08,
-          'container_system_path_for_identifier':0x1e276a4e8}
+          'container_system_path_for_identifier':0x1e276a4e8,
+          'container_legacy_lookup':0x1e275de24,
+          'err':0x18f098f44,
+          'abort':0x18f099c04,
+          'abort_with_reason':0x23226a5f0,
+          # SpringBoard _SBStaticInitializer right after SecTaskGetCodeSignStatus (w0=status)
+          'SBStatic_status':0x224040bf8,
+          'SBStatic_cold':0x2241f6e00,
+          # boot164: IOMobileFramebufferGetMainDisplay (DSC .44 cave entry)
+          'IOMFB_GetMainDisplay':0x2288047a8,
+          # boot186: GMD body/cave (BB may enter here without the thin stub)
+          'IOMFB_GMD_body':0x22880511c}
 _dsc={'slide':None,'pend':{}}
 def _dsc_ret():
     st=_dsc['pend'].pop(r('sp'),None)
@@ -326,14 +1336,19 @@ def _dsc_ret():
 # current address space, so inserting them in a context where the VA is unmapped (boot54) left the
 # cached translations of the shared-cache code without the breakpoint and they never fired.
 def _dsc_arm():
-    if _dsc['slide'] is None or _dsc.get('armed'): return
+    if _dsc['slide'] is None: return
     p=cur_pname()
     if not p or p[0] in ('launchd','?'): return
-    try: uread(DSC_SYMS['xpc_look_up_endpoint']+_dsc['slide'],4)
+    # Re-arm in SpringBoard so TCG BPs bind in the crashing process AS.
+    key='armed_'+p[0]
+    if _dsc.get(key): return
+    try: uread(DSC_SYMS['err']+_dsc['slide'],4)
     except Exception: return
+    for n,a in DSC_SYMS.items():
+        BP('u_%s_%s'%(p[0],n),_ufn(n),a+_dsc['slide'])
+    _dsc[key]=1
     _dsc['armed']=1
-    for n,a in DSC_SYMS.items(): BP('u_'+n,_ufn(n),a+_dsc['slide'])
-    P('DSC_BPS armed in proc=%s'%p)
+    P('DSC_BPS armed in proc=%s slide=%#x err=%#x'%(p,_dsc['slide'],DSC_SYMS['err']+_dsc['slide']))
 def on_vsrsa():
     if _dsc['slide'] is None: _dsc['pend'][r('sp')]=r('x1'); RetBP2(r('x30'),_dsc_ret)
     return False
@@ -348,17 +1363,206 @@ _xl_cnt={}
 def _ufn(n):
     def fn():
         p=cur_pname(); pn=p[0] if p else '?'
+        if n in ('err','abort','abort_with_reason'):
+            P('DSC_HIT %s gdbpc=%#x lr=%#x proc=%s'%(n,r('pc'),r('x30'),pn))
         if n=='xpc_look_up_endpoint':
             name=ustr(r('x0'),128)
             k=(pn,name); _xl_cnt[k]=_xl_cnt.get(k,0)+1
-            if ('containermanager' in name or pn in ('backboardd','SpringBoard','containermanager')) and _xl_cnt[k]<=3:
-                P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x'%(pn,name,r('x1')&0xffffffff,r('x2'),r('x3')))
-                # x0 on return is the xpc error / endpoint object; 0x9f == 159 "Sandbox restriction"
-                RetBP(r('x30'),'XPC_LOOKUP_RET proc=%s name=%r'%(pn,name))
+            interesting_svc = any(s in (name or '') for s in (
+                'containermanager', 'cfprefs', 'backboard', 'CARender', 'render',
+                'frontboard', 'runningboard', 'display', 'hid', 'analytics',
+                'location', 'chrono', 'ca.', 'Quartz', 'WindowServer'))
+            # boot166: after IOMFB open log every BB XPC name (find the wait).
+            post_bb = (pn == 'backboardd' and _mm2.get('post_iomfb')
+                       and _xl_cnt[k] <= 40)
+            if (((interesting_svc or
+                  pn in ('backboardd','SpringBoard','containermanager','runningboardd','cfprefsd','?'))
+                 and _xl_cnt[k]<=8) or post_bb):
+                # Signature (Frida/libxpc): kr = xpc_look_up_endpoint(name, type, handle, ..., port*, ...)
+                # x0 on return is kern_return_t (0 = success). Port is an out-param later on stack;
+                # also log x7/x6 which often hold port* / aux on arm64e calling convention variants.
+                # Save likely out-port pointers (ABI variants use x4/x6/x7).
+                # Embed out-port ptrs in the ret tag — global _xl_out races (boot141).
+                _dsc['_xl_out'] = (r('sp'), r('x4'), r('x6'), r('x7'))
+                P('XPC_LOOKUP proc=%s name=%r type=%d handle=%#x flags=%#x x4=%#x x5=%#x x6=%#x x7=%#x'%(
+                    pn,name,r('x1')&0xffffffff,r('x2'),r('x3'),r('x4'),r('x5'),r('x6'),r('x7')))
+                if pn == 'SpringBoard':
+                    _mm2['sb_alive'] = 1
+                    # boot329: kill SB once after BB retry-respawn so it
+                    # re-looks up system-app-server (boot328: SB never retried).
+                    if (_mm2.get('sb_kill_sas_armed')
+                            and not _mm2.get('sb_kill_sas_relookup')
+                            and not _mm2.get('sas_ok')):
+                        pc = r('pc') & 0xffffffffffffffff
+                        if pc < 0xffff000000000000:
+                            _mm2['sb_kill_sas_relookup'] = 1
+                            _mm2['sb_kill_sas_armed'] = 0
+                            P('SB_KILL_SAS_RELOOKUP name=%r pc=%#x' % (
+                                name, pc))
+                            try:
+                                gdb.execute(
+                                    'set $pc = 0xdeadbeef', to_string=True)
+                            except Exception as ek:
+                                P('SB_KILL_SAS_RELOOKUP_ERR=%r' % ek)
+                            return False
+                # boot314: deferring kill → BB hit GMD→analytics→EXC far=0x4
+                # before SURFACE; SAS lookup ran with no live BB.
+                # boot315: restore early pre-GMD kill (boot311 SAS+HID order).
+                # boot342: boot341 fired BB_KILL_FOR_SAS *after* SURFACE
+                # (sb_alive late) → killed HID BB. Only allow pre-SURFACE.
+                if (pn == 'backboardd'
+                        and _mm2.get('sb_alive')
+                        and not _mm2.get('surface_ok')
+                        and not _mm2.get('bb_gmd_ok')
+                        and not _mm2.get('bb_kill_for_sas')):
+                    pc = r('pc') & 0xffffffffffffffff
+                    if pc < 0xffff000000000000:
+                        _mm2['bb_kill_for_sas'] = 1
+                        P('BB_KILL_FOR_SAS pre-GMD via XPC name=%r pc=%#x' % (
+                            name, pc))
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_FOR_SAS_ERR=%r' % ek)
+                        return False
+                # boot340: SAS-win boots (339) get DROP but 0 HID; null-SAS
+                # (332) get HID. After 3240 DROP, if still no HID, one
+                # userspace BB kill so HID path can republish.
+                # boot351: gated on sas_ok → miss when SAS_NULL + DROP + 0 HID
+                # (348/350/351). Allow after SURFACE regardless of sas.
+                # boot372: defer until drop_n>=40 — boot371 DROP@+500 killed BB
+                # before natural HID (boot370 HID@+550, no kill → GETSIZE).
+                # boot378: XPC path same idle gate as MACH_UPC (boot377
+                # drop_n never reached 100).
+                if (pn == 'backboardd'
+                        and _mm2.get('bb_idle_post_surf', 0) >= 80
+                        and _mm2.get('surface_ok')
+                        and not _mm2.get('hid_evt_seen')
+                        and not _mm2.get('bb_kill_for_hid')):
+                    pc = r('pc') & 0xffffffffffffffff
+                    if pc < 0xffff000000000000:
+                        _mm2['bb_kill_for_hid'] = 1
+                        P('BB_KILL_FOR_HID post-DROP no-hid name=%r pc=%#x sas=%s' % (
+                            name, pc, bool(_mm2.get('sas_ok'))))
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_FOR_HID_ERR=%r' % ek)
+                        return False
+                # boot328: second BB kill after SURFACE if SAS still null.
+                # boot337: disabled — killed after HID → 0 IOMFB.
+                # boot359–362: SAS_NULL retry+SB relookup never reached HID;
+                # boot357 BEST had natural SAS_PORT_REAL. boot363: disable
+                # again; keep anti-starve 3240 + no SPIN_TIMEOUT after HID.
+                if False and (pn == 'backboardd'
+                        and _mm2.get('bb_kill_sas_retry_armed')
+                        and not _mm2.get('bb_kill_sas_retry')
+                        and not _mm2.get('sas_ok')
+                        and not _mm2.get('hid_evt_seen')):
+                    pc = r('pc') & 0xffffffffffffffff
+                    if pc < 0xffff000000000000:
+                        _mm2['bb_kill_sas_retry'] = 1
+                        _mm2['bb_kill_sas_retry_armed'] = 0
+                        P('BB_KILL_SAS_RETRY post-SURFACE SAS-null name=%r pc=%#x' % (
+                            name, pc))
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_SAS_RETRY_ERR=%r' % ek)
+                        return False
+                # boot297: disable SHORTCIRCUIT_SEED (fake analytics ↔ SAS null).
+                if False and (pn == 'backboardd'
+                        and name == 'com.apple.analyticsd'
+                        and _mm2.get('analytics_port')
+                        and _mm2.get('sb_rb_seen')):
+                    pass
+                RetBP(r('x30'),
+                      "XPC_LOOKUP_RET proc=%s name=%r out4=%#x out6=%#x out7=%#x" % (
+                          pn, name, r('x4'), r('x6'), r('x7')))
         elif n=='container_xpc_create_connection':
             P('CM_CONNECT proc=%s disposition=%d x1=%#x x2=%#x'%(pn,r('x0'),r('x1'),r('x2')))
+        elif n=='container_legacy_lookup':
+            # w0=class (12=systemData), x1=identifier
+            P('CM_LOOKUP proc=%s class=%d id=%r flags=%#x'%(pn,r('x0')&0xffffffff,ustr(r('x1'),128) if r('x1') else None,r('x4')))
+            RetBP(r('x30'),'CM_LOOKUP_RET proc=%s'%pn)
+        elif n=='err':
+            try: fmt=ustr(r('x1'),256) if r('x1') else None
+            except Exception: fmt=None
+            P('ERR eval=%d fmt=%r x2=%#x pc=%#x lr=%#x x0=%#x proc=%s'%(
+                r('x0')&0xffffffff,fmt,r('x2'),r('pc'),r('x30'),r('x0'),pn))
+            _uframes('ERR_FRAMES')
+        elif n=='abort':
+            P('ABORT gdbpc=%#x lr=%#x x0=%#x x1=%#x proc=%s'%(r('pc'),r('x30'),r('x0'),r('x1'),pn))
+            # If LR points into CoverSheet / known TEXT, also dump nearby C-strings from x0/x1
+            for reg in ('x0','x1','x2','x3'):
+                try:
+                    s=ustr(r(reg),128)
+                    if s and len(s)>=4: P('  ABORT_%s str=%r'%(reg,s))
+                except Exception: pass
+            if pn=='SpringBoard': _uframes('ABORT_FRAMES')
+        elif n=='abort_with_reason':
+            try: reason=ustr(r('x3'),256) if r('x3') else None
+            except Exception: reason=None
+            P('ABORT_REASON ns=%d code=%#x flags=%#x reason=%r proc=%s'%(
+                r('x0')&0xffffffff,r('x1'),r('x2'),reason,pn))
+            _uframes('ABORT_REASON_FRAMES')
+        elif n=='container_system_path_for_identifier':
+            # boot139: BB past HID then SIGABRT — CM_SYSPATH id=NULL → stub
+            # returns NULL → NSURL fileURLWithPath:nil (same boot47/55 wall).
+            # DSC syspath stub is patched; feed a real bundle-id CString from DSC.
+            idv = r('x0')
+            ids = ustr(idv, 128) if idv else None
+            P('CM_SYSPATH proc=%s id=%r' % (pn, ids))
+            if not idv and _dsc.get('slide') is not None:
+                # Unslid CStrings in pristine 23F77 DSC (exact "com.apple.*" only).
+                _id_va = {
+                    'backboardd': 0x21efbfc5e,       # PowerlogLiteOperators
+                    'SpringBoard': 0x1c1445950,      # SpringBoardHome
+                }.get(pn)
+                if _id_va:
+                    a = _id_va + _dsc['slide']
+                    try:
+                        gdb.execute('set $x0 = %#x' % a, to_string=True)
+                        P('CM_SYSPATH_FORCE_ID proc=%s va=%#x' % (pn, a))
+                    except Exception as e:
+                        P('CM_SYSPATH_FORCE_ERR %r' % e)
+            RetBP(r('x30'), 'CM_SYSPATH_RET proc=%s' % pn)
+        elif n=='SBStatic_status':
+            # boot143: pname often '?' here — pin SpringBoard for later XPC/IOKit logs.
+            try:
+                th = r('TPIDR_EL1')
+                if th:
+                    _pname_by_tpidr[th] = ['SpringBoard']
+                    pn = 'SpringBoard'
+            except Exception:
+                pass
+            st=r('x0')&0xffffffff
+            masked=st&0x0fffffff&0xfc000001
+            P('SBSTATIC_STATUS proc=%s status=%#x masked=%#x want=0x4000001 pass=%d'%(
+                pn,st,masked,1 if masked==0x04000001 else 0))
+        elif n=='SBStatic_cold':
+            try:
+                th = r('TPIDR_EL1')
+                if th:
+                    _pname_by_tpidr[th] = ['SpringBoard']
+                    pn = 'SpringBoard'
+            except Exception:
+                pass
+            P('SBSTATIC_COLD proc=%s (platformBinary assert path)'%pn)
+        elif n=='IOMFB_GetMainDisplay':
+            P('GMD_ENTER proc=%s out=%#x' % (pn, r('x0')))
+            RetBP(r('x30'), 'GMD_RET proc=%s' % pn)
+        elif n=='IOMFB_GMD_body':
+            # boot190: capture out* (x0) and note x19 after mov in cave.
+            outp = r('x0')
+            _dsc['gmd_out'] = outp
+            P('GMD_BODY proc=%s out=%#x x19=%#x x21=%#x' % (
+                pn, outp, r('x19'), r('x21')))
+            RetBP(r('x30'), 'GMD_BODY_RET proc=%s out=%#x' % (pn, outp))
+            # boot199: no instruction breakpoints in the GMD cave — boot196–198
+            # nearby-str bps left *out=0 even when x19/x21 looked sane (TCG TB).
         else:
-            P('CM_SYSPATH proc=%s id=%r'%(pn,ustr(r('x0'),128) if r('x0') else None))
+            P('DSC_CALL %s proc=%s'%(n,pn))
         return False
     return fn
 BP('_vm_shared_region_start_address',on_vsrsa)
@@ -378,3 +1582,1030 @@ def on_mac_syscall():
         RetBP(r('x30'), 'MAC_SYSCALL_RET Sandbox call=%d'%call)
     return False
 BP('___mac_syscall', on_mac_syscall)
+
+# IOServiceOpen → is_io_service_open_extended (x0=service, x3=type, …). Log open attempts
+# on our stub providers so boot84 can prove newUserClient is reached after IOGPU/IOMFB match.
+_iosopen_cnt = {'n': 0}
+def on_iosopen():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        interesting = ('IOMFB' in pn0 or 'FDR' in pn0 or 'backboard' in pn0.lower()
+                       or 'SpringBoard' in pn0 or 'springboard' in pn0.lower())
+        _iosopen_cnt['n'] += 1
+        # Always log FDR/display clients; cap noise from others.
+        if not interesting and _iosopen_cnt['n'] > 80:
+            return False
+        typ = r('x3') & 0xffffffff
+        # is_io_service_open_extended: connection out lives at *(x7) on this
+        # kernel (MIG wrapper); log it on return when present.
+        outp = r('x7')
+        P('IOSOPEN proc=%s type=%d svc=%#x outp=%#x' % (pn, typ, r('x0'), outp))
+        # boot160: 2nd BB open was IOMFB when stable. boot175: respawn made
+        # 2nd open HID — WINDOW fired early. boot176: only after IOMFB match.
+        if 'backboard' in pn0.lower():
+            _iosopen_cnt['bb'] = _iosopen_cnt.get('bb', 0) + 1
+            if (_mm2.get('bb_iomfb_match') and not _mm2.get('post_iomfb')):
+                _mm2['post_iomfb'] = 1
+                _mm2['spin1'] = 0
+                _mm2['post_spin_uf'] = 0
+                _mm2['post_uf'] = 0
+                _mm2['w00t_n'] = 0
+                _mm2['n'] = 0  # boot261: was 300 → instant mach-cap drop
+                P('MACHMSG2_WINDOW post-IOMFB reopen')
+        # boot173/176: userspace frames on BB IOMFB open.
+        if ('backboard' in pn0.lower() and _mm2.get('post_iomfb')
+                and _mm2.get('bb_iomfb_match')):
+            try:
+                _uframes('IOSOPEN_BB_U', 'type=%d' % typ)
+            except Exception as e:
+                P('IOSOPEN_U err=%r' % e)
+        RetBP(r('x30'), 'IOSOPEN_RET proc=%s type=%d outp=%#x' % (
+            pn0 or '?', typ, outp))
+    except Exception as e:
+        P('ERR iosopen %s' % e)
+    return False
+
+# boot114/115: does FDR call IOObjectConformsTo on the IOMFB stub?
+# boot147: also log SpringBoard — Open's post-path uses ConformsTo("IOService").
+def on_conforms():
+    try:
+        pn=cur_pname(); pn0=(pn[0] if pn else '') or ''
+        if ('IOMFB' not in pn0 and 'FDR' not in pn0 and 'backboard' not in pn0.lower()
+                and 'SpringBoard' not in pn0):
+            return False
+        # x1 = class name (kernel pointer to C string)
+        try:
+            name=bytes(gdb.selected_inferior().read_memory(r('x1'), 64)).split(b'\0',1)[0].decode()
+        except Exception:
+            name='?'
+        P('CONFORMS proc=%s class=%r'%(pn,name))
+        RetBP(r('x30'), 'CONFORMS_RET proc=%s class=%s'%(pn0,name))
+    except Exception as e:
+        P('ERR conforms %s'%e)
+    return False
+BP('_is_io_object_conforms_to', on_conforms)
+
+BP('_is_io_service_open_extended', on_iosopen)
+
+# boot146: after IOMFB open BB went silent — catch close/teardown if it bails.
+def on_iosclose():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if 'backboard' not in pn0.lower() and 'SpringBoard' not in pn0 and 'IOMFB' not in pn0:
+            return False
+        P('IOSCLOSE proc=%s conn=%#x' % (pn, r('x0')))
+        RetBP(r('x30'), 'IOSCLOSE_RET proc=%s' % (pn0 or '?'))
+    except Exception as e:
+        P('ERR iosclose %s' % e)
+    return False
+BP('_is_io_service_close', on_iosclose)
+
+# Log IOUserClient::externalMethod selectors (selector in w1) after our opens.
+_em_cnt = {'n': 0}
+def on_external_method():
+    _em_cnt['n'] += 1
+    try:
+        sel = r('x1') & 0xffffffff
+        args = r('x2')
+        extra = ''
+        pn = cur_pname()
+        pn0 = (pn[0] if pn else '') or ''
+        # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
+        # boot378: idle-peek gate (same as MACH_UPC).
+        if ('backboard' in pn0.lower()
+                and _mm2.get('bb_idle_post_surf', 0) >= 80
+                and _mm2.get('surface_ok')
+                and not _mm2.get('hid_evt_seen')
+                and not _mm2.get('bb_kill_for_hid')
+                and not _mm2.get('bb_hid_kill_retbp')):
+            try:
+                lr = r('x30') & 0xffffffffffffffff
+                if lr < 0xffff000000000000:
+                    _mm2['bb_hid_kill_retbp'] = 1
+
+                    def _hid_kill_ret():
+                        if (_mm2.get('bb_kill_for_hid')
+                                or _mm2.get('hid_evt_seen')):
+                            return False
+                        pn2 = cur_pname()
+                        pn20 = (pn2[0] if pn2 else '') or ''
+                        if 'backboard' not in pn20.lower():
+                            return False
+                        _mm2['bb_kill_for_hid'] = 1
+                        P('BB_KILL_FOR_HID via IOEXTMETHOD_RET')
+                        try:
+                            gdb.execute('set $pc = 0xdeadbeef', to_string=True)
+                        except Exception as ek:
+                            P('BB_KILL_FOR_HID_RET_ERR=%r' % ek)
+                        return False
+                    RetBP2(lr, _hid_kill_ret)
+                    P('BB_HID_KILL_RETBP_ARMED sel=%d lr=%#x' % (sel, lr))
+            except Exception as ea:
+                P('BB_HID_KILL_RETBP_ERR=%r' % ea)
+        # Always keep BB/SB/RB/IOMFB method traffic; cap unrelated noise.
+        # boot206: include runningboardd (IOGPU→sel13→32 path).
+        keep = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                or 'IOMFB' in pn0 or 'runningboard' in pn0.lower())
+        if _em_cnt['n'] > 80 and not keep:
+            return False
+        # Dump IOExternalMethodArguments output fields for RB/surface sels.
+        stout_p = 0
+        sout_p = 0
+        if args and (sel in (0, 2, 4, 13, 32) or keep):
+            try:
+                sin_c = m32(args + 40); sout_c = m32(args + 80)
+                st_in = m32(args + 56); st_out = m32(args + 96)
+                sout_p = m64(args + 72); stout_p = m64(args + 88)
+                extra = ' sin=%d sout=%d stin=%d stout=%d soutp=%s stoutp=%s' % (
+                    sin_c or 0, sout_c or 0, st_in or 0, st_out or 0,
+                    h(sout_p), h(stout_p))
+            except Exception as e:
+                extra = ' args_err=%s' % e
+        P('IOEXTMETHOD proc=%s sel=%d self=%#x%s' % (pn, sel, r('x0'), extra))
+        # boot207: RetBP only interesting sels — boot206 RetBP'd every RB
+        # method and timed out before SURFACE sel13.
+        # boot208: after sel32, also RetBP the next few RB sels (post-connect).
+        post32 = (_mm2.get('rb_sel32') and 'runningboard' in pn0.lower()
+                  and _mm2.get('rb_post32', 0) < 24)
+        if post32:
+            _mm2['rb_post32'] = _mm2.get('rb_post32', 0) + 1
+            extra2 = ' POST_SEL32_N=%d' % _mm2['rb_post32']
+            P('IOEXTMETHOD_POST32 proc=%s sel=%d%s' % (pn, sel, extra2))
+        if (sel in (0, 2, 4, 13, 32) or 'backboard' in pn0.lower()
+                or post32):
+            tag = 'IOEXTMETHOD_RET proc=%s sel=%d' % (
+                pn[0] if pn else '?', sel)
+            if sel == 13 and stout_p:
+                tag += ' stoutp=%#x' % stout_p
+            if sel == 32:
+                tag += ' SURFACE_CONNECT'
+                if sout_p:
+                    tag += ' soutp=%#x' % sout_p
+                # boot310: always allow SURFACE (boot302 HID path).
+                # boot346: xpcproxy sel32 marked surface_ok early → skipped
+                # PRE_SURFACE kill + no HID (best boots use runningboardd).
+                # Only RB SURFACE counts as the real win.
+                if 'runningboard' in (pn0 or '').lower():
+                    _mm2['rb_sel32'] = 1
+                    _mm2['surface_ok'] = 1
+                    if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                        tag += ' PRE_BB_GMD'
+                    if not _mm2.get('post_surf_mach'):
+                        _mm2['post_surf_mach'] = 1
+                        _mm2['n'] = 0
+                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
+                else:
+                    tag += ' SURFACE_IGNORE_NON_RB proc=%s' % (pn0 or '?')
+                    P('SURFACE_IGNORE_NON_RB proc=%s sel=32' % (pn0 or '?'))
+            # boot224/226: cave Open post-path UCAL / GetDisplaySize
+            if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
+                tag += ' IOMFB_UCAL'
+            if sel == 8 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
+                tag += ' IOMFB_GETSIZE'
+                if sout_p:
+                    _mm2['getsize_soutp'] = sout_p
+                    tag += ' soutp=%#x' % sout_p
+            RetBP(r('x30'), tag)
+    except Exception as e:
+        P('ERR extmethod %s' % e)
+    return False
+BP('__ZN12IOUserClient14externalMethodEjP25IOExternalMethodArgumentsP24IOExternalMethodDispatchP8OSObjectPv',
+   on_external_method)
+
+_cmem_cnt = {'n': 0}
+def on_client_memory():
+    _cmem_cnt['n'] += 1
+    if _cmem_cnt['n'] > 40:
+        return False
+    try:
+        typ = r('x1') & 0xffffffff
+        P('IOCMEM proc=%s type=%d self=%#x' % (cur_pname(), typ, r('x0')))
+        RetBP(r('x30'), 'IOCMEM_RET proc=%s type=%d' % (
+            cur_pname()[0] if cur_pname() else '?', typ))
+    except Exception as e:
+        P('ERR cmem %s' % e)
+    return False
+BP('__ZN12IOUserClient19clientMemoryForTypeEjPjPP18IOMemoryDescriptor', on_client_memory)
+
+# boot140/142: BB opens IOMFB (x0=0) then silence — no IOEXT. Hook ALL MIG
+# connect-method variants (bluetoothd hit externalMethod without the plain
+# is_io_connect_method) + property bin_buf/properties.
+def _ui_iokit_proc(pn0):
+    pl = (pn0 or '').lower()
+    return ('backboard' in pl or 'SpringBoard' in (pn0 or '') or 'springboard' in pl
+            or 'IOMFB' in (pn0 or '') or 'FDR' in (pn0 or '')
+            or 'runningboard' in pl or 'WindowServer' in (pn0 or '')
+            or 'CARender' in (pn0 or '') or 'coreanimation' in pl)
+
+_iocm_cnt = {'n': 0}
+def _mk_ioconn(tag):
+    def on():
+        try:
+            pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+            # boot223: after BB_GMD_OK, also sample non-UI procs — CA may live
+            # under an unexpected pname and was filtered out.
+            ui = _ui_iokit_proc(pn0)
+            post = _mm2.get('bb_gmd_ok')
+            if not ui and not post:
+                return False
+            _iocm_cnt['n'] += 1
+            if ui:
+                if _iocm_cnt['n'] > 200:
+                    return False
+            else:
+                if _iocm_cnt.get('post_n', 0) >= 80:
+                    return False
+                _iocm_cnt['post_n'] = _iocm_cnt.get('post_n', 0) + 1
+            sel = r('x1') & 0xffffffff
+            extra = '' if ui else ' POST_GMD_ANY'
+            P('IOCONN_%s proc=%s sel=%d conn=%#x%s' % (
+                tag, pn, sel, r('x0'), extra))
+            RetBP(r('x30'), 'IOCONN_%s_RET proc=%s sel=%d' % (tag, pn0 or '?', sel))
+        except Exception as e:
+            P('ERR ioconn_%s %s' % (tag, e))
+        return False
+    return on
+BP('_is_io_connect_method', _mk_ioconn('M'), addr=0xfffffe0007b18584)
+BP('_is_io_connect_method_scalarI_scalarO', _mk_ioconn('SS'), addr=0xfffffe0007b18ac4)
+BP('_is_io_connect_method_scalarI_structureO', _mk_ioconn('SSo'), addr=0xfffffe0007b19d24)
+BP('_is_io_connect_method_scalarI_structureI', _mk_ioconn('SSi'), addr=0xfffffe0007b1a4a8)
+BP('_is_io_connect_method_structureI_structureO', _mk_ioconn('SoSo'), addr=0xfffffe0007b1ac04)
+BP('_is_io_connect_method_var_output', _mk_ioconn('VO'), addr=0xfffffe0007b18170)
+# boot146: BB opens IOMFB then only sends mach 'w00t' — never hits method MIG.
+# Catch notification/async/get_service which often follow Open before methods.
+BP('_is_io_connect_async_method', _mk_ioconn('ASYNC'), addr=0xfffffe0007b18818)
+BP('_is_io_connect_set_notification_port', _mk_ioconn('NOTE'), addr=0xfffffe0007b177cc)
+BP('_is_io_connect_set_notification_port_64', _mk_ioconn('NOTE64'), addr=0xfffffe0007b1785c)
+BP('_is_io_connect_get_service', _mk_ioconn('GETSVC'), addr=0xfffffe0007b1773c)
+BP('_is_io_connect_add_client', _mk_ioconn('ADDCL'), addr=0xfffffe0007b180c8)
+BP('_is_io_connect_set_properties', _mk_ioconn('SETPROP'), addr=0xfffffe0007b1816c)
+BP('_is_io_connect_map_shared_memory', _mk_ioconn('MAPSH'), addr=0xfffffe0007b178ec)
+BP('_is_io_connect_get_notification_semaphore', _mk_ioconn('NOTESEM'), addr=0xfffffe0007b14d8c)
+
+_iogetclass_cnt = {'n': 0}
+def on_io_get_class():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if not _ui_iokit_proc(pn0):
+            return False
+        _iogetclass_cnt['n'] += 1
+        if _iogetclass_cnt['n'] > 80:
+            return False
+        P('IOGETCLASS proc=%s obj=%#x' % (pn, r('x0')))
+        RetBP(r('x30'), 'IOGETCLASS_RET proc=%s' % (pn0 or '?'))
+    except Exception as e:
+        P('ERR iogetclass %s' % e)
+    return False
+BP('_is_io_object_get_class', on_io_get_class, addr=0xfffffe0007b139e0)
+
+_ioreg_cnt = {'n': 0}
+def _mk_ioreg(tag):
+    def on():
+        try:
+            pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+            if not _ui_iokit_proc(pn0):
+                return False
+            _ioreg_cnt['n'] += 1
+            if _ioreg_cnt['n'] > 120:
+                return False
+            # bin_buf ABI: x0=entry, x1=plane, x2=property_name (boot143 logged
+            # empty key from x1=plane). Try x2 first, then x1.
+            def _cstr_reg(reg):
+                try:
+                    a = r(reg)
+                    if not a:
+                        return ''
+                    return bytes(gdb.selected_inferior().read_memory(a, 64)).split(b'\0', 1)[0].decode()
+                except Exception:
+                    return ''
+            plane = _cstr_reg('x1'); key = _cstr_reg('x2') or _cstr_reg('x1')
+            P('IOREGPROP_%s proc=%s key=%r plane=%r entry=%#x' % (tag, pn, key, plane, r('x0')))
+            # boot265: stash entry args — RET x4 was all-zero (clobbered).
+            if (tag == 'buf' and key == 'HIDEventServiceProperties'
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('hidprop_stash_n', 0) < 2):
+                _mm2['hidprop_stash_n'] = _mm2.get('hidprop_stash_n', 0) + 1
+                try:
+                    args = tuple(
+                        int(gdb.parse_and_eval('$x%d' % i)) & 0xffffffffffffffff
+                        for i in range(8))
+                    _mm2['hidprop_args'] = args
+                    P('HIDPROP_ENTER args=' + ' '.join('%#x' % a for a in args))
+                except Exception as es:
+                    P('HIDPROP_ENTER err=%r' % es)
+            RetBP(r('x30'), 'IOREGPROP_%s_RET proc=%s key=%s' % (tag, pn0 or '?', key))
+        except Exception as e:
+            P('ERR ioreg_%s %s' % (tag, e))
+        return False
+    return on
+BP('_is_io_registry_entry_get_property_bin', _mk_ioreg('bin'), addr=0xfffffe0007b165a8)
+BP('_is_io_registry_entry_get_property_bin_buf', _mk_ioreg('buf'), addr=0xfffffe0007b16098)
+BP('_is_io_registry_entry_get_properties_bin', _mk_ioreg('all'), addr=0xfffffe0007b16084)
+# boot158: get_property/bytes/rec hooks coincided with NOTE64→BRK even with
+# HID pulse restored (kernel==pth86 which survived). Drop them; keep w00t filter.
+
+_iomap_cnt = {'n': 0}
+def on_io_map_mem():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if not _ui_iokit_proc(pn0):
+            return False
+        _iomap_cnt['n'] += 1
+        if _iomap_cnt['n'] > 40:
+            return False
+        typ = r('x1') & 0xffffffff
+        P('IOMAPMEM proc=%s type=%d conn=%#x' % (pn, typ, r('x0')))
+        RetBP(r('x30'), 'IOMAPMEM_RET proc=%s type=%d' % (pn0 or '?', typ))
+    except Exception as e:
+        P('ERR iomap %s' % e)
+    return False
+BP('_is_io_connect_map_memory', on_io_map_mem, addr=0xfffffe0007b17dd0)
+BP('_is_io_connect_map_memory_into_task', on_io_map_mem, addr=0xfffffe0007b17bec)
+
+# boot99/100: cfprefsd burns CPU — shm_open path. Kernel ABI is
+# shm_open(proc_t, struct shm_open_args *uap, int32_t *retval). On arm64 each
+# arg is padded to 8: uap->name @0, uap->oflag @8, uap->mode @0x10.
+# boot100 logged garbage oflags from reading mode at @0x10 as oflag.
+_shm_cnt = {'n': 0}
+def on_shm_open():
+    _shm_cnt['n'] += 1
+    try:
+        uap = r('x1')
+        name_va = m64(uap) if uap else 0
+        oflag = m32(uap + 0x8) if uap else 0
+        mode = m32(uap + 0x10) if uap else 0
+        name = ustr(name_va, 96) if name_va else None
+        pn = cur_pname()
+        pn0 = (pn[0] if pn else '') or ''
+        # Always log cfprefsd (boot106 hit the 40-cap before it spawned).
+        is_cfprefs = ('cfprefs' in pn0.lower()) or (name and 'cfprefs' in name)
+        interesting = is_cfprefs or (name and name.startswith('apple.')) or _shm_cnt['n'] <= 8
+        if not interesting:
+            if _shm_cnt['n'] > 200:
+                return False
+            return False
+        P('SHM_OPEN proc=%s name=%r oflag=%#x mode=%#x' % (
+            pn, name, oflag or 0, mode or 0))
+        RetBP(r('x30'), 'SHM_OPEN_RET proc=%s name=%r' % (pn0 or '?', name))
+    except Exception as e:
+        P('ERR shm_open %s' % e)
+    return False
+BP('_shm_open', on_shm_open, addr=0xfffffe0007971bbc)
+
+# boot137: mach_msg2_trap(struct mach_msg2_trap_args *args) — x0 is ARGS PTR
+# (boot136 treated regs as fields → garbage; 400-cap burned; 0 RETs).
+# Struct: data, options, bits|send<<32, remote|local<<32, voucher|id<<32,
+#         desc|rcv_name<<32, rcv_size|prio<<32, timeout.
+_mm2 = {'n': 0, 'rb': 0, 'post_iomfb': 0}
+def _ui_proc(pn0):
+    pl = (pn0 or '').lower()
+    return ('backboard' in pl or 'springboard' in pl or 'runningboard' in pl
+            or pn0 in ('SpringBoard', 'backboardd', 'runningboardd'))
+def on_mach_msg2():
+    try:
+        pn = cur_pname(); pn0 = (pn[0] if pn else '') or ''
+        if not _ui_proc(pn0):
+            return False
+        if 'runningboard' in pn0.lower():
+            _mm2['rb'] = 1
+        if 'SpringBoard' in pn0 or pn0 == 'SpringBoard':
+            _mm2['sb_alive'] = 1
+        # boot309: RB_REMATCH_KILL here (mach_msg2 kernel) → PANIC. Disabled.
+        # boot146: BB post-IOMFB-open only shows up as mach 'w00t' — always
+        # log BB/SB; keep the RB-first gate for other UI procs only.
+        if (not _mm2['rb'] and 'runningboard' not in pn0.lower()
+                and 'backboard' not in pn0.lower()
+                and 'springboard' not in pn0.lower()
+                and pn0 != 'SpringBoard'):
+            return False
+        ap = r('x0')
+        # Trap entry: x0 → mach_msg2_trap_args on kernel stack.
+        if (ap >> 40) != 0xfffffe:
+            return False
+        data_ptr = m64(ap)  # userspace mach_msg buffer
+        opt64 = m64(ap + 8)
+        mb_ss = m64(ap + 16); mr_lp = m64(ap + 24); mv_id = m64(ap + 32)
+        dc_rn = m64(ap + 40); rs_pr = m64(ap + 48)
+        timeout = m64(ap + 56) & 0xffffffff
+        bits = mb_ss & 0xffffffff
+        send_sz = (mb_ss >> 32) & 0xffffffff
+        remote = mr_lp & 0xffffffff
+        local = (mr_lp >> 32) & 0xffffffff
+        msgid = (mv_id >> 32) & 0xffffffff
+        rcv_name = (dc_rn >> 32) & 0xffffffff
+        rcv_sz = rs_pr & 0xffffffff
+        sending = bool(opt64 & 1); recving = bool(opt64 & 2)
+        # boot331: after sampling/zeroing 3240, drop further SB 3240 traps —
+        # boot330: 600+ MACHMSG2 3240 starved BB past IOMFB/HID despite
+        # SAS_PORT_REAL + SAS_MACH W00T + ZERO sas=True.
+        # boot332: still allow 3240 when sb_kill_sas_armed (boot331: DROP
+        # blocked SB_KILL_SAS_RELOOKUP_3240 after BB retry).
+        # boot357: PRE_SURFACE×2 leaves BB late (SOURCE_ATTACH only); SB 3240
+        # dump/zero before DROP still starves BB → 0 mach / 0 HID (boot356).
+        # Drop SB 3240 immediately after SURFACE until BB posts any mach.
+        # boot363: SB MACH_UPC SAS relookup disabled with SAS_RETRY.
+        # boot376: keep dropping 3240 until HID — boot372 HID@+490 before any
+        # 3240 MIG; boot375 early MIG→DROP@+580, 0 HID (no kill).
+        if 'backboard' in (pn0 or '').lower() and _mm2.get('surface_ok'):
+            if not _mm2.get('bb_post_surf_mach'):
+                _mm2['bb_post_surf_mach'] = 1
+                _mm2['n'] = 0
+                P('BB_POST_SURF_MACH msgid=%d reopen' % msgid)
+        if (msgid == 3240
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and not _mm2.get('sb_kill_sas_armed')
+                and (_mm2.get('surface_ok')
+                     and not _mm2.get('hid_evt_seen')
+                     or _mm2.get('dump_3240', 0) >= 6
+                     or _mm2.get('zero_3240_2e', 0) >= 4)):
+            _mm2['drop_3240_n'] = _mm2.get('drop_3240_n', 0) + 1
+            if _mm2['drop_3240_n'] <= 2:
+                P('SB_3240_DROP n=%d sas=%s bb_mach=%s hid=%s' % (
+                    _mm2['drop_3240_n'], bool(_mm2.get('sas_ok')),
+                    bool(_mm2.get('bb_post_surf_mach')),
+                    bool(_mm2.get('hid_evt_seen'))))
+            if _mm2['drop_3240_n'] == 1:
+                _mm2['n'] = 0
+                _mm2['post_surf_mach'] = 1
+                P('MACHMSG2_WINDOW post-3240-drop reopen')
+            return False
+        # boot260/262: dump 1011/1012/1018 buffers (SB or BB) after SURFACE —
+        # boot261b: SB skipped MIG; BB did 1012/1018. Need ascii service names.
+        if (msgid in (1011, 1012, 1018)
+                and data_ptr
+                and _mm2.get('rb_sel32')
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard'
+                     or 'backboard' in pn0.lower())
+                and _mm2.get('dump_ca_mig', 0) < 24):
+            _mm2['dump_ca_mig'] = _mm2.get('dump_ca_mig', 0) + 1
+            try:
+                raw = bytearray()
+                for off in range(0, 96, 8):
+                    try:
+                        xs = gdb.execute(
+                            'x/gx %#x' % (data_ptr + off), to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        raw += int(toks[-1], 16).to_bytes(8, 'little')
+                    except Exception:
+                        raw += b'\x00' * 8
+                ascii_s = ''
+                try:
+                    ascii_s = ''.join(
+                        chr(b) if 32 <= b < 127 else '.' for b in raw)
+                except Exception:
+                    pass
+                words = ' '.join('%08x' % int.from_bytes(
+                    raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
+                P('CA_MIG proc=%s msgid=%d remote=%#x buf=%#x [%s] ascii=%r' % (
+                    pn0, msgid, remote, data_ptr, words, ascii_s[:80]))
+                # boot304: when HID event system announces, reopen mach window
+                # and dump frames — next wall after boot302.
+                if 'iohidevent' in ascii_s and not _mm2.get('hid_evt_seen'):
+                    _mm2['hid_evt_seen'] = 1
+                    _mm2['n'] = 0
+                    _mm2['post_surf_mach'] = 1
+                    P('HID_EVT_AVAILABLE reopen-mach')
+                    try:
+                        _uframes('HID_EVT_U', 'msgid=%d' % msgid)
+                    except Exception as eu:
+                        P('HID_EVT_U err=%r' % eu)
+            except Exception as em:
+                P('CA_MIG err=%r' % em)
+        # boot305: SB msgid 3240 flood after HID (boot304×1116) — dump
+        # bootstrap lookup name from send buffer (remote=0x203).
+        if (msgid == 3240 and sending and data_ptr
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('dump_3240', 0) < 6):
+            _mm2['dump_3240'] = _mm2.get('dump_3240', 0) + 1
+            try:
+                raw = bytearray()
+                for off in range(0, 96, 8):
+                    try:
+                        xs = gdb.execute(
+                            'x/gx %#x' % (data_ptr + off), to_string=True)
+                        toks = [tt for tt in xs.replace(':', ' ').split()
+                                if tt.startswith('0x') and len(tt) > 5]
+                        raw += int(toks[-1], 16).to_bytes(8, 'little')
+                    except Exception:
+                        raw += b'\x00' * 8
+                ascii_s = ''.join(
+                    chr(b) if 32 <= b < 127 else '.' for b in raw)
+                words = ' '.join('%08x' % int.from_bytes(
+                    raw[i:i+4], 'little') for i in range(0, min(len(raw), 96), 4))
+                P('SB_3240_MIG n=%d remote=%#x buf=%#x [%s] ascii=%r' % (
+                    _mm2['dump_3240'], remote, data_ptr, words, ascii_s[:80]))
+                # boot306/307: ptr @+0x38 (e.g. 0x103da0140). Prefer heap
+                # (0x100000000–0x120000000); skip stack-ish 0x16xxxxxxx.
+                try:
+                    for poff in (0x38, 0x40, 0x28, 0x30):
+                        if poff + 8 > len(raw):
+                            break
+                        p = int.from_bytes(raw[poff:poff+8], 'little')
+                        if not (0x100000000 <= p < 0x160000000):
+                            continue
+                        try:
+                            nm = bytes(gdb.selected_inferior().read_memory(
+                                p, 96)).split(b'\0', 1)[0].decode(
+                                'utf-8', 'replace')
+                            if nm and sum(c.isalnum() or c in '._-' for c in nm) >= 4:
+                                P('SB_3240_NAME n=%d off=%#x ptr=%#x name=%r' % (
+                                    _mm2['dump_3240'], poff, p, nm[:80]))
+                                break
+                        except Exception as er:
+                            if _mm2['dump_3240'] <= 2:
+                                P('SB_3240_NAME_READ n=%d off=%#x ptr=%#x err=%r' % (
+                                    _mm2['dump_3240'], poff, p, er))
+                except Exception as ename:
+                    P('SB_3240_NAME err=%r' % ename)
+                if _mm2['dump_3240'] <= 2:
+                    try:
+                        _uframes('SB_3240_U', 'n=%d' % _mm2['dump_3240'])
+                    except Exception as e3240:
+                        P('SB_3240_U err=%r' % e3240)
+                # boot324 RetBP collided with MACHMSG2_RET; boot325: stash
+                # buf for reply dump on MACHMSG2_RET msgid=3240.
+                if _mm2['dump_3240'] <= 3:
+                    _mm2['buf_3240'] = data_ptr
+            except Exception as e3240b:
+                P('SB_3240_MIG err=%r' % e3240b)
+        # boot324: after SAS_PORT_REAL, log SB→SAS mach (expect CA path).
+        if (_mm2.get('sas_ok') and _mm2.get('sas_port') and sending
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and (remote & 0xffffffff) == (_mm2['sas_port'] & 0xffffffff)
+                and _mm2.get('sas_mach_n', 0) < 16):
+            _mm2['sas_mach_n'] = _mm2.get('sas_mach_n', 0) + 1
+            P('SAS_MACH n=%d msgid=%d remote=%#x send=%d rcv=%d' % (
+                _mm2['sas_mach_n'], msgid, remote, send_sz, rcv_sz))
+            if _mm2['sas_mach_n'] <= 2:
+                try:
+                    _uframes('SAS_MACH_U', 'n=%d msgid=%d' % (
+                        _mm2['sas_mach_n'], msgid))
+                except Exception as esm:
+                    P('SAS_MACH_U err=%r' % esm)
+        # boot251: stash userspace buffer for 6001012 reply dump (boot250
+        # tried x1 / kernel VA and got unreadable).
+        if msgid == 6001012 and data_ptr:
+            _mm2['msg_6001012_buf'] = data_ptr
+            # boot261: only arm SB_RECV after SURFACE — early arm + uframes
+            # delayed RB past SURFACE window (boot260).
+            if _mm2.get('rb_sel32'):
+                _mm2['post_6001012'] = 1
+            if (_mm2.get('dump_6001012_send', 0) < 1
+                    and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                    and _mm2.get('rb_sel32')):
+                _mm2['dump_6001012_send'] = 1
+                try:
+                    raw = bytearray()
+                    for off in range(0, 64, 8):
+                        try:
+                            xs = gdb.execute(
+                                'x/gx %#x' % (data_ptr + off), to_string=True)
+                            toks = [tt for tt in xs.replace(':', ' ').split()
+                                    if tt.startswith('0x') and len(tt) > 5]
+                            raw += int(toks[-1], 16).to_bytes(8, 'little')
+                        except Exception:
+                            raw += b'\x00' * 8
+                    if any(raw):
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 64, 4))
+                        P('MSG_6001012_SEND buf=%#x [%s]' % (data_ptr, words))
+                except Exception as es:
+                    P('MSG_6001012_SEND err=%r' % es)
+        # Real mach ports are small names; skip nonsense / recv-only polls.
+        if remote > 0x10000 and not recving:
+            return False
+        # boot352–355: BB peeks after DROP; mach BP is kernel — patch saved
+        # userspace PC so return→EXC. boot355 killed on SAS W00T (0x77303074)
+        # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
+        # boot363: SAS_NULL MACH_UPC retry disabled (boot359–362 no HID).
+        # boot372: defer kill — early DROP raced ahead of natural HID.
+        # boot378: boot377 drop_n≥100 never fired (few 3240s with hold).
+        # Count BB idle peeks post-SURFACE instead.
+        if ('backboard' in (pn0 or '').lower()
+                and msgid in (0, 3228, 11602)
+                and _mm2.get('surface_ok')
+                and _mm2.get('bb_post_surf_mach')
+                and not _mm2.get('hid_evt_seen')):
+            _mm2['bb_idle_post_surf'] = _mm2.get('bb_idle_post_surf', 0) + 1
+            if (_mm2['bb_idle_post_surf'] >= 80
+                    and not _mm2.get('bb_kill_for_hid')):
+                try:
+                    th = r('TPIDR_EL1')
+                    ss = m64(th + 0x110) if th else 0
+                    upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
+                    upc = m64(upc_addr) if upc_addr else 0
+                    if upc and upc < 0xffff000000000000:
+                        _mm2['bb_kill_for_hid'] = 1
+                        gdb.execute(
+                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                            to_string=True)
+                        P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x '
+                          'idle=%d ss=%#x' % (
+                              msgid, upc, _mm2['bb_idle_post_surf'], ss))
+                    else:
+                        P('BB_KILL_MACH_SKIP upc=%#x ss=%#x' % (
+                            upc or 0, ss or 0))
+                except Exception as ek:
+                    P('BB_KILL_MACH_ERR=%r' % ek)
+                return False
+        # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
+        # (no flood — boot260 uframes pre-SURFACE stalled RB).
+        _sb_recv_keep = (
+            _mm2.get('post_6001012')
+            and _mm2.get('rb_sel32')
+            and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+            and _mm2.get('sb_recv_n', 0) < 12)
+        if not sending and recving and _mm2['n'] > 40 and not _sb_recv_keep:
+            return False
+        if _sb_recv_keep and not sending and recving:
+            _mm2['sb_recv_n'] = _mm2.get('sb_recv_n', 0) + 1
+            P('SB_RECV_POST_CA proc=%s msgid=%d remote=%#x local=%#x rcv_name=%#x n=%d' % (
+                pn0, msgid, remote, local, rcv_name, _mm2['sb_recv_n']))
+            if _mm2['sb_recv_n'] <= 2:
+                try:
+                    _uframes('SB_RECV_POST_CA_U', 'n=%d msgid=%d' % (
+                        _mm2['sb_recv_n'], msgid))
+                except Exception as e:
+                    P('SB_RECV_U err=%r' % e)
+        # boot156: uncapped BB logging drowned the run in w00t/0x40000000
+        # spin (2200+ msgs) and likely inflated CPU-burn via GDB traps.
+        # Drop those two; keep real IOKit/XPC-sized traffic.
+        # boot179: W00T_FAKE on w00t/0x40000000 after 0x40000388 → BB respawn.
+        # boot180: fake ONLY 0x40000388/384 (the post-open error); log others.
+        if msgid in (1999646836, 1073741824):  # 'w00t' / 0x40000000
+            # boot267: uframes only on first W00T — boot266's 4× W00T_U
+            # stalled RB past IOGPU/IOCoreSurfaceRoot (0 SURFACE).
+            if (_mm2.get('post_iomfb') and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_n', 0) < 4):
+                _mm2['w00t_n'] = _mm2.get('w00t_n', 0) + 1
+                P('POST_IOMFB_W00T proc=%s msgid=%#x remote=%#x n=%d' % (
+                    pn0, msgid, remote, _mm2['w00t_n']))
+                if _mm2['w00t_n'] == 1:
+                    try:
+                        _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
+                    except Exception as e:
+                        P('W00T_U err=%r' % e)
+            # boot179: early W00T_FAKE → respawn. boot321–349: W00T_REAL +
+            # SPIN TIMEOUT/FAKE_OK → 0 sels past GETSIZE. boot350–363:
+            # W00T_FAKE same wall. boot364: REAL (return False keeps PC on
+            # trap so send runs; FAKE diverted pc=lr). No SPIN_TIMEOUT after HID.
+            if False and (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+                    and _mm2.get('surface_ok')
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_ret_n', 0) < 4):
+                _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_W00T_FAKE n=%d remote=%#x msgid=%#x' % (
+                        _mm2['w00t_ret_n'], remote, msgid))
+                except Exception as ew:
+                    P('POST_SAS_W00T_FAKE_ERR=%r' % ew)
+            elif (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+                    and _mm2.get('surface_ok')
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_ret_n', 0) < 4):
+                _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
+                _mm2['w00t_pending'] = _mm2['w00t_ret_n']
+                P('POST_SAS_W00T_REAL n=%d remote=%#x msgid=%#x' % (
+                    _mm2['w00t_ret_n'], remote, msgid))
+                # boot373: do_ret MACHMSG2_RET logs x0 (RetBP2 PAC miss).
+                try:
+                    RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
+                        pn0, msgid, remote))
+                except Exception as ew:
+                    P('POST_SAS_W00T_RETBP_ERR=%r' % ew)
+            return False
+        if msgid in (0x40000388, 0x40000384):
+            if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
+                _mm2['xpc388_n'] = _mm2.get('xpc388_n', 0) + 1
+                if _mm2['xpc388_n'] <= 6:
+                    P('POST_IOMFB_XPC388 proc=%s msgid=%#x remote=%#x n=%d' % (
+                        pn0, msgid, remote, _mm2['xpc388_n']))
+                    try:
+                        _uframes('POST_IOMFB_XPC388_U',
+                                 'n=%d' % _mm2['xpc388_n'])
+                    except Exception as e:
+                        P('XPC388_U err=%r' % e)
+                # boot231: ERR 0x10004004 → no W00T but also no SURFACE (BB
+                # aborts display path). Restore FAKE success (boot230) while
+                # boot232 deepens GMD object via OBJ_SUBINIT+const.
+                # boot323: real XPC388 after W00T → RET x0=0x276b then BB
+                # CPU-burn; no sels past GETSIZE. boot324: FAKE again.
+                if _mm2['xpc388_n'] <= 32:
+                    try:
+                        gdb.execute('set $x0 = 0', to_string=True)
+                        gdb.execute('set $pc = $x30', to_string=True)
+                        if _mm2['xpc388_n'] <= 8:
+                            P('POST_IOMFB_XPC388_FAKE n=%d' % _mm2['xpc388_n'])
+                    except Exception as e:
+                        P('XPC388_FAKE err=%r' % e)
+                    return False
+        # boot160/161: post-IOMFB BB spins on msgid 0x10000000 (send-only).
+        # Sample a few with kernel LR so we can attribute the wait; then drop.
+        # boot167: also dump trap msg header words (identify port peer).
+        if msgid == 0x10000000 and 'backboard' in pn0.lower():
+            _mm2['spin1'] = _mm2.get('spin1', 0) + 1
+            # boot299: keep sampling SPIN after SAS (CA/UI wall).
+            spin_cap = 16 if _mm2.get('sas_ok') else 8
+            if _mm2['spin1'] <= spin_cap:
+                tag = ('POST_IOMFB_SPIN' if _mm2.get('post_iomfb')
+                       else 'MACHMSG2_SPIN')
+                if _mm2.get('sas_ok'):
+                    tag += '_POST_SAS'
+                P('%s proc=%s remote=%#x local=%#x lr=%#x n=%d' % (
+                    tag, pn0, remote, local, r('x30'), _mm2['spin1']))
+                if _mm2['spin1'] <= 3 or (
+                        _mm2.get('sas_ok') and _mm2['spin1'] <= 6):
+                    try:
+                        data = m64(ap)
+                        ws = [0, 0, 0, 0]
+                        if data:
+                            # Userspace buffer — prefer gdb examine over m32.
+                            try:
+                                raw = gdb.execute('x/4wx %#x' % data,
+                                                   to_string=True)
+                                P('%s_HDR data=%#x %s opt=%#x send=%d' % (
+                                    tag, data, ' '.join(
+                                        raw.strip().splitlines()[:2]),
+                                    opt64 & 0xffffffff, send_sz))
+                            except Exception:
+                                for i in range(4):
+                                    ws[i] = m32(data + 4 * i) or 0
+                                P('%s_HDR data=%#x w=%#x,%#x,%#x,%#x opt=%#x send=%d' % (
+                                    tag, data, ws[0], ws[1], ws[2], ws[3],
+                                    opt64 & 0xffffffff, send_sz))
+                        else:
+                            P('%s_HDR data=0 opt=%#x send=%d' % (
+                                tag, opt64 & 0xffffffff, send_sz))
+                    except Exception as e:
+                        P('SPIN_HDR err=%r' % e)
+                # boot164/166: userspace frames; prefer post-IOMFB samples.
+                if _mm2['spin1'] <= 3 or (_mm2.get('post_iomfb')
+                                          and _mm2.get('post_spin_uf', 0) < 3):
+                    if _mm2.get('post_iomfb'):
+                        _mm2['post_spin_uf'] = _mm2.get('post_spin_uf', 0) + 1
+                    try:
+                        _uframes(
+                            'POST_IOMFB_SPIN_U' if _mm2.get('post_iomfb')
+                            else 'MACHMSG2_SPIN_U',
+                            'n=%d' % _mm2['spin1'])
+                    except Exception as e:
+                        P('SPIN_U err=%r' % e)
+            # boot303/313: SPIN_FAKE x0=0 success → BB EXC far=0x4.
+            # boot316: hid gate → early-GMD SPIN before HID never timed out;
+            # BB stuck, 0 iohidevent despite SAS_PORT_REAL.
+            # boot317: after surface+(sas|post_iomfb), TIMED_OUT (no hid req).
+            # boot321: real W00T_RET x0=0 to FB, but SPIN_TIMEOUT still fired
+            # on post-W00T notify-waits → W00T retry storm + 3240 wall.
+            # boot322: only TIMED_OUT pre-W00T; after first W00T let SPINs real.
+            # boot344/347: first 2 post-W00T SPINs real; then TIMED_OUT →
+            # still 0 sels past GETSIZE (same wall as boot332). boot348: after
+            # those 2 REAL, soft-success (x0=0) instead of TIMED_OUT — BB may
+            # treat timeout as failed notify and skip display setup. Cap 24.
+            # (earlier SPIN_FAKE without HID→EXC; now gated on W00T+surface.)
+            # boot369: restore boot366 SPIN_FAKE_OK (boot367–368 never hit
+            # HID; 0 RB SURFACE). Keep no SPIN_TIMEOUT after HID + W00T_REAL.
+            # boot373: after HID+GETSIZE, FAKE_OK may skip swap/notify wake —
+            # let SPINs complete real (boot372: GETSIZE then 0 further sels).
+            if (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('spin_post_w00t_n', 0) < 2):
+                _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
+                P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
+                    _mm2['spin_post_w00t_n'], remote, local))
+            elif (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('surface_ok')
+                    and _mm2.get('getsize_ok')
+                    and _mm2.get('spin_post_getsize_n', 0) < 24):
+                _mm2['spin_post_getsize_n'] = _mm2.get(
+                    'spin_post_getsize_n', 0) + 1
+                P('POST_GETSIZE_SPIN_REAL n=%d remote=%#x local=%#x' % (
+                    _mm2['spin_post_getsize_n'], remote, local))
+            elif (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('surface_ok')
+                    and not _mm2.get('getsize_ok')
+                    and _mm2.get('spin_fake_ok_n', 0) < 24):
+                _mm2['spin_fake_ok_n'] = _mm2.get('spin_fake_ok_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_W00T_SPIN_FAKE_OK n=%d remote=%#x hid=%s' % (
+                        _mm2['spin_fake_ok_n'], remote,
+                        bool(_mm2.get('hid_evt_seen'))))
+                except Exception as ef:
+                    P('POST_W00T_SPIN_FAKE_OK_ERR=%r' % ef)
+            elif (_mm2.get('surface_ok')
+                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
+                    and not _mm2.get('hid_evt_seen')
+                    and _mm2.get('spin_timeout_n', 0) < 24):
+                _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0x10000004', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x sas=%s hid=%s' % (
+                        _mm2['spin_timeout_n'], remote,
+                        bool(_mm2.get('sas_ok')),
+                        bool(_mm2.get('hid_evt_seen'))))
+                except Exception as ef:
+                    P('POST_SAS_SPIN_TIMEOUT_ERR=%r' % ef)
+            return False
+        _mm2['n'] += 1
+        # boot217: never drop BB mach_port_peek — need PEEK_FAIL after GMD.
+        # boot239: ANALYTICS_REAL + real system-app-server floods SB/BB mach
+        # and delays runningboardd past T=1800 (boot237: RB spawn late, 0
+        # SURFACE). Cap post_iomfb mach hard; only first few 3228 peeks exempt.
+        is_bb_peek = (msgid == 3228 and 'backboard' in pn0.lower())
+        bb_peek_n = _mm2.get('bb_3228', 0)
+        peek_exempt = is_bb_peek and bb_peek_n < 8
+        if not peek_exempt:
+            if _mm2['n'] > 400 and not _mm2.get('post_iomfb'):
+                return False
+            # boot240: boot239 hit SURFACE+real system-app-server but then
+            # dropped ALL non-RB mach — 0 MACHMSG2 after SURFACE, blind to
+            # SB↔BB CA path. Keep SB/BB/RB; drop only unrelated. Reopen
+            # window BEFORE the n>180 cap so reset can take effect.
+            is_sb_bb = ('backboard' in pn0.lower() or 'SpringBoard' in pn0
+                        or pn0 == 'SpringBoard')
+            if (_mm2.get('rb_sel32') and not _mm2.get('post_surf_mach')
+                    and is_sb_bb):
+                _mm2['post_surf_mach'] = 1
+                _mm2['n'] = 0  # allow another 180 SB/BB msgs post-SURFACE
+                P('MACHMSG2_WINDOW post-SURFACE reopen')
+            if (_mm2.get('rb_sel32')
+                    and 'runningboard' not in pn0.lower()
+                    and not is_sb_bb):
+                return False
+            # boot239: 550→180 so RB can reach SURFACE_MATCH under T=2400
+            # boot252: after SURFACE widen to 400 for SB/BB CA path (was
+            # quiet after 6001012 under 180-cap).
+            _mach_cap = 400 if _mm2.get('post_surf_mach') else 180
+            if _mm2.get('post_iomfb') and _mm2['n'] > _mach_cap:
+                return False
+        if is_bb_peek:
+            _mm2['bb_3228'] = _mm2.get('bb_3228', 0) + 1
+            data = m64(ap + 0)
+            _mm2['bb_3228_data'] = data
+            if _mm2['bb_3228'] <= 16:
+                hdr = ''
+                try:
+                    if data and 0x100000000 <= (data & 0xffffffffffffffff) < 0x300000000:
+                        try:
+                            raw = bytes(gdb.selected_inferior().read_memory(
+                                data, 48))
+                        except Exception:
+                            raw = bytearray()
+                            for off in range(0, 48, 8):
+                                xs = gdb.execute(
+                                    'x/gx %#x' % (data + off), to_string=True)
+                                toks = [t for t in xs.replace(':', ' ').split()
+                                        if t.startswith('0x') and len(t) > 5]
+                                raw += int(toks[-1], 16).to_bytes(8, 'little')
+                            raw = bytes(raw[:48])
+                        words = ' '.join('%08x' % int.from_bytes(
+                            raw[i:i+4], 'little') for i in range(0, 48, 4))
+                        hdr = ' hdr=[%s]' % words
+                except Exception as eh:
+                    hdr = ' hdr_err=%r' % eh
+                P('BB_MSG3228 n=%d remote=%#x local=%#x send=%d rcv=%d%s' % (
+                    _mm2['bb_3228'], remote, local, send_sz, rcv_sz, hdr))
+        P('MACHMSG2 proc=%s opt=%#x bits=%#x send=%d rcv=%d remote=%#x local=%#x rcv_name=%#x msgid=%d to=%d' % (
+            pn0, opt64 & 0xffffffff, bits, send_sz, rcv_sz, remote, local,
+            rcv_name, msgid, timeout))
+        # boot297/299: after SAS_PORT_REAL, log traffic to that port.
+        # Match by name index (ignore low type/rights bits) — boot298 had
+        # SAS_PORT_REAL but 0 exact-name hits.
+        if (_mm2.get('sas_ok') and _mm2.get('sas_port')
+                and ((remote >> 8) & 0xffffff) == (
+                    (_mm2['sas_port'] >> 8) & 0xffffff)
+                and _mm2.get('sas_mach_n', 0) < 32):
+            _mm2['sas_mach_n'] = _mm2.get('sas_mach_n', 0) + 1
+            P('SAS_MACH n=%d proc=%s msgid=%d remote=%#x send=%d rcv=%d' % (
+                _mm2['sas_mach_n'], pn0, msgid, remote, send_sz, rcv_sz))
+        # boot299: after SAS, reopen SB/BB mach window for CA past asl.
+        # boot360: boot359 SAS_PORT_REAL pre-SURFACE set post_surf_mach and
+        # burned POST_SURFACE_U / mach budget → 0 RB SURFACE after PRE_SURFACE
+        # kill. Only reopen n-cap on SAS; post_surf_mach stays SURFACE-only.
+        if (_mm2.get('sas_ok') and not _mm2.get('post_sas_mach')):
+            _mm2['post_sas_mach'] = 1
+            _mm2['n'] = 0
+            P('MACHMSG2_WINDOW post-SAS reopen (no post_surf_mach)')
+        # boot241: drop POST_IOMFB_U stack walks — boot240 GDB drag left RB
+        # short of SURFACE under T=2400.
+        # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
+        # (W00T/XPC388/peek) so guest runs faster toward SURFACE.
+        interesting = msgid in (0x77303074, 0x40000388, 3228, 4813, 11602,
+                                6001012, 1073742628, 1073742629, 1073742031)
+        do_ret = sending and recving and (
+            interesting
+            or (not _mm2.get('post_iomfb'))
+            or _mm2.get('post_surf_mach')
+            or _mm2['n'] <= 40)
+        # boot245/246: userspace frames on post-SURFACE CA-candidate msgids.
+        # boot245 burned the ≤6 budget on 2628/11602/2629 before 6001012.
+        # Prefer 6001012 / 1073742031; also sample BB after real SAS.
+        if (_mm2.get('post_surf_mach')
+                and _mm2.get('post_surf_uf', 0) < 8):
+            want = False
+            if msgid == 6001012 and _mm2.get('uf_6001012', 0) < 2:
+                want = True
+                _mm2['uf_6001012'] = _mm2.get('uf_6001012', 0) + 1
+            elif msgid in (1073742031, 1073742628, 1073742629) and (
+                    'SpringBoard' in pn0 or pn0 == 'SpringBoard'):
+                key = 'uf_%d' % msgid
+                if _mm2.get(key, 0) < 1:
+                    want = True
+                    _mm2[key] = 1
+            elif (msgid in (11602, 3228, 4813)
+                  and 'backboard' in pn0.lower()
+                  and _mm2.get('uf_bb_post', 0) < 2):
+                want = True
+                _mm2['uf_bb_post'] = _mm2.get('uf_bb_post', 0) + 1
+            if want:
+                _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
+                try:
+                    _uframes('POST_SURFACE_U', 'msgid=%d n=%d' % (
+                        msgid, _mm2['post_surf_uf']))
+                except Exception as e:
+                    P('POST_SURFACE_U err=%r' % e)
+            # boot250: after 6001012, keep sampling next SB msgs for CA
+            # (QuartzCore / IOMFB) — boot249 went quiet post-BKS→FB.
+            elif (_mm2.get('uf_6001012', 0) >= 1
+                  and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                  and _mm2.get('uf_post_ca', 0) < 4
+                  and interesting):
+                _mm2['uf_post_ca'] = _mm2.get('uf_post_ca', 0) + 1
+                _mm2['post_surf_uf'] = _mm2.get('post_surf_uf', 0) + 1
+                try:
+                    _uframes('POST_CA_U', 'msgid=%d n=%d' % (
+                        msgid, _mm2['uf_post_ca']))
+                except Exception as e:
+                    P('POST_CA_U err=%r' % e)
+        if do_ret:
+            RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
+                pn0, msgid, remote))
+        # boot251: after 6001012, sample later SB mach for CA/IOMFB path.
+        if (_mm2.get('uf_6001012', 0) >= 1
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and sending and recving
+                and _mm2.get('uf_post_ca_any', 0) < 6
+                and msgid not in (1073742628, 1073742629, 1073742031,
+                                  6001012)):
+            _mm2['uf_post_ca_any'] = _mm2.get('uf_post_ca_any', 0) + 1
+            try:
+                _uframes('POST_CA_ANY_U', 'msgid=%d n=%d' % (
+                    msgid, _mm2['uf_post_ca_any']))
+            except Exception as e:
+                P('POST_CA_ANY_U err=%r' % e)
+        # boot255: SB quiet after early 11602 in boot254 — sample a few
+        # post_iomfb SB 11602 frames to see the wait.
+        if (_mm2.get('post_iomfb')
+                and msgid == 11602
+                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
+                and _mm2.get('uf_sb_11602', 0) < 3):
+            _mm2['uf_sb_11602'] = _mm2.get('uf_sb_11602', 0) + 1
+            try:
+                _uframes('SB_11602_U', 'n=%d remote=%#x' % (
+                    _mm2['uf_sb_11602'], remote))
+            except Exception as e:
+                P('SB_11602_U err=%r' % e)
+    except Exception as e:
+        P('ERR mach_msg2 %s' % e)
+    return False
+BP('_mach_msg2_trap', on_mach_msg2, addr=0xfffffe000737cc9c)
+
+# boot313: BB respawn after BRK/kill left bb_gmd_ok/post_iomfb set from a
+# dead instance (boot312: early GMD → SAS null, SPIN_FAKE never armed).
+# Clear per-BB display flags on exit; keep surface_ok/sas_ok as global wins.
+_prev_on_prepexit = on_prepexit
+def on_prepexit():
+    try:
+        pn = triage_pname()
+        if isinstance(pn, str) and 'backboard' in pn.lower():
+            cleared = []
+            # boot341: do NOT clear bb_kill_pre_surf — boot340 cleared it on
+            # BB exit → PRE_SURFACE kill loop (×2) before SURFACE.
+            for k in ('bb_gmd_ok', 'post_iomfb', 'bb_iomfb_match', 'spin1',
+                      'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
+                      'xpc388_n', 'w00t_n',
+                      'spin_timeout_n', 'w00t_fake_n', 'w00t_ret_n',
+                      'spin_post_w00t_n', 'spin_fake_ok_n',
+                      'bb_hid_kill_retbp', 'bb_post_surf_mach'):
+                if _mm2.pop(k, None) is not None:
+                    cleared.append(k)
+            if cleared:
+                P('BB_EXIT_CLEAR keys=%s surface_ok=%s sas_ok=%s' % (
+                    ','.join(cleared),
+                    bool(_mm2.get('surface_ok')),
+                    bool(_mm2.get('sas_ok'))))
+    except Exception as e:
+        P('BB_EXIT_CLEAR_ERR=%r' % e)
+    return _prev_on_prepexit()
+# Re-bind prepareexit BP to wrapped handler (driver already installed one).
+try:
+    for bp in gdb.breakpoints():
+        if getattr(bp, 'location', None) == '_proc_prepareexit':
+            bp.delete()
+except Exception:
+    pass
+BP('_proc_prepareexit', on_prepexit)

@@ -1,0 +1,6 @@
+Image.pth138 = Image.pth137 (same kernel+DSC)
+  boot207: SURFACE sel13→32; gate+0x22=1; 0 IOCMEM after connect.
+  boot208: log next RB externalMethods after sel32 (POST_SEL32_N).
+
+Build:
+  cp /tmp/Image.pth137 /tmp/Image.pth138

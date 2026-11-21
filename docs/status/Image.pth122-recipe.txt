@@ -1,0 +1,8 @@
+Image.pth122 = Image.pth121 (same kernel) + retest DSC isa-preserve
+  boot191: no BB GMD (respawn late / T=900); FDR cs_invalid on rewritten cave.
+  - Same DSC cave (isa-preserve already on disk)
+  - Timeout 1100s to let BB reach GMD
+
+Build:
+  cp /tmp/Image.pth121 /tmp/Image.pth122
+  # DSC already written by boot191

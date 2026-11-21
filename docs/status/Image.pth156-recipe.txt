@@ -1,0 +1,8 @@
+Image.pth156 = Image.pth155 reverted to sel5-only cave
+  boot225: sel8 in-cave clobber → initproc panic.
+  boot226: restore 480B sel5 cave; scrub after-cave from clean; T=1800.
+
+Build:
+  cp /tmp/Image.pth155 /tmp/Image.pth156
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  # restore clean[480:700] after cave; rehash

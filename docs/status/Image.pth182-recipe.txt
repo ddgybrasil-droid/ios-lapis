@@ -1,0 +1,9 @@
+Image.pth182 = Image.pth181 + SAS_NULL_FORCE + wider post-SURFACE mach
+  boot251: SURFACE+6001012; SAS null; prior "SAS real" was NOT a mach
+  port (large non-port x7*). buf dump MemoryError.
+  boot252: if system-app-server x0=0 without port name <0x10000, force
+  0x9f so SB retries; widen post-SURFACE mach window 180→400. T=3000.
+
+Build:
+  cp /tmp/Image.pth181 /tmp/Image.pth182
+  # DSC unchanged; GDB only

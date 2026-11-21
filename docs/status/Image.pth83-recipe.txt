@@ -1,0 +1,10 @@
+Image.pth83 = Image.pth80 + HID SharedDataQueue (UC property) + digitizer identity
+  boot152: HID map/NOTE64 held; BB then queried DeviceUsagePairs/Transport/
+  Built-In/DisplayIntegrated/PrimaryUsage*/ReportInterval/HIDEventServiceProperties
+  (all miss) and opened IOMFB with 0 post-open methods.
+  Seed built-in display-integrated digitizer props; split NUC IOClass
+  (IOHIDEventServiceUserClient vs IOMobileFramebufferUserClient).
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth83

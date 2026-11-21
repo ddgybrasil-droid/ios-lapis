@@ -1,0 +1,8 @@
+Image.pth107 = Image.pth106 kernel + GDB fake 0x40000388 + system cfprefs NULLPORT
+  boot176: clean IOMFB open; post-open XPC 0x40000388→0x80b returned
+  0x10004004 then BB quiet — 0 IOCONN/sel8.
+  - GDB: POST_IOMFB_W00T_FAKE also for msgid 0x40000388 / 0x40000384
+  - GDB: NULLPORT deny cfprefsd.daemon.system (still skip user daemon)
+
+Build:
+  cp /tmp/Image.pth106 /tmp/Image.pth107

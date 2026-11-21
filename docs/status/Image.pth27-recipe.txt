@@ -1,0 +1,5 @@
+Image.pth27 = Image.pth26 + tools/patch_kernel_cs_invalid_always_allow.py
+  (soft-path entry RT 0xfffffe0007473700 -> allow epilogue;
+   covers tbnz@0x…3710 deny escape that survived boot80's late cbnz patch)
+
+Also: tools/apply_runningboard_seeds.sh on fullroot-mnt2.img

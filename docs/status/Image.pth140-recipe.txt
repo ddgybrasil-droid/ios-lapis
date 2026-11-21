@@ -1,0 +1,6 @@
+Image.pth140 = Image.pth139 (same kernel+DSC)
+  boot209: SEL32_SCALAR1 no unlock (still 0 POST_SEL32).
+  boot210: mark BB_GMD_OK; watch BB/SB IOSurfaceRoot; T=1400.
+
+Build:
+  cp /tmp/Image.pth139 /tmp/Image.pth140

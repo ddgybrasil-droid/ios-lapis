@@ -1,0 +1,8 @@
+Image.pth87 = Image.pth86 - HID pulse + GDB w00t filter + IOREGPROP hooks
+  boot156: frontboard force works; post-IOMFB is w00t/0x40000000 mach spin.
+  Drop garbage HID enqueue; filter those msgids from MACHMSG2; hook remaining
+  io_registry_entry_get_property* MIG in case Open uses non-bin path.
+
+Build:
+  (cd xnu/lapis-ramfs && ./build.sh)
+  python3 tools/patch_kernel_ramfs_replace.py /tmp/Image.pth80 /tmp/Image.pth87

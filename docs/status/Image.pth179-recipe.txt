@@ -1,0 +1,9 @@
+Image.pth179 = Image.pth178 + always-force BB analyticsd
+  boot248: ANALYTICS_REAL → W00T/SPIN; no SURFACE; FB_SAS was null.
+  boot245/246 forced analytics and reached SURFACE+SAS+6001012.
+  boot249: always force BB analytics 0x9f; keep FB_SAS allow-real.
+  T=3000.
+
+Build:
+  cp /tmp/Image.pth178 /tmp/Image.pth179
+  # DSC unchanged; GDB only

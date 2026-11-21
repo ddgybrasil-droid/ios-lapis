@@ -1,0 +1,10 @@
+Image.pth124 = Image.pth123 (same kernel) + DSC out-before-isa + x23 stash
+  boot193: Open ok but GMD_OUT_NULL — isa restore before *out / [sp,#0] stash.
+  - Full object wipe (isa=0 during Open)
+  - Stash typed_malloc isa in x23 (callee-saved; saved at [sp,#0x10])
+  - str x21,[x19] FIRST, then str x23,[x21]
+  - Timeout 1100s
+
+Build:
+  python3 tools/patch_dsc_iomfb_fulfill.py --image /tmp/fullroot-mnt2.img --write
+  cp /tmp/Image.pth123 /tmp/Image.pth124

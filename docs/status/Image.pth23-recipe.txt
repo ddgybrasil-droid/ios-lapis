@@ -1,0 +1,5 @@
+# Image.pth23 = Image.pth22 + AppleKeyStore IOService stub publish
+# Blob sha256 from xnu/lapis-ramfs/ramfs.bin.sha256
+# Build: xnu/lapis-ramfs/build.sh && python3 tools/patch_kernel_ramfs_replace.py Image.pth22 Image.pth23
+# Also publishes IOMobileFramebuffer / IOSurfaceRoot / IOHIDEventService (from pth22)
+SHA23=ffb8826bdde159fa089be43cde727d062d5f9966e5eb25a5c00b60db0f6c205b

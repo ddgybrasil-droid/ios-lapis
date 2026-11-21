@@ -1,0 +1,6 @@
+Image.pth150 = Image.pth149 (same kernel+DSC)
+  boot219: no XPC388 + W00T when FAKE skipped after GMD.
+  boot220: restore XPC388_FAKE; GDB seed GMD +0x98=1; T=1800.
+
+Build:
+  cp /tmp/Image.pth149 /tmp/Image.pth150

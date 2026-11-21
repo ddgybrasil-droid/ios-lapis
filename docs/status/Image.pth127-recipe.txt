@@ -1,0 +1,9 @@
+Image.pth127 = Image.pth126 (same kernel+DSC) + GDB GMD_STR force store
+  boot196: STR regs ok but *out null — force via gdb write_memory at STR bp.
+  - Single shared GMD_STR bp (cave+0x178)
+  - write_memory(x19, x21); log readback
+  - Timeout 1100s
+
+Build:
+  cp /tmp/Image.pth126 /tmp/Image.pth127
+  # DSC already has boot196 reload cave

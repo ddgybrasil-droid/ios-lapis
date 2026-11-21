@@ -1,0 +1,9 @@
+Image.pth128 = Image.pth127 (same kernel+DSC) + GDB after-str + set fallback
+  boot197: FDR heap FORCE ok (WxH); BB stack out* write_memory MemoryError;
+           bp-on-str likely skipped native store → GMD_OUT_NULL.
+  - Bp on cave+0x17c AFTER str (native store runs first)
+  - If *out still 0: write_memory, else gdb set {unsigned long long}
+  - Timeout 1100s
+
+Build:
+  cp /tmp/Image.pth127 /tmp/Image.pth128

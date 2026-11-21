@@ -1,0 +1,5 @@
+# Image.pth22 = Image.pth21 + lapis_iomfb instance publish
+# Blob: xnu/lapis-ramfs ramfs.bin sha256 b8771c0458cd120584039de4ba8847871e4bfb941d3e52554d06c094b4b8bbd1
+# Build: xnu/lapis-ramfs/build.sh && python3 tools/patch_kernel_ramfs_replace.py Image.pth21 Image.pth22
+# Image sha256: 85d8f0713546911453d562d0995192e931c96d44e753c428b26e54fe6d3931e5
+# Publishes IOMobileFramebuffer / IOSurfaceRoot / IOHIDEventService (HIDServiceSupport=1)

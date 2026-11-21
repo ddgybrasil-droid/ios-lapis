@@ -1,0 +1,8 @@
+Image.pth191 = Image.pth190 + MATCH n=0 + gated SB_RECV
+  boot260: MATCH n=300 exceeded mach cap; early SB_RECV uframes stalled RB
+           → 0 SURFACE. No analytics/MIG test.
+  boot261: reopen n=0; SB_RECV only after SURFACE+6001012; keep post-SURFACE
+           analytics real + MIG dump. T=3000. GDB only.
+
+Build:
+  cp /tmp/Image.pth190 /tmp/Image.pth191

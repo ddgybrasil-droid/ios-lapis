@@ -1,0 +1,6 @@
+Image.pth146 = Image.pth145 (same kernel+DSC)
+  boot215: T=1400 STOPPED before BB HID/GMD; no PEEK_FAIL.
+  boot216: same PEEK_FAIL harness; T=1800.
+
+Build:
+  cp /tmp/Image.pth145 /tmp/Image.pth146

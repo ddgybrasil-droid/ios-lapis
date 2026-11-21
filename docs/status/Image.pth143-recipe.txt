@@ -1,0 +1,6 @@
+Image.pth143 = Image.pth142 (same kernel+DSC)
+  boot212: HID Device force ok; analyticsd still NULLPORT-forced; 3228 spin.
+  boot213: skip analyticsd NULLPORT after BB_GMD_OK; dump 3228 msg hdr.
+
+Build:
+  cp /tmp/Image.pth142 /tmp/Image.pth143

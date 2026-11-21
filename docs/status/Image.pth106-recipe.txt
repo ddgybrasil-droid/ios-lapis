@@ -1,0 +1,9 @@
+Image.pth106 = Image.pth105 kernel + GDB IOMFB-match WINDOW / cfprefs skip / locationd
+  boot175: NULLPORT on cfprefs → BRK; WINDOW on 2nd open=HID after respawn;
+  locationd real port was W00T peer; 0 sel8.
+  - GDB: arm post_iomfb on BB IOKMATCH IOMobileFramebuffer (not bb open count)
+  - GDB: exclude cfprefsd from FORCED_NULLPORT
+  - GDB: always force locationd.registration for BB
+
+Build:
+  cp /tmp/Image.pth105 /tmp/Image.pth106
