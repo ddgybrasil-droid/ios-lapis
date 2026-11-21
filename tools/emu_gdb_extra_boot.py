@@ -2137,14 +2137,15 @@ def on_mach_msg2():
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
-        # boot352–354: BB keeps mach-peeking after DROP but mach BP is
-        # kernel (pc-gate skips kill). Write deadbeef into the saved
-        # userspace PC (same frame _uframes reads) so return→EXC.
+        # boot352–355: BB peeks after DROP; mach BP is kernel — patch saved
+        # userspace PC so return→EXC. boot355 killed on SAS W00T (0x77303074)
+        # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
         if ('backboard' in (pn0 or '').lower()
                 and _mm2.get('drop_3240_n')
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
-                and not _mm2.get('bb_kill_for_hid')):
+                and not _mm2.get('bb_kill_for_hid')
+                and msgid in (0, 3228, 11602)):
             try:
                 th = r('TPIDR_EL1')
                 ss = m64(th + 0x110) if th else 0

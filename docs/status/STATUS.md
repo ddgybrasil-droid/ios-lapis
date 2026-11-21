@@ -1801,5 +1801,9 @@ Image.pth74.
 
 ## Chunk 304 (boot355: HID kill via saved userspace PC)
 
-| boot355 | Image.pth273 | After SURFACE+DROP, patch BB trap-frame userspace PC to deadbeef from mach BP; keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot355 |
+| boot355 | Image.pth273 | After SURFACE+DROP, patch BB trap-frame upc to deadbeef; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL + DROP → **MACH_UPC kill on W00T** (worked) → BB respawn; **0 HID** ~6m. Kill ~26m. | out/logs/boot355 |
+
+## Chunk 305 (boot356: MACH_UPC kill only on idle peeks)
+
+| boot356 | Image.pth273 | MACH_UPC HID kill only msgid 0/3228/11602 (not W00T); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot356 |
 
