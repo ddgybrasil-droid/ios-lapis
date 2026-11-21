@@ -1557,5 +1557,351 @@ Image.pth74.
 
 ## Chunk 243 (boot294: shortcircuit seed anytime stash exists)
 
-| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ГИПОТЕЗА**: reliable seeded analytics before SURFACE → SAS_PORT_REAL. | out/logs/boot294 |
+| boot294 | Image.pth224 | SHORTCIRCUIT_SEED on BB analytics enter whenever stash (no GMD wait); SURFACE always; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SHORTCIRCUIT_SEED `0x10000121b` pre-GMD → GMD_OK+W00T+SURFACE; **0 PORT_KEPT / 0×6001012 / 0 SAS** — SB never XPC_LOOKUP runningboard (last activity msgid 11602/1026); early shortcircuit races BB ahead of SB_RB. Harmful. | out/logs/boot294 |
 
+## Chunk 244 (boot295: shortcircuit only after SB_RB PORT_KEPT)
+
+| boot295 | Image.pth225 | SHORTCIRCUIT_SEED only when `sb_rb_seen`; keep SURFACE always + POST_SURFACE SB_RB force; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+GMD+SURFACE+6001012×4; SEED_BADPATH `0x10000120f` stuck (x7* ok); **0 SHORTCIRCUIT** (no BB analytics after PORT_KEPT); **SAS_OBSERVE null**. Gate restored UI path; seed≠SAS. | out/logs/boot295 |
+
+## Chunk 245 (boot296: SURFACE defer + RB rematch after GMD)
+
+| boot296 | Image.pth226 | Restore SURFACE_DEFER_PRE_BB_GMD NotReady; after GMD arm `RB_REMATCH_KILL` so sel32 retries; keep sb_rb_seen shortcircuit gate; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BREAKTHROUGH**: GMD before SURFACE → **0 DEFER/REMATCH**; **SAS_PORT_REAL `0x2f13` tagged** + SURFACE + 6001012×4 + CA_MIG(asl/syslog) + HIDPROP + IOMFB + SB_RECV_POST_CA. **0 analytics stash** (NULL_SKIP) — unlike boot295 SEED→SAS null. Next: stabilize SAS without seed; push past asl CA_MIG toward real render. | out/logs/boot296 |
+
+## Chunk 246 (boot297: disable analytics SEED to stabilize SAS)
+
+| boot297 | Image.pth227 | Disable SEED_BADPATH + SHORTCIRCUIT; SAS_MACH log; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE+6001012; **ANALYTICS_REAL_KEEP_PRE `0x4603`** + SEED_SKIP; **SAS_OBSERVE null**; 6001012 x0=`0x10004003`. Contrast boot296 (NULL_SKIP, 0 port → SAS_PORT_REAL). Real analytics ≠ SAS. | out/logs/boot297 |
+
+## Chunk 247 (boot298: drop pre-SURFACE REAL analytics for SAS)
+
+| boot298 | Image.pth228 | Pre-SURFACE BB analytics has_port → clear+NULL_SKIP (boot296 path); keep SEED disabled; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / SAS STABLE**: **SAS_PORT_REAL `0x240b`** + SURFACE + 6001012×4 (x0=0) + CA_MIG(asl) + HIDPROP; analytics NULL_SKIP (no REAL_DROP needed); BB SIGKILL→respawn pre-GMD; **0 SAS_MACH**; wall = POST_IOMFB_SPIN + CA only asl/syslog. | out/logs/boot298 |
+
+## Chunk 248 (boot299: SAS_MACH name-index match + post-SAS CA probe)
+
+| boot299 | Image.pth229 | Match SAS_MACH by port index; widen post-SAS mach; probe SPIN; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: PORT_KEPT+SURFACE+6001012+CA_MIG(asl); **SAS_OBSERVE null**; **0 BB kill** (vs boot298 SIGKILL→SAS_PORT_REAL). SAS requires BB respawn. | out/logs/boot299 |
+
+## Chunk 249 (boot300: force BB kill once pre-GMD for SAS)
+
+| boot300 | Image.pth230 | Once SB alive and !bb_gmd_ok, `BB_KILL_FOR_SAS` via mach_msg2 bad PC; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / PANIC**: kill ran in **kernel** mach_msg2 (`pc=0xbad0dead` → PC alignment → PANIC). Too early + wrong context. | out/logs/boot300 |
+
+## Chunk 250 (boot301: BB kill in userspace XPC only)
+
+| boot301 | Image.pth231 | Userspace XPC BB kill after sb_alive pre-GMD; SURFACE defer still on; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: kill via oscard OK (no panic); BB×3; SURFACE_DEFER stuck (0 bb_gmd_ok); SAS null; 0×6001012. Defer+early-kill harmful together. | out/logs/boot301 |
+
+## Chunk 251 (boot302: allow SURFACE always + keep userspace BB kill)
+
+| boot302 | Image.pth232 | Drop SURFACE NotReady defer; keep userspace BB_KILL_FOR_SAS; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / STABLE PATH**: BB_KILL via oscard (no panic) → GMD → **SAS_PORT_REAL `0x3d13`** + SURFACE + 6001012×6 + CA_MIG incl. **`iohideventsystem.available`** (past asl-only). Wall: 0 SAS_MACH, POST_IOMFB_SPIN_POST_SAS. | out/logs/boot302 |
+
+## Chunk 252 (boot303: post-SAS SPIN + CA past HID available)
+
+| boot303 | Image.pth233 | Keep boot302 path + POST_SAS_SPIN_FAKE×8; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL+SURFACE+6001012; SPIN_FAKE×3; CA_MIG asl-only (**0 iohidevent** — regression vs boot302). SPIN fake skips useful wait. Revert. | out/logs/boot303 |
+
+## Chunk 253 (boot304: revert SPIN_FAKE; probe post-iohidevent)
+
+| boot304 | Image.pth234 | Revert SPIN_FAKE; keep boot302 kill+SURFACE; on iohidevent CA_MIG dump BB/SB frames + IOCONN; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: HID `iohideventsystem.available` + HID_EVT_U + SURFACE+6001012 restored; **SAS null** (vs boot302). Cause: post-kill BB **BRK after HID NOTE64** before Paravirt/IOMFB → **0 BB_GMD_OK**. SB then **msgid=3240×1116** spin. Wall: keep BB alive through GMD, then SAS republish. | out/logs/boot304 |
+
+## Chunk 254 (boot305: post-GMD BB kill + 3240 name dump)
+
+| boot305 | Image.pth235 | BB_KILL_FOR_SAS after bb_gmd_ok (not pre-GMD); dump SB msgid 3240 MIG ascii; NOTE64 pre-GMD frames; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: NOTE64→Paravirt→IOMFB→**BB_GMD_OK** then post-GMD kill+respawn; SURFACE ok; **SB stuck at cfprefs** (msgid 11602/1026 spin, **0 SB_RB / 0×6001012 / 0 SAS**). Post-GMD kill mid-SB-init is harmful. Revert to pre-GMD kill. | out/logs/boot305 |
+
+## Chunk 255 (boot306: restore pre-GMD kill + keep 3240/NOTE64 probes)
+
+| boot306 | Image.pth236 | Revert BB_KILL to pre-GMD (boot302); keep SB_3240_MIG + NOTE64_PRE_GMD_U; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: pre-GMD kill → NOTE64→Paravirt→**BB_GMD_OK** → SB_RB PORT_KEPT → SURFACE+6001012 + **iohidevent/HID_EVT** + SB_3240_MIG×6 (buf ptrs, no ascii name). **SAS null** (same race as boot304; boot302 had SAS). Wall: SAS publish timing + POST_IOMFB_SPIN after HID. | out/logs/boot306 |
+
+## Chunk 256 (boot307: SURFACE defer SAS window + 3240 name ptr)
+
+| boot307 | Image.pth237 | Restore SURFACE_DEFER_PRE_BB_GMD + RB rematch (boot296); keep pre-GMD kill; follow 3240 name ptrs; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: GMD before first sel32 → **0 SURFACE_DEFER** (no PRE_BB_GMD); SURFACE+6001012+HID_EVT; **SAS null**; SB_3240_NAME mostly garbage (wrong ptr range). Need post-GMD SAS defer window. | out/logs/boot307 |
+
+## Chunk 257 (boot308: post-GMD SURFACE defer until SAS/window)
+
+| boot308 | Image.pth238 | NotReady SURFACE until sas_ok OR post-GMD defer n>4 OR exhaust n>12; RB rematch; fix 3240 heap name ptr; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE_DEFER_PRE_SAS n=1 fired, but **SAS lookup still happens** (null) — not gated on SURFACE. Rematch never armed (GMD before defer). Stuck: 0×6001012/HID. Waiting for sas_ok harmful. | out/logs/boot308 |
+
+## Chunk 258 (boot309: rematch-on-defer; allow SURFACE after rematch)
+
+| boot309 | Image.pth239 | Arm RB_REMATCH on SURFACE defer (post-GMD); allow SURFACE after rematch_kill (don't wait sas_ok); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: rematch armed + **RB_REMATCH_KILL via mach_msg2 KERNEL pc=0xbad0dead → PANIC** (boot300 class). Disable rematch kill; restore always SURFACE. | out/logs/boot309 |
+
+## Chunk 259 (boot310: always SURFACE; no RB rematch kill; post-HID CA)
+
+| boot310 | Image.pth240 | Revert to boot302 always SURFACE + userspace BB kill; disable RB rematch kill; keep 3240/HID probes; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012; **BB_GMD_FORCE** on garbage *out (AutomaticDiskAllocation) → asl-only CA, **0 iohidevent** (regression vs boot306). Disable FORCE. | out/logs/boot310 |
+
+## Chunk 260 (boot311: disable BB_GMD_FORCE; restore clean GMD→HID)
+
+| boot311 | Image.pth241 | Disable BB_GMD_FORCE; keep always SURFACE + userspace BB kill; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST PATH**: early BB BRK after NOTE64→respawn; SURFACE+**SAS_PORT_REAL `0x2e03`**+6001012+**iohidevent/HID_EVT**+clean **BB_GMD_OK**. Wall: **POST_IOMFB_SPIN_POST_SAS** (asl CA only beyond HID). | out/logs/boot311 |
+
+## Chunk 261 (boot312: post-SAS SPIN_FAKE after HID+GMD)
+
+| boot312 | Image.pth242 | Keep boot311 path; SPIN_FAKE×8 only after hid_evt+sas_ok+bb_gmd_ok; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: SURFACE+6001012+HID+GMD but **SAS_OBSERVE null** (BB kill→BRK→respawn→early GMD poison); SPIN_FAKE never armed. Wall still POST_IOMFB_SPIN. | out/logs/boot312 |
+
+## Chunk 262 (boot313: BB_EXIT_CLEAR + SPIN_FAKE on surface|sas)
+
+| boot313 | Image.pth243 | Clear bb_gmd_ok/post_iomfb/hid on BB exit; SPIN_FAKE after hid+gmd+(sas\|surface); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: BB_EXIT_CLEAR ok; SURFACE+HID+GMD; **SPIN_FAKE×8 → BB EXC far=0x4** (harmful); SAS still null. | out/logs/boot313 |
+
+## Chunk 263 (boot314: defer BB_KILL until SAS-null; no SPIN_FAKE)
+
+| boot314 | Image.pth244 | Disable SPIN_FAKE; defer BB_KILL until after SB SAS lookup null; recognize PAC-tagged ports; keep BB_EXIT_CLEAR; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: deferred kill → BB GMD→analytics (sentinel/stack-as-port) **EXC far=0x4** before SURFACE; SAS with no live BB. FB_SAS_POST_SURFACE_REAL (tagged fix) ok; HID+SPIN observe. | out/logs/boot314 |
+
+## Chunk 264 (boot315: restore early BB_KILL + post-GMD analytics FORCE)
+
+| boot315 | Image.pth245 | Restore early BB_KILL (boot311 order); tighten analytics has_port; post-GMD analytics 0x9f+CLEAR not SOFT_OK; no SPIN_FAKE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+HID+**BB_GMD_OK**; **ANALYTICS_POST_GMD_FORCE** (no far=0x4); SAS still null; wall **POST_IOMFB_SPIN**. | out/logs/boot315 |
+
+## Chunk 265 (boot316: SPIN → MACH_SEND_TIMED_OUT after HID+GMD)
+
+| boot316 | Image.pth246 | Keep boot315 path; after hid+gmd+surface return SPIN as 0x10000004 TIMED_OUT×8 (not success); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS_PORT_REAL `0x2d07`**+SURFACE+6001012+early GMD; hid-gated TIMEOUT never fired → **0 HID**/stuck SPIN_POST_SAS. | out/logs/boot316 |
+
+## Chunk 266 (boot317: SPIN_TIMEOUT after surface+(sas|post_iomfb))
+
+| boot317 | Image.pth247 | Drop hid gate on SPIN_TIMEOUT; arm after surface+(sas\|post_iomfb)×12; keep boot315 analytics/kill; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / REGRESS**: early GMD→SPIN then SURFACE; BB **SIGBUS** before SAS/HID; SPIN_TIMEOUT never reached. | out/logs/boot317 |
+
+## Chunk 267 (boot318: kill BB if GMD before SURFACE)
+
+| boot318 | Image.pth248 | On BB_GMD_OK without surface_ok, deadbeef-kill (BB_KILL_PRE_SURFACE_GMD); keep SPIN_TIMEOUT+analytics FORCE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST ORDER**: PRE_SURFACE kill → SURFACE→HID→GMD; **SPIN_TIMEOUT×12 no EXC**; FB_SAS REAL; SAS null; CA still asl; W00T→0x52db (FB) then SPIN. | out/logs/boot318 |
+
+## Chunk 268 (boot319: soft-complete W00T after HID+GMD)
+
+| boot319 | Image.pth249 | Keep boot318 path; after hid+gmd+surface fake-return W00T (0x77303074) success×8; raise SPIN_TIMEOUT×24; T=3000 | qemu11 43G lva=off | **ЧАСТИЧНО**: PRE_SURFACE kill + **SAS_PORT_REAL `0x1b07`**+SURFACE+6001012; gdb killed before HID/W00T_FAKE. Retry boot320. | out/logs/boot319 |
+
+## Chunk 269 (boot320: retry W00T_FAKE full window)
+
+| boot320 | Image.pth250 | Same as boot319 (W00T_FAKE+SPIN_TIMEOUT×24+PRE_SURFACE kill); T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST PATH+**: PRE_SURFACE→SURFACE→**SAS_PORT_REAL `0x3b03`**→6001012→HID→SPIN_TIMEOUT×24→**BB_GMD_OK**→**W00T_FAKE**→IOMFB deferred wake (property/power/resumed/gfx)+XPC388_FAKE. Wall: SB **msgid=3240** flood; no IOMFB sels past GETSIZE; CA asl-only. W00T_FAKE skips real FB send (`remote=0x5087`). | out/logs/boot320 |
+
+## Chunk 270 (boot321: real W00T→FB after HID+GMD)
+
+| boot321 | Image.pth251 | Disable W00T_FAKE; RetBP W00T_RET; keep SPIN_TIMEOUT×24+PRE_SURFACE+SAS path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+HID+**W00T_REAL×4 RET x0=0** (remote=`0x506f`) + GMD + IOMFB wake/repulse; **SAS null** this run. Wall: SPIN_TIMEOUT still forced on **post-W00T** waits → W00T retry + SB 3240; CA asl. | out/logs/boot321 |
+
+## Chunk 271 (boot322: no SPIN_TIMEOUT after first W00T)
+
+| boot322 | Image.pth252 | After w00t_n≥1 let SPIN go real (log POST_W00T_SPIN_REAL); pre-W00T SPIN_TIMEOUT kept; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+6001012+HID+**W00T_RET×4 x0=0**+**SPIN_REAL×8**+IOMFB surface wake/nuc; **SAS null**; early **ANALYTICS_REAL_DROP→EXC far=0x4**; SB 3240; no IOMFB past GETSIZE. | out/logs/boot322 |
+
+## Chunk 272 (boot323: analytics DROP→0x9f + real XPC388 post-W00T)
+
+| boot323 | Image.pth253 | REAL_DROP uses 0x9f (no null-deref); after W00T let XPC388 real; keep SPIN_REAL+W00T_REAL; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++**: **SAS_PORT_REAL `0x250b`**+SURFACE+6001012+HID+W00T_RET×4+SPIN_REAL+**XPC388_REAL RET x0=0x276b**; no far=0x4. Wall: SB 3240 + SB_RECV; BB CPU-burn; no IOMFB past GETSIZE; 0 SAS_MACH. | out/logs/boot323 |
+
+## Chunk 273 (boot324: XPC388_FAKE again + 3240 reply + SAS_MACH)
+
+| boot324 | Image.pth254 | Revert XPC388_FAKE; keep DROP 0x9f; dump SB_3240_RET reply; log SAS_MACH; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: DROP_FORCE_0x9f (no far=0x4); SURFACE+6001012+HID+W00T_RET+SPIN_REAL+XPC388_FAKE; **SAS null** (race vs boot323); 3240 RetBP collide (0 reply); 0 SAS_MACH; wall GETSIZE/3240. | out/logs/boot324 |
+
+## Chunk 274 (boot325: 3240 reply via MACHMSG2_RET; retry SAS race)
+
+| boot325 | Image.pth255 | Fix 3240 reply dump on MACHMSG2_RET; same DROP 0x9f + W00T_REAL + SPIN_REAL + XPC388_FAKE; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST+++**: **SAS_PORT_REAL `0x2807`** + **SAS_MACH W00T** (msgid=`0x77303074`→SAS) + 3240 reply id=`0xd0c` body **`0x2e`/8**; HID+W00T_RET+SPIN_REAL+XPC388_FAKE. Wall: SB stuck after one SAS_MACH; no IOMFB past GETSIZE. | out/logs/boot325 |
+
+## Chunk 275 (boot326: zero 3240 reply 0x2e after SAS)
+
+| boot326 | Image.pth256 | On 3240 RET after sas_ok, patch reply+0x20 0x2e→0; keep BEST+++ path; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS null** → ZERO never armed; 3240 reply still 0x2e. Kill early. | out/logs/boot326 |
+
+## Chunk 276 (boot327: always ZERO 3240 0x2e)
+
+| boot327 | Image.pth257 | Zero 3240+0x20 0x2e always (not only post-SAS); retry SAS race; T=3000 | qemu11 43G lva=off | **ПРОВЕРЕНО**: ZERO×6 `sas=False`; **SAS_OBSERVE v=None**; SURFACE+6001012; no HID/W00T. Wall: SB 3240 poll without SAS. Kill ~28m (не ждать T=3000). | out/logs/boot327 |
+
+## Chunk 277 (boot328: post-SURFACE SAS-null BB kill retry)
+
+| boot328 | Image.pth258 | On SAS null after SURFACE, arm one more userspace BB kill (`BB_KILL_SAS_RETRY`); keep always-ZERO 0x2e; T=3000, poll≤8m kill-at-wall | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SAS_NULL_RETRY_ARMED` + `BB_KILL_SAS_RETRY` + BB SPAWN#184 + HID; **SB never re-looked SAS**; 0 W00T. Kill ~31m. | out/logs/boot328 |
+
+## Chunk 278 (boot329: SB kill after BB retry so SAS re-lookup)
+
+| boot329 | Image.pth259 | After BB_KILL_SAS_RETRY respawn, kill SB once (`SB_KILL_SAS_RELOOKUP`) to force SAS re-lookup; keep ZERO 0x2e; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SB_KILL_SAS_ARMED` ok, but SB stuck in **3240 mach** (no XPC) → kill never fired; ZERO×6 sas=False. Kill ~27m. | out/logs/boot329 |
+
+## Chunk 279 (boot330: SB kill on 3240 MACHMSG2_RET)
+
+| boot330 | Image.pth260 | Kill SB on userspace `MACHMSG2_RET` 3240 when `sb_kill_sas_armed`; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST+++ race**: **SAS_PORT_REAL `0x1b13`** + **SAS_MACH W00T** + ZERO×6 `sas=True`; **0 HID** — SB 3240 flood (~600 traps) starved BB. Kill ~28m. | out/logs/boot330 |
+
+## Chunk 280 (boot331: drop SB 3240 traps after sample)
+
+| boot331 | Image.pth261 | After 6× dump / 4× ZERO on 3240, drop traps; reopen mach window; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `SB_3240_DROP` + **HID_EVT** + BB_KILL_SAS_RETRY + `SB_KILL_SAS_ARMED`; SAS null; DROP blocked 3240 kill. Kill ~26m. | out/logs/boot331 |
+
+## Chunk 281 (boot332: allow 3240 when SB kill armed)
+
+| boot332 | Image.pth262 | Pass 3240 when `sb_kill_sas_armed`; keep DROP otherwise; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: `SB_3240_DROP` (~18 traps) → **HID** → **BB_IOMFB** → GETSIZE → **W00T_REAL×4** → **SPIN_REAL** → XPC388_FAKE. Wall: **0 sels past GETSIZE**. Kill ~26m. | out/logs/boot332 |
+
+## Chunk 282 (boot333: dump IOMFB_GETSIZE out)
+
+| boot333 | Image.pth263 | Dump GETSIZE soutp w/h on RET; keep DROP+HID+W00T path; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE = **u64 2420×1668** (OK). SAS `0x181b`+DROP; **0 HID** — `BB_KILL_PRE_SURFACE_GMD` before SURFACE (boot332: GMD after SURFACE → HID). Kill ~30m. | out/logs/boot333 |
+
+## Chunk 283 (boot334: disable PRE_SURFACE GMD kill)
+
+| boot334 | Image.pth264 | Disable `BB_KILL_PRE_SURFACE_GMD`; keep DROP+ZERO+GETSIZE dump; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: no PRE_SURFACE kill; SAS null → retry → `SB_KILL_SAS_RELOOKUP_3240` → **kernel PC-align PANIC** (deadbeef on MACHMSG2_RET). Kill ~24m. | out/logs/boot334 |
+
+## Chunk 284 (boot335: disable SB kill on 3240 RET)
+
+| boot335 | Image.pth265 | Disable SB 3240 RET kill; PRE_SURFACE kill off; DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE 2420×1668 + GMD kept; **0 SURFACE by 36m**. PRE_SURFACE kill required for SURFACE. Kill ~36m. | out/logs/boot335 |
+
+## Chunk 285 (boot336: restore PRE_SURFACE kill; no SB RET kill)
+
+| boot336 | Image.pth266 | Restore PRE_SURFACE kill; SB RET kill off + DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+**HID**; then `BB_KILL_SAS_RETRY` → BB respawn SPIN, **0 IOMFB**. Kill ~31m. | out/logs/boot336 |
+
+## Chunk 286 (boot337: disable BB_KILL_SAS_RETRY)
+
+| boot337 | Image.pth267 | Disable post-SURFACE SAS-null BB retry kill; keep PRE_SURFACE kill + DROP + no SB RET kill; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE kill + late RB spawn; **0 SURFACE by 35m** (flaky). Kill early. | out/logs/boot337 |
+
+## Chunk 287 (boot338: retry boot337 config)
+
+| boot338 | Image.pth268 | Same as boot337 (no SAS-retry kill, PRE_SURFACE kill on, DROP on, no SB RET kill); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **vnode_put iocount** PANIC (~10m, pre-SURFACE). Retry. | out/logs/boot338 |
+
+## Chunk 288 (boot339: retry after vnode_put panic)
+
+| boot339 | Image.pth269 | Same gdb levers as boot337/338; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: **SAS_PORT_REAL `0x3e03`** + SAS_MACH + DROP sas=True; **0 HID** (~32m). SAS-win ↔ no-HID (vs boot332 null-SAS+HID). | out/logs/boot339 |
+
+## Chunk 289 (boot340: BB kill for HID after SAS+DROP)
+
+| boot340 | Image.pth270 | After 3240 DROP, if sas_ok and no HID, one userspace `BB_KILL_FOR_HID`; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: `BB_KILL_PRE_SURFACE_GMD` **×2** — `bb_kill_pre_surf` cleared on BB_EXIT → kill loop, no SURFACE. Kill ~20m. | out/logs/boot340 |
+
+## Chunk 290 (boot341: keep bb_kill_pre_surf across BB exit)
+
+| boot341 | Image.pth271 | Keep `bb_kill_pre_surf` across BB exit; DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE (no PRE_SURFACE kill); DROP; then `BB_KILL_FOR_SAS` **post-SURFACE** → 0 HID. Kill ~32m. | out/logs/boot341 |
+
+## Chunk 291 (boot342: BB_KILL_FOR_SAS only pre-SURFACE)
+
+| boot342 | Image.pth272 | Gate `BB_KILL_FOR_SAS` on `not surface_ok`; keep other levers; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early SAS kill + SURFACE + DROP; BB alive post-SURFACE; **0 HID/IOMFB** (~34m). Kill early. | out/logs/boot342 |
+
+## Chunk 292 (boot343: retry → boot332 path again)
+
+| boot343 | Image.pth273 | Same as boot342; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: DROP→**HID**→GETSIZE 2420×1668→**W00T_REAL×4**→**SPIN_REAL**→XPC388_FAKE. Wall: **0 IOMFB sels past 8**. Kill ~22m. | out/logs/boot343 |
+
+## Chunk 293 (boot344: post-W00T SPIN_TIMEOUT hybrid)
+
+| boot344 | Image.pth273 | After 2× POST_W00T_SPIN_REAL, TIMED_OUT further SPINs (boot320 unlock + boot332 W00T_REAL); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE kill + SURFACE + SAS_NULL; **0 HID** ~7m post-SURFACE (BB idle/11602). Kill ~25m. Flaky miss of boot332/343 path — hybrid untested. | out/logs/boot344 |
+
+## Chunk 294 (boot345: retry hybrid for HID)
+
+| boot345 | Image.pth273 | Same boot344 hybrid; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → 2nd GMD **before SURFACE** (latch blocked retry) → GETSIZE+XPC388, **0 SURFACE/HID**. Kill ~20m. | out/logs/boot345 |
+
+## Chunk 295 (boot346: PRE_SURFACE kill cap=2)
+
+| boot346 | Image.pth273 | Allow up to 2× BB_KILL_PRE_SURFACE while !surface_ok; keep post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **xpcproxy** SURFACE_CONNECT set surface_ok → no PRE_SURFACE kill, BB sel=17, **0 HID/GMD**. Kill ~24m. | out/logs/boot346 |
+
+## Chunk 296 (boot347: only RB SURFACE counts)
+
+| boot347 | Image.pth273 | Ignore non-runningboardd sel32 for surface_ok; PRE_SURFACE cap=2; post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: RB SURFACE→**HID**→GETSIZE→**W00T_REAL×4**→SPIN_REAL×2→**SPIN_TIMEOUT×24**→XPC388_FAKE. Wall: **0 sels past 8** (TIMEOUT≠unlock). Kill ~26m. | out/logs/boot347 |
+
+## Chunk 297 (boot348: post-W00T SPIN_FAKE_OK)
+
+| boot348 | Image.pth273 | After 2× SPIN_REAL, soft-success x0=0 (not TIMED_OUT) on further SPINs; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 + RB SURFACE + SAS_NULL; **0 HID** ~5m post-SURFACE. Kill ~23m. FAKE_OK untested. | out/logs/boot348 |
+
+## Chunk 298 (boot349: retry SPIN_FAKE_OK)
+
+| boot349 | Image.pth273 | Same boot348; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: RB SURFACE→HID→GETSIZE→W00T_REAL×4→SPIN_REAL×2→**SPIN_FAKE_OK×24**→XPC388. No BB EXC. Wall: **0 sels past 8** (success≠unlock). Kill ~23m. | out/logs/boot349 |
+
+## Chunk 299 (boot350: W00T_FAKE + SPIN_FAKE_OK)
+
+| boot350 | Image.pth273 | W00T_FAKE (skip dead FB send) + SPIN_FAKE_OK; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB SURFACE before GMD (no PRE_SURFACE kill) + SAS_NULL; **0 HID** ~5m. Kill ~26m. W00T_FAKE untested. | out/logs/boot350 |
+
+## Chunk 300 (boot351: retry W00T_FAKE path)
+
+| boot351 | Image.pth273 | Same boot350; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 + RB SURFACE + SAS_NULL + 3240 DROP; **0 HID** (~5m). BB_KILL_FOR_HID skipped (needed sas_ok). Kill ~21m. | out/logs/boot351 |
+
+## Chunk 301 (boot352: BB_KILL_FOR_HID without sas_ok)
+
+| boot352 | Image.pth273 | After SURFACE+3240 DROP, kill BB once if no HID (drop sas_ok gate); keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: RB SURFACE + DROP×2; **BB_KILL_FOR_HID never fired** (BB stuck in peeks, no XPC). Kill ~24m. | out/logs/boot352 |
+
+## Chunk 302 (boot353: HID kill on BB mach after DROP)
+
+| boot353 | Image.pth273 | BB_KILL_FOR_HID on BB mach after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE + RB SURFACE + DROP; **0 BB traps after SURFACE** → mach HID kill never ran (kernel pc). Kill ~25m. | out/logs/boot353 |
+
+## Chunk 303 (boot354: HID kill on IOEXTMETHOD RetBP)
+
+| boot354 | Image.pth273 | BB_KILL_FOR_HID via RetBP2 on BB IOEXTMETHOD after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE + RB SURFACE + **SAS_PORT_REAL** + DROP sas=True; BB mach-peeking but **0 HID** / no IOEXTMETHOD → RetBP kill never armed. Kill ~24m. | out/logs/boot354 |
+
+## Chunk 304 (boot355: HID kill via saved userspace PC)
+
+| boot355 | Image.pth273 | After SURFACE+DROP, patch BB trap-frame upc to deadbeef; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_PORT_REAL + DROP → **MACH_UPC kill on W00T** (worked) → BB respawn; **0 HID** ~6m. Kill ~26m. | out/logs/boot355 |
+
+## Chunk 305 (boot356: MACH_UPC kill only on idle peeks)
+
+| boot356 | Image.pth273 | MACH_UPC HID kill only msgid 0/3228/11602 (not W00T); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×2 → RB SURFACE + SAS_PORT_REAL + DROP; **BB silent after spawn#3** (SOURCE_ATTACH only, 0 mach) → HID kill never armed. Kill ~32m. | out/logs/boot356 |
+
+## Chunk 306 (boot357: drop SB 3240 until BB posts mach)
+
+| boot357 | Image.pth273 | After SURFACE, drop SB 3240 until BB any mach (anti-starve); keep idle MACH_UPC HID kill; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО BEST++++**: PRE_SURFACE×1 → BB_POST_SURF_MACH → SAS_PORT_REAL → **HID** → GETSIZE → W00T_FAKE + SPIN_FAKE_OK + XPC388_FAKE; **17× SPIN_TIMEOUT pre-W00T (hid=True)**; wall **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot357 |
+
+## Chunk 307 (boot358: no SPIN_TIMEOUT after HID)
+
+| boot358 | Image.pth273 | Skip SPIN_TIMEOUT once hid_evt_seen (keep post-W00T FAKE_OK); keep BB_POST_SURF_MACH 3240 drop; W00T_FAKE; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE before GMD (no PRE_SURFACE) → **SAS_NULL** → DROP → MACH_UPC HID kill → BB respawn + BB_POST_SURF_MACH; **0 HID** ~8m. SPIN_TIMEOUT skip untested (no HID). Kill ~30m. | out/logs/boot358 |
+
+## Chunk 308 (boot359: re-enable SAS_NULL BB retry pre-HID)
+
+| boot359 | Image.pth273 | BB_KILL_SAS_RETRY on SAS_NULL after SURFACE if !hid; keep no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early SAS_PORT_REAL **before** SURFACE set post_surf_mach → PRE_SURFACE×1 → **0 RB SURFACE** ~8m. Kill ~25m. | out/logs/boot359 |
+
+## Chunk 309 (boot360: SAS reopen without post_surf_mach)
+
+| boot360 | Image.pth273 | post-SAS mach reopen does NOT set post_surf_mach (SURFACE-only); keep SAS_NULL retry + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → SURFACE → SAS_NULL → **BB_KILL_SAS_RETRY MACH_UPC** + SB_KILL_ARMED; SB stuck in 3240 (no XPC kill) → **0 HID**. Kill ~22m. | out/logs/boot360 |
+
+## Chunk 310 (boot361: SB SAS relookup via MACH_UPC on 3240)
+
+| boot361 | Image.pth273 | When SB_KILL_SAS armed, MACH_UPC-kill SB on msgid 3240; keep boot360 SAS/SURFACE fixes; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE → SAS_RETRY MACH_UPC → **BB_KILL_FOR_HID too early** (post-retry) → SB_KILL_RELOOKUP ×2; **0 HID**. Kill ~26m. | out/logs/boot361 |
+
+## Chunk 311 (boot362: defer HID kill until after SB SAS relookup)
+
+| boot362 | Image.pth273 | BB_KILL_FOR_HID only after SB relookup if SAS_RETRY ran; keep SB MACH_UPC + anti-starve; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_RETRY + SB MACH_UPC relookup worked; SB respawn; **0 SAS/HID** ~6m. Kill ~29m. | out/logs/boot362 |
+
+## Chunk 312 (boot363: back to boot357 recipe — no SAS_NULL kill chain)
+
+| boot363 | Image.pth273 | Disable SAS_NULL BB/SB kill; keep anti-starve 3240 + no SPIN_TIMEOUT after HID + no post_surf on early SAS; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО BEST++++**: PRE_SURFACE×1 → SURFACE → BB_POST → **SAS_PORT_REAL → HID → GETSIZE → W00T_FAKE + SPIN_FAKE_OK + XPC388**; **0 SPIN_TIMEOUT** (boot358); wall still **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot363 |
+
+## Chunk 313 (boot364: W00T_REAL without pre-HID SPIN_TIMEOUT)
+
+| boot364 | Image.pth273 | W00T_REAL (no FAKE) + no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **vnode_put iocount** PANIC ~8m (pre-SURFACE). | out/logs/boot364 |
+
+## Chunk 314 (boot365: retry W00T_REAL after vnode_put)
+
+| boot365 | Image.pth273 | Same boot364 (W00T_REAL + no SPIN_TIMEOUT after HID); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE before GMD (no PRE_SURFACE) → HID → DROP → BB_KILL_FOR_HID → respawn; **0 SAS_PORT / 0 GETSIZE / 0 second HID**. Kill ~29m. W00T_REAL untested. | out/logs/boot365 |
+
+## Chunk 315 (boot366: retry boot363 path for W00T_REAL)
+
+| boot366 | Image.pth273 | Same W00T_REAL + anti-starve + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → SURFACE → HID → GETSIZE → **W00T_REAL**×4 + SPIN_FAKE_OK + XPC388; wall still **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot366 |
+
+## Chunk 316 (boot367: all-real SPIN after W00T)
+
+| boot367 | Image.pth273 | Disable SPIN_FAKE_OK; keep W00T_REAL + no SPIN_TIMEOUT after HID + anti-starve; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **NULL ni_vp** PANIC ~8m. | out/logs/boot367 |
+
+## Chunk 317 (boot368: retry all-real SPIN)
+
+| boot368 | Image.pth273 | Same boot367 (W00T_REAL + all-real post-W00T SPIN); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → locationd SURFACE only; **0 RB SURFACE / 0 HID** ~8m. Kill ~24m. All-real SPIN untested. | out/logs/boot368 |
+
+## Chunk 318 (boot369: restore SPIN_FAKE_OK; retry HID→GETSIZE)
+
+| boot369 | Image.pth273 | Restore SPIN_FAKE_OK (boot366 winner path); W00T_REAL + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: xpcproxy SURFACE + early **SAS_PORT_REAL**; **0 RB SURFACE / 0 HID** ~6m. Kill ~26m. | out/logs/boot369 |
+
+## Chunk 319 (boot370: retry boot366 HID→GETSIZE)
+
+| boot370 | Image.pth273 | Same boot366/369 config (W00T_REAL + SPIN_FAKE_OK + no SPIN_TIMEOUT after HID + anti-starve); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → RB SURFACE → HID → GETSIZE → W00T_REAL×4 + SPIN_FAKE_OK; wall **0 sels past GETSIZE**. Kill ~23m. | out/logs/boot370 |
+
+## Chunk 320 (boot371: RetBP dump W00T_REAL x0)
+
+| boot371 | Image.pth273 | RetBP on W00T_REAL to log return x0; keep boot370 path; short poll | qemu11 43G lva=off | PRE_SURFACE×1 → RB SURFACE → SAS_OBSERVE → DROP before HID → **BB_KILL_FOR_HID** → BB respawn surface_ok=True but **0 HID** (stuck 11602). Kill@~27m. Race vs boot370 (HID@+550, no kill). | out/logs/boot371 |
+
+## Chunk 321 (boot372: defer HID kill for natural HID)
+
+| boot372 | Image.pth273 | HID kill only after drop_3240_n≥40 (boot371 early kill blocked natural HID); keep W00T_RET dump; short poll / kill-at-wall | qemu11 43G lva=off | **ПРОВЕРЕНО**: defer worked — PRE_SURFACE×1 → SURFACE → **HID** (no kill) → GETSIZE → W00T_REAL×4 + SPIN_FAKE_OK×24; RetBP2 W00T_RET missed (PAC); wall **0 sels past GETSIZE**. Kill@~19m. | out/logs/boot372 |
+
+## Chunk 322 (boot373: post-GETSIZE real SPIN + W00T_RET via MACHMSG2_RET)
+
+| boot373 | Image.pth273 | After HID+GETSIZE let SPINs complete real (no FAKE_OK); log W00T x0 on MACHMSG2_RET; keep HID-kill defer; short poll | qemu11 43G lva=off | FB_SAS_REAL → SURFACE → DROP flooded to n≥40 before HID → **BB_KILL_FOR_HID** again. Kill@~21m. post-GETSIZE SPIN lever untested. | out/logs/boot373 |
+
+## Chunk 323 (boot374: disable HID kill entirely)
+
+| boot374 | Image.pth273 | No BB_KILL_FOR_HID (boot372 natural HID; boot373 DROP@40 still raced); keep post-GETSIZE real SPIN + W00T_RET; short poll | qemu11 43G lva=off | PRE_SURFACE×1 → BB respawn nearly silent (1×11602) → SURFACE → SAS_PORT_REAL → DROP bb_mach=False → ReportCrash backboardd; **0 HID**. Kill@~23m. Flaky vs boot372. | out/logs/boot374 |
+
+## Chunk 324 (boot375: retry no-HID-kill + post-GETSIZE real SPIN)
+
+| boot375 | Image.pth273 | Same boot374 levers (no HID kill; post-GETSIZE real SPIN; W00T_RET); short poll / kill-at-wall | qemu11 43G lva=off | SURFACE → early SB 3240 MIG → DROP before HID → **0 HID** (BB alive). boot372 had HID before any 3240 MIG. Kill@~26m. | out/logs/boot375 |
+
+## Chunk 325 (boot376: drop SB 3240 until HID)
+
+| boot376 | Image.pth273 | Hold SB 3240 DROP until hid_evt_seen (boot372 path); no HID kill; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | PRE_SURFACE → SURFACE → BB init (4811/HIDPROP) → idle 11602; **0 iohideventsystem.available**. 3240 held (hid=False). Kill@~27m. | out/logs/boot376 |
+
+## Chunk 326 (boot377: late HID kill after held 3240×100)
+
+| boot377 | Image.pth273 | Keep 3240-until-HID; BB_KILL_FOR_HID at drop_n≥100; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | SURFACE → 3240 held; few 3240s so drop_n never hit 100; **0 HID**, no kill. Kill@~22m. | out/logs/boot377 |
+
+## Chunk 327 (boot378: HID kill after 80 BB idle peeks)
+
+| boot378 | Image.pth273 | Kill BB after 80 post-SURFACE idle peeks (0/3228/11602) without HID; keep 3240-until-HID; post-GETSIZE real SPIN; short poll | qemu11 43G lva=off | **STOPPED** (user halt; merge conflict with base resolved) | out/logs/boot378 |
+
+
+## Remaining (stop @ boot378)
+
+Best path so far: **boot372** — PRE_SURFACE→SURFACE→natural HID→GETSIZE→W00T_REAL; wall = **0 IOMFB sels past GETSIZE**.
+
+Still open:
+1. Past-GETSIZE: next IOMFB sel / swap / layer after GETSIZE (SPIN_FAKE_OK vs real; W00T peer x0).
+2. Stable HID: `iohideventsystem.available` is flaky (3240 race / idle BB); boot378 idle-peek kill untested.
+3. CA/SpringBoard UI once past GETSIZE wall.
+4. Merge base was `cursor/lsd-persona-wall-c975` — conflict resolved keeping PR #43 HEAD levers.
