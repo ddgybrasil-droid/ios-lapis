@@ -1415,11 +1415,17 @@ def _ufn(n):
                 # userspace BB kill so HID path can republish.
                 # boot351: gated on sas_ok → miss when SAS_NULL + DROP + 0 HID
                 # (348/350/351). Allow after SURFACE regardless of sas.
+                # boot362: after SAS_RETRY, BB_EXIT clears bb_post_surf_mach →
+                # instant 3240 DROP → HID kill murders the fresh BB before
+                # SB relookup (boot361). Wait until SB relookup done (or no
+                # SAS-retry this boot).
                 if (pn == 'backboardd'
                         and _mm2.get('drop_3240_n')
                         and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
-                        and not _mm2.get('bb_kill_for_hid')):
+                        and not _mm2.get('bb_kill_for_hid')
+                        and (not _mm2.get('bb_kill_sas_retry')
+                             or _mm2.get('sb_kill_sas_relookup'))):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_hid'] = 1
@@ -1652,12 +1658,15 @@ def on_external_method():
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
         # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
+        # boot362: defer while SAS-retry awaits SB relookup.
         if ('backboard' in pn0.lower()
                 and _mm2.get('drop_3240_n')
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')
-                and not _mm2.get('bb_hid_kill_retbp')):
+                and not _mm2.get('bb_hid_kill_retbp')
+                and (not _mm2.get('bb_kill_sas_retry')
+                     or _mm2.get('sb_kill_sas_relookup'))):
             try:
                 lr = r('x30') & 0xffffffffffffffff
                 if lr < 0xffff000000000000:
@@ -2186,11 +2195,14 @@ def on_mach_msg2():
             and not _mm2.get('bb_kill_sas_retry')
             and not _mm2.get('sas_ok')
             and not _mm2.get('hid_evt_seen'))
+        # boot362: same gate as XPC HID kill — don't murder BB mid SAS-retry.
         _hid_kill_mach = (
             _mm2.get('drop_3240_n')
             and _mm2.get('surface_ok')
             and not _mm2.get('hid_evt_seen')
-            and not _mm2.get('bb_kill_for_hid'))
+            and not _mm2.get('bb_kill_for_hid')
+            and (not _mm2.get('bb_kill_sas_retry')
+                 or _mm2.get('sb_kill_sas_relookup')))
         if ('backboard' in (pn0 or '').lower()
                 and msgid in (0, 3228, 11602)
                 and (_sas_retry_mach or _hid_kill_mach)):

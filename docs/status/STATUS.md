@@ -1825,5 +1825,9 @@ Image.pth74.
 
 ## Chunk 310 (boot361: SB SAS relookup via MACH_UPC on 3240)
 
-| boot361 | Image.pth273 | When SB_KILL_SAS armed, MACH_UPC-kill SB on msgid 3240; keep boot360 SAS/SURFACE fixes; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot361 |
+| boot361 | Image.pth273 | When SB_KILL_SAS armed, MACH_UPC-kill SB on msgid 3240; keep boot360 SAS/SURFACE fixes; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE → SAS_RETRY MACH_UPC → **BB_KILL_FOR_HID too early** (post-retry) → SB_KILL_RELOOKUP ×2; **0 HID**. Kill ~26m. | out/logs/boot361 |
+
+## Chunk 311 (boot362: defer HID kill until after SB SAS relookup)
+
+| boot362 | Image.pth273 | BB_KILL_FOR_HID only after SB relookup if SAS_RETRY ran; keep SB MACH_UPC + anti-starve; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot362 |
 
