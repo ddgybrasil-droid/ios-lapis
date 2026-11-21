@@ -1833,5 +1833,9 @@ Image.pth74.
 
 ## Chunk 312 (boot363: back to boot357 recipe — no SAS_NULL kill chain)
 
-| boot363 | Image.pth273 | Disable SAS_NULL BB/SB kill; keep anti-starve 3240 + no SPIN_TIMEOUT after HID + no post_surf on early SAS; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot363 |
+| boot363 | Image.pth273 | Disable SAS_NULL BB/SB kill; keep anti-starve 3240 + no SPIN_TIMEOUT after HID + no post_surf on early SAS; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО BEST++++**: PRE_SURFACE×1 → SURFACE → BB_POST → **SAS_PORT_REAL → HID → GETSIZE → W00T_FAKE + SPIN_FAKE_OK + XPC388**; **0 SPIN_TIMEOUT** (boot358); wall still **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot363 |
+
+## Chunk 313 (boot364: W00T_REAL without pre-HID SPIN_TIMEOUT)
+
+| boot364 | Image.pth273 | W00T_REAL (no FAKE) + no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot364 |
 

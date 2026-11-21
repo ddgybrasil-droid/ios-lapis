@@ -2219,12 +2219,11 @@ def on_mach_msg2():
                         _uframes('POST_IOMFB_W00T_U', 'n=%d' % _mm2['w00t_n'])
                     except Exception as e:
                         P('W00T_U err=%r' % e)
-            # boot179: early W00T_FAKE → respawn. boot318: W00T→FB port then
-            # SPIN. boot320: W00T_FAKE after HID+GMD. boot321–349: W00T_REAL
-            # + SPIN TIMEOUT/FAKE_OK → still 0 sels past GETSIZE (boot349 even
-            # with SAS_PORT_REAL). boot350: FAKE W00T again (skip send to
-            # likely-dead FB peer) while keeping SPIN_FAKE_OK + RB SURFACE.
-            if (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+            # boot179: early W00T_FAKE → respawn. boot321–349: W00T_REAL +
+            # SPIN TIMEOUT/FAKE_OK → 0 sels past GETSIZE. boot350–363:
+            # W00T_FAKE same wall. boot364: REAL (return False keeps PC on
+            # trap so send runs; FAKE diverted pc=lr). No SPIN_TIMEOUT after HID.
+            if False and (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
                     and _mm2.get('surface_ok')
                     and 'backboard' in pn0.lower()
                     and _mm2.get('w00t_ret_n', 0) < 4):
@@ -2236,6 +2235,13 @@ def on_mach_msg2():
                         _mm2['w00t_ret_n'], remote, msgid))
                 except Exception as ew:
                     P('POST_SAS_W00T_FAKE_ERR=%r' % ew)
+            elif (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
+                    and _mm2.get('surface_ok')
+                    and 'backboard' in pn0.lower()
+                    and _mm2.get('w00t_ret_n', 0) < 4):
+                _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
+                P('POST_SAS_W00T_REAL n=%d remote=%#x msgid=%#x' % (
+                    _mm2['w00t_ret_n'], remote, msgid))
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
