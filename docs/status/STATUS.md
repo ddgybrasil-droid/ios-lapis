@@ -1721,5 +1721,9 @@ Image.pth74.
 
 ## Chunk 284 (boot335: disable SB kill on 3240 RET)
 
-| boot335 | Image.pth265 | Disable `SB_KILL_SAS_RELOOKUP_3240` (panic); keep PRE_SURFACE kill off + DROP (boot332 path); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: survive to HID→W00T without SB/kernel panic. | out/logs/boot335 |
+| boot335 | Image.pth265 | Disable SB 3240 RET kill; PRE_SURFACE kill off; DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: GETSIZE 2420×1668 + GMD kept; **0 SURFACE by 36m**. PRE_SURFACE kill required for SURFACE. Kill ~36m. | out/logs/boot335 |
+
+## Chunk 285 (boot336: restore PRE_SURFACE kill; no SB RET kill)
+
+| boot336 | Image.pth266 | Restore `BB_KILL_PRE_SURFACE_GMD`; keep SB 3240 RET kill disabled + DROP; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SURFACE again; DROP→HID like boot331/332 without panic. | out/logs/boot336 |
 
