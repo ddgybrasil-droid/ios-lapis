@@ -1729,5 +1729,9 @@ Image.pth74.
 
 ## Chunk 286 (boot337: disable BB_KILL_SAS_RETRY)
 
-| boot337 | Image.pth267 | Disable post-SURFACE SAS-null BB retry kill; keep PRE_SURFACE kill + DROP + no SB RET kill; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: keep HID BB alive → IOMFB/W00T like boot332. | out/logs/boot337 |
+| boot337 | Image.pth267 | Disable post-SURFACE SAS-null BB retry kill; keep PRE_SURFACE kill + DROP + no SB RET kill; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE kill + late RB spawn; **0 SURFACE by 35m** (flaky). Kill early. | out/logs/boot337 |
+
+## Chunk 287 (boot338: retry boot337 config)
+
+| boot338 | Image.pth268 | Same as boot337 (no SAS-retry kill, PRE_SURFACE kill on, DROP on, no SB RET kill); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: reproduce boot332 HID→W00T without post-SURFACE BB kill. | out/logs/boot338 |
 
