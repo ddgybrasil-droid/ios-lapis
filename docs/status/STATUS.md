@@ -1853,5 +1853,9 @@ Image.pth74.
 
 ## Chunk 317 (boot368: retry all-real SPIN)
 
-| boot368 | Image.pth273 | Same boot367 (W00T_REAL + all-real post-W00T SPIN); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot368 |
+| boot368 | Image.pth273 | Same boot367 (W00T_REAL + all-real post-W00T SPIN); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → locationd SURFACE only; **0 RB SURFACE / 0 HID** ~8m. Kill ~24m. All-real SPIN untested. | out/logs/boot368 |
+
+## Chunk 318 (boot369: restore SPIN_FAKE_OK; retry HID→GETSIZE)
+
+| boot369 | Image.pth273 | Restore SPIN_FAKE_OK (boot366 winner path); W00T_REAL + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot369 |
 

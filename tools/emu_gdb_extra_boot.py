@@ -2331,15 +2331,14 @@ def on_mach_msg2():
             # those 2 REAL, soft-success (x0=0) instead of TIMED_OUT — BB may
             # treat timeout as failed notify and skip display setup. Cap 24.
             # (earlier SPIN_FAKE without HID→EXC; now gated on W00T+surface.)
-            # boot367: boot366 W00T_REAL + SPIN_FAKE_OK still 0 sels past
-            # GETSIZE. After W00T let SPINs be fully real (no FAKE_OK). Keep
-            # no SPIN_TIMEOUT once HID is up.
+            # boot369: restore boot366 SPIN_FAKE_OK (boot367–368 never hit
+            # HID; 0 RB SURFACE). Keep no SPIN_TIMEOUT after HID + W00T_REAL.
             if (_mm2.get('w00t_n', 0) >= 1
-                    and _mm2.get('spin_post_w00t_n', 0) < 24):
+                    and _mm2.get('spin_post_w00t_n', 0) < 2):
                 _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
                 P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
                     _mm2['spin_post_w00t_n'], remote, local))
-            elif False and (_mm2.get('w00t_n', 0) >= 1
+            elif (_mm2.get('w00t_n', 0) >= 1
                     and _mm2.get('surface_ok')
                     and _mm2.get('spin_fake_ok_n', 0) < 24):
                 _mm2['spin_fake_ok_n'] = _mm2.get('spin_fake_ok_n', 0) + 1
