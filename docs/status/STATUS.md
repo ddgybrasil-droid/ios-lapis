@@ -1733,5 +1733,9 @@ Image.pth74.
 
 ## Chunk 287 (boot338: retry boot337 config)
 
-| boot338 | Image.pth268 | Same as boot337 (no SAS-retry kill, PRE_SURFACE kill on, DROP on, no SB RET kill); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: reproduce boot332 HID→W00T without post-SURFACE BB kill. | out/logs/boot338 |
+| boot338 | Image.pth268 | Same as boot337 (no SAS-retry kill, PRE_SURFACE kill on, DROP on, no SB RET kill); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **vnode_put iocount** PANIC (~10m, pre-SURFACE). Retry. | out/logs/boot338 |
+
+## Chunk 288 (boot339: retry after vnode_put panic)
+
+| boot339 | Image.pth269 | Same gdb levers as boot337/338; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: avoid early vnode panic; reach boot332 HID→W00T. | out/logs/boot339 |
 
