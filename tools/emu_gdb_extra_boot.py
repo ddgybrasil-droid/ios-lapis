@@ -1411,18 +1411,20 @@ def _ufn(n):
                             P('BB_KILL_FOR_SAS_ERR=%r' % ek)
                         return False
                 # boot340: SAS-win boots (339) get DROP but 0 HID; null-SAS
-                # (332) get HID. After 3240 DROP, if sas_ok and still no HID,
-                # one userspace BB kill so HID path can republish.
+                # (332) get HID. After 3240 DROP, if still no HID, one
+                # userspace BB kill so HID path can republish.
+                # boot351: gated on sas_ok → miss when SAS_NULL + DROP + 0 HID
+                # (348/350/351). Allow after SURFACE regardless of sas.
                 if (pn == 'backboardd'
                         and _mm2.get('drop_3240_n')
-                        and _mm2.get('sas_ok')
+                        and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
                         and not _mm2.get('bb_kill_for_hid')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_hid'] = 1
-                        P('BB_KILL_FOR_HID post-DROP sas-no-hid name=%r pc=%#x' % (
-                            name, pc))
+                        P('BB_KILL_FOR_HID post-DROP no-hid name=%r pc=%#x sas=%s' % (
+                            name, pc, bool(_mm2.get('sas_ok'))))
                         try:
                             gdb.execute('set $pc = 0xdeadbeef', to_string=True)
                         except Exception as ek:

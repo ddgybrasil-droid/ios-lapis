@@ -1785,5 +1785,9 @@ Image.pth74.
 
 ## Chunk 300 (boot351: retry W00T_FAKE path)
 
-| boot351 | Image.pth273 | Same boot350; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot351 |
+| boot351 | Image.pth273 | Same boot350; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 + RB SURFACE + SAS_NULL + 3240 DROP; **0 HID** (~5m). BB_KILL_FOR_HID skipped (needed sas_ok). Kill ~21m. | out/logs/boot351 |
+
+## Chunk 301 (boot352: BB_KILL_FOR_HID without sas_ok)
+
+| boot352 | Image.pth273 | After SURFACE+3240 DROP, kill BB once if no HID (drop sas_ok gate); keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot352 |
 
