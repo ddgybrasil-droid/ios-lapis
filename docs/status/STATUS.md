@@ -1865,5 +1865,9 @@ Image.pth74.
 
 ## Chunk 320 (boot371: RetBP dump W00T_REAL x0)
 
-| boot371 | Image.pth273 | RetBP on W00T_REAL to log return x0; keep boot370 path; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot371 |
+| boot371 | Image.pth273 | RetBP on W00T_REAL to log return x0; keep boot370 path; short poll | qemu11 43G lva=off | PRE_SURFACE×1 → RB SURFACE → SAS_OBSERVE → DROP before HID → **BB_KILL_FOR_HID** → BB respawn surface_ok=True but **0 HID** (stuck 11602). Kill@~27m. Race vs boot370 (HID@+550, no kill). | out/logs/boot371 |
+
+## Chunk 321 (boot372: defer HID kill for natural HID)
+
+| boot372 | Image.pth273 | HID kill only after drop_3240_n≥40 (boot371 early kill blocked natural HID); keep W00T_RET dump; short poll / kill-at-wall | qemu11 43G lva=off | **RUNNING** | out/logs/boot372 |
 

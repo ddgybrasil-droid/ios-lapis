@@ -1415,8 +1415,10 @@ def _ufn(n):
                 # userspace BB kill so HID path can republish.
                 # boot351: gated on sas_ok → miss when SAS_NULL + DROP + 0 HID
                 # (348/350/351). Allow after SURFACE regardless of sas.
+                # boot372: defer until drop_n>=40 — boot371 DROP@+500 killed BB
+                # before natural HID (boot370 HID@+550, no kill → GETSIZE).
                 if (pn == 'backboardd'
-                        and _mm2.get('drop_3240_n')
+                        and _mm2.get('drop_3240_n', 0) >= 40
                         and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
                         and not _mm2.get('bb_kill_for_hid')):
@@ -1652,8 +1654,9 @@ def on_external_method():
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
         # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
+        # boot372: same defer as MACH_UPC — drop_n>=40 before arming.
         if ('backboard' in pn0.lower()
-                and _mm2.get('drop_3240_n')
+                and _mm2.get('drop_3240_n', 0) >= 40
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')
@@ -2157,8 +2160,9 @@ def on_mach_msg2():
         # userspace PC so return→EXC. boot355 killed on SAS W00T (0x77303074)
         # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
         # boot363: SAS_NULL MACH_UPC retry disabled (boot359–362 no HID).
+        # boot372: defer kill — early DROP raced ahead of natural HID.
         _hid_kill_mach = (
-            _mm2.get('drop_3240_n')
+            _mm2.get('drop_3240_n', 0) >= 40
             and _mm2.get('surface_ok')
             and not _mm2.get('hid_evt_seen')
             and not _mm2.get('bb_kill_for_hid'))
