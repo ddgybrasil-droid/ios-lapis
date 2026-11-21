@@ -1757,5 +1757,9 @@ Image.pth74.
 
 ## Chunk 293 (boot344: post-W00T SPIN_TIMEOUT hybrid)
 
-| boot344 | Image.pth273 | After 2× POST_W00T_SPIN_REAL, TIMED_OUT further SPINs (boot320 unlock + boot332 W00T_REAL); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot344 |
+| boot344 | Image.pth273 | After 2× POST_W00T_SPIN_REAL, TIMED_OUT further SPINs (boot320 unlock + boot332 W00T_REAL); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE kill + SURFACE + SAS_NULL; **0 HID** ~7m post-SURFACE (BB idle/11602). Kill ~25m. Flaky miss of boot332/343 path — hybrid untested. | out/logs/boot344 |
+
+## Chunk 294 (boot345: retry hybrid for HID)
+
+| boot345 | Image.pth273 | Same boot344 hybrid; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **RUNNING** | out/logs/boot345 |
 
