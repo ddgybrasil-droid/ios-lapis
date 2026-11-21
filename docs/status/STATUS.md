@@ -1769,5 +1769,9 @@ Image.pth74.
 
 ## Chunk 296 (boot347: only RB SURFACE counts)
 
-| boot347 | Image.pth273 | Ignore non-runningboardd sel32 for surface_ok; PRE_SURFACE cap=2; post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot347 |
+| boot347 | Image.pth273 | Ignore non-runningboardd sel32 for surface_ok; PRE_SURFACE cap=2; post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: RB SURFACE→**HID**→GETSIZE→**W00T_REAL×4**→SPIN_REAL×2→**SPIN_TIMEOUT×24**→XPC388_FAKE. Wall: **0 sels past 8** (TIMEOUT≠unlock). Kill ~26m. | out/logs/boot347 |
+
+## Chunk 297 (boot348: post-W00T SPIN_FAKE_OK)
+
+| boot348 | Image.pth273 | After 2× SPIN_REAL, soft-success x0=0 (not TIMED_OUT) on further SPINs; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot348 |
 

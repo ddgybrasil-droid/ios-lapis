@@ -2243,27 +2243,37 @@ def on_mach_msg2():
             # boot321: real W00T_RET x0=0 to FB, but SPIN_TIMEOUT still fired
             # on post-W00T notify-waits → W00T retry storm + 3240 wall.
             # boot322: only TIMED_OUT pre-W00T; after first W00T let SPINs real.
-            # boot344: boot332/343 W00T_REAL+SPIN_REAL wall = 0 sels past
-            # GETSIZE; boot320 SPIN_TIMEOUT unlocked sel progress. Hybrid:
-            # first 2 post-W00T SPINs real (let FB notify land), then TIMEOUT
-            # again so BB can leave the wait and call further IOMFB sels.
+            # boot344/347: first 2 post-W00T SPINs real; then TIMED_OUT →
+            # still 0 sels past GETSIZE (same wall as boot332). boot348: after
+            # those 2 REAL, soft-success (x0=0) instead of TIMED_OUT — BB may
+            # treat timeout as failed notify and skip display setup. Cap 24.
+            # (earlier SPIN_FAKE without HID→EXC; now gated on W00T+surface.)
             if (_mm2.get('w00t_n', 0) >= 1
                     and _mm2.get('spin_post_w00t_n', 0) < 2):
                 _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
                 P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
                     _mm2['spin_post_w00t_n'], remote, local))
+            elif (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('surface_ok')
+                    and _mm2.get('spin_fake_ok_n', 0) < 24):
+                _mm2['spin_fake_ok_n'] = _mm2.get('spin_fake_ok_n', 0) + 1
+                try:
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_W00T_SPIN_FAKE_OK n=%d remote=%#x hid=%s' % (
+                        _mm2['spin_fake_ok_n'], remote,
+                        bool(_mm2.get('hid_evt_seen'))))
+                except Exception as ef:
+                    P('POST_W00T_SPIN_FAKE_OK_ERR=%r' % ef)
             elif (_mm2.get('surface_ok')
-                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb')
-                         or _mm2.get('w00t_n', 0) >= 1)
+                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
                     and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
                 try:
                     gdb.execute('set $x0 = 0x10000004', to_string=True)
                     gdb.execute('set $pc = $x30', to_string=True)
-                    tag = ('POST_W00T_SPIN_TIMEOUT' if _mm2.get('w00t_n', 0) >= 1
-                           else 'POST_SAS_SPIN_TIMEOUT')
-                    P('%s n=%d remote=%#x sas=%s hid=%s' % (
-                        tag, _mm2['spin_timeout_n'], remote,
+                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x sas=%s hid=%s' % (
+                        _mm2['spin_timeout_n'], remote,
                         bool(_mm2.get('sas_ok')),
                         bool(_mm2.get('hid_evt_seen'))))
                 except Exception as ef:
@@ -2446,7 +2456,7 @@ def on_prepexit():
                       'post_spin_uf', 'note64_pre_gmd_uf', 'hid_evt_seen',
                       'xpc388_n', 'w00t_n',
                       'spin_timeout_n', 'w00t_fake_n', 'w00t_ret_n',
-                      'spin_post_w00t_n'):
+                      'spin_post_w00t_n', 'spin_fake_ok_n'):
                 if _mm2.pop(k, None) is not None:
                     cleared.append(k)
             if cleared:
