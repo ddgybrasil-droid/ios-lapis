@@ -1861,5 +1861,9 @@ Image.pth74.
 
 ## Chunk 319 (boot370: retry boot366 HID→GETSIZE)
 
-| boot370 | Image.pth273 | Same boot366/369 config (W00T_REAL + SPIN_FAKE_OK + no SPIN_TIMEOUT after HID + anti-starve); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot370 |
+| boot370 | Image.pth273 | Same boot366/369 config (W00T_REAL + SPIN_FAKE_OK + no SPIN_TIMEOUT after HID + anti-starve); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → RB SURFACE → HID → GETSIZE → W00T_REAL×4 + SPIN_FAKE_OK; wall **0 sels past GETSIZE**. Kill ~23m. | out/logs/boot370 |
+
+## Chunk 320 (boot371: RetBP dump W00T_REAL x0)
+
+| boot371 | Image.pth273 | RetBP on W00T_REAL to log return x0; keep boot370 path; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot371 |
 

@@ -2242,6 +2242,23 @@ def on_mach_msg2():
                 _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
                 P('POST_SAS_W00T_REAL n=%d remote=%#x msgid=%#x' % (
                     _mm2['w00t_ret_n'], remote, msgid))
+                # boot371: dump real W00T return — boot370 hit GETSIZE wall
+                # with W00T_REAL but never logged x0 (peer may be dead).
+                try:
+                    lr = r('x30') & 0xffffffffffffffff
+                    nret = _mm2['w00t_ret_n']
+
+                    def _w00t_ret(n=nret, rem=remote, mid=msgid):
+                        try:
+                            P('POST_SAS_W00T_RET n=%d remote=%#x msgid=%#x x0=%#x' % (
+                                n, rem, mid, r('x0') & 0xffffffffffffffff))
+                        except Exception as er:
+                            P('POST_SAS_W00T_RET_ERR=%r' % er)
+                        return False
+                    if lr and lr < 0xffff000000000000:
+                        RetBP2(lr, _w00t_ret)
+                except Exception as ew:
+                    P('POST_SAS_W00T_RETBP_ERR=%r' % ew)
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
