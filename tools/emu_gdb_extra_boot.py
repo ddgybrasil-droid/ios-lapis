@@ -1434,8 +1434,9 @@ def _ufn(n):
                 # before natural HID (boot370 HID@+550, no kill → GETSIZE).
                 # boot374: disable — boot373 DROP flooded to 40 before HID
                 # (boot372 natural HID worked with no kill).
-                if False and (pn == 'backboardd'
-                        and _mm2.get('drop_3240_n', 0) >= 40
+                # boot377: re-enable at drop_n>=100 with 3240-held-until-HID.
+                if (pn == 'backboardd'
+                        and _mm2.get('drop_3240_n', 0) >= 100
                         and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
                         and not _mm2.get('bb_kill_for_hid')):
@@ -1672,9 +1673,9 @@ def on_external_method():
         pn0 = (pn[0] if pn else '') or ''
         # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
         # boot372: same defer as MACH_UPC — drop_n>=40 before arming.
-        # boot374: disabled with MACH_UPC HID kill.
-        if False and ('backboard' in pn0.lower()
-                and _mm2.get('drop_3240_n', 0) >= 40
+        # boot377: re-enable at drop_n>=100 with 3240-held-until-HID.
+        if ('backboard' in pn0.lower()
+                and _mm2.get('drop_3240_n', 0) >= 100
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')
@@ -2182,8 +2183,11 @@ def on_mach_msg2():
         # boot363: SAS_NULL MACH_UPC retry disabled (boot359–362 no HID).
         # boot372: defer kill — early DROP raced ahead of natural HID.
         # boot374: disabled — DROP flood hit 40 before HID (boot373).
-        _hid_kill_mach = False and (
-            _mm2.get('drop_3240_n', 0) >= 40
+        # boot377: with 3240 held until HID (boot376), drop_n counts held
+        # traps; if still no HID after 100, one idle-peek kill (boot376:
+        # HIDPROP ok but never iohideventsystem.available).
+        _hid_kill_mach = (
+            _mm2.get('drop_3240_n', 0) >= 100
             and _mm2.get('surface_ok')
             and not _mm2.get('hid_evt_seen')
             and not _mm2.get('bb_kill_for_hid'))

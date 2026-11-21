@@ -1885,5 +1885,9 @@ Image.pth74.
 
 ## Chunk 325 (boot376: drop SB 3240 until HID)
 
-| boot376 | Image.pth273 | Hold SB 3240 DROP until hid_evt_seen (boot372 path); no HID kill; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot376 |
+| boot376 | Image.pth273 | Hold SB 3240 DROP until hid_evt_seen (boot372 path); no HID kill; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | PRE_SURFACE → SURFACE → BB init (4811/HIDPROP) → idle 11602; **0 iohideventsystem.available**. 3240 held (hid=False). Kill@~27m. | out/logs/boot376 |
+
+## Chunk 326 (boot377: late HID kill after held 3240×100)
+
+| boot377 | Image.pth273 | Keep 3240-until-HID; BB_KILL_FOR_HID at drop_n≥100; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot377 |
 
