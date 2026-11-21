@@ -1849,5 +1849,9 @@ Image.pth74.
 
 ## Chunk 316 (boot367: all-real SPIN after W00T)
 
-| boot367 | Image.pth273 | Disable SPIN_FAKE_OK; keep W00T_REAL + no SPIN_TIMEOUT after HID + anti-starve; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot367 |
+| boot367 | Image.pth273 | Disable SPIN_FAKE_OK; keep W00T_REAL + no SPIN_TIMEOUT after HID + anti-starve; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **NULL ni_vp** PANIC ~8m. | out/logs/boot367 |
+
+## Chunk 317 (boot368: retry all-real SPIN)
+
+| boot368 | Image.pth273 | Same boot367 (W00T_REAL + all-real post-W00T SPIN); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot368 |
 
