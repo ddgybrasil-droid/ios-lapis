@@ -1857,5 +1857,9 @@ Image.pth74.
 
 ## Chunk 318 (boot369: restore SPIN_FAKE_OK; retry HID→GETSIZE)
 
-| boot369 | Image.pth273 | Restore SPIN_FAKE_OK (boot366 winner path); W00T_REAL + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot369 |
+| boot369 | Image.pth273 | Restore SPIN_FAKE_OK (boot366 winner path); W00T_REAL + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: xpcproxy SURFACE + early **SAS_PORT_REAL**; **0 RB SURFACE / 0 HID** ~6m. Kill ~26m. | out/logs/boot369 |
+
+## Chunk 319 (boot370: retry boot366 HID→GETSIZE)
+
+| boot370 | Image.pth273 | Same boot366/369 config (W00T_REAL + SPIN_FAKE_OK + no SPIN_TIMEOUT after HID + anti-starve); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot370 |
 
