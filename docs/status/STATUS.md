@@ -1845,5 +1845,9 @@ Image.pth74.
 
 ## Chunk 315 (boot366: retry boot363 path for W00T_REAL)
 
-| boot366 | Image.pth273 | Same W00T_REAL + anti-starve + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot366 |
+| boot366 | Image.pth273 | Same W00T_REAL + anti-starve + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 → SURFACE → HID → GETSIZE → **W00T_REAL**×4 + SPIN_FAKE_OK + XPC388; wall still **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot366 |
+
+## Chunk 316 (boot367: all-real SPIN after W00T)
+
+| boot367 | Image.pth273 | Disable SPIN_FAKE_OK; keep W00T_REAL + no SPIN_TIMEOUT after HID + anti-starve; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot367 |
 

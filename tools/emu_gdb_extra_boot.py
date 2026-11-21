@@ -2331,12 +2331,15 @@ def on_mach_msg2():
             # those 2 REAL, soft-success (x0=0) instead of TIMED_OUT — BB may
             # treat timeout as failed notify and skip display setup. Cap 24.
             # (earlier SPIN_FAKE without HID→EXC; now gated on W00T+surface.)
+            # boot367: boot366 W00T_REAL + SPIN_FAKE_OK still 0 sels past
+            # GETSIZE. After W00T let SPINs be fully real (no FAKE_OK). Keep
+            # no SPIN_TIMEOUT once HID is up.
             if (_mm2.get('w00t_n', 0) >= 1
-                    and _mm2.get('spin_post_w00t_n', 0) < 2):
+                    and _mm2.get('spin_post_w00t_n', 0) < 24):
                 _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
                 P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
                     _mm2['spin_post_w00t_n'], remote, local))
-            elif (_mm2.get('w00t_n', 0) >= 1
+            elif False and (_mm2.get('w00t_n', 0) >= 1
                     and _mm2.get('surface_ok')
                     and _mm2.get('spin_fake_ok_n', 0) < 24):
                 _mm2['spin_fake_ok_n'] = _mm2.get('spin_fake_ok_n', 0) + 1
@@ -2350,10 +2353,6 @@ def on_mach_msg2():
                     P('POST_W00T_SPIN_FAKE_OK_ERR=%r' % ef)
             elif (_mm2.get('surface_ok')
                     and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
-                    # boot358: boot357 hit HID+GETSIZE+W00T_FAKE but 17×
-                    # SPIN_TIMEOUT pre-W00T with hid=True — may abort notify
-                    # path that should unlock sels past GETSIZE. Skip TIMEOUT
-                    # once HID is up; keep post-W00T FAKE_OK / pre-HID TIMEOUT.
                     and not _mm2.get('hid_evt_seen')
                     and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
