@@ -1817,5 +1817,9 @@ Image.pth74.
 
 ## Chunk 308 (boot359: re-enable SAS_NULL BB retry pre-HID)
 
-| boot359 | Image.pth273 | BB_KILL_SAS_RETRY on SAS_NULL after SURFACE if !hid; keep no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot359 |
+| boot359 | Image.pth273 | BB_KILL_SAS_RETRY on SAS_NULL after SURFACE if !hid; keep no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early SAS_PORT_REAL **before** SURFACE set post_surf_mach → PRE_SURFACE×1 → **0 RB SURFACE** ~8m. Kill ~25m. | out/logs/boot359 |
+
+## Chunk 309 (boot360: SAS reopen without post_surf_mach)
+
+| boot360 | Image.pth273 | post-SAS mach reopen does NOT set post_surf_mach (SURFACE-only); keep SAS_NULL retry + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot360 |
 

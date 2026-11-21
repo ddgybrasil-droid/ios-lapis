@@ -2447,11 +2447,13 @@ def on_mach_msg2():
             P('SAS_MACH n=%d proc=%s msgid=%d remote=%#x send=%d rcv=%d' % (
                 _mm2['sas_mach_n'], pn0, msgid, remote, send_sz, rcv_sz))
         # boot299: after SAS, reopen SB/BB mach window for CA past asl.
+        # boot360: boot359 SAS_PORT_REAL pre-SURFACE set post_surf_mach and
+        # burned POST_SURFACE_U / mach budget → 0 RB SURFACE after PRE_SURFACE
+        # kill. Only reopen n-cap on SAS; post_surf_mach stays SURFACE-only.
         if (_mm2.get('sas_ok') and not _mm2.get('post_sas_mach')):
             _mm2['post_sas_mach'] = 1
             _mm2['n'] = 0
-            _mm2['post_surf_mach'] = 1
-            P('MACHMSG2_WINDOW post-SAS reopen')
+            P('MACHMSG2_WINDOW post-SAS reopen (no post_surf_mach)')
         # boot241: drop POST_IOMFB_U stack walks — boot240 GDB drag left RB
         # short of SURFACE under T=2400.
         # boot241: RetBP only first 40 post_iomfb mach + interesting msgids
