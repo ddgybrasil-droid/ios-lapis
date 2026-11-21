@@ -1797,5 +1797,9 @@ Image.pth74.
 
 ## Chunk 303 (boot354: HID kill on IOEXTMETHOD RetBP)
 
-| boot354 | Image.pth273 | BB_KILL_FOR_HID via RetBP2 on BB IOEXTMETHOD after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot354 |
+| boot354 | Image.pth273 | BB_KILL_FOR_HID via RetBP2 on BB IOEXTMETHOD after SURFACE+DROP; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE + RB SURFACE + **SAS_PORT_REAL** + DROP sas=True; BB mach-peeking but **0 HID** / no IOEXTMETHOD → RetBP kill never armed. Kill ~24m. | out/logs/boot354 |
+
+## Chunk 304 (boot355: HID kill via saved userspace PC)
+
+| boot355 | Image.pth273 | After SURFACE+DROP, patch BB trap-frame userspace PC to deadbeef from mach BP; keep W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot355 |
 

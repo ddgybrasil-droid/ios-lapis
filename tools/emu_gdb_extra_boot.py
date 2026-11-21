@@ -2137,22 +2137,32 @@ def on_mach_msg2():
         # Real mach ports are small names; skip nonsense / recv-only polls.
         if remote > 0x10000 and not recving:
             return False
-        # boot352: XPC-gated BB_KILL_FOR_HID never fired — BB stuck in mach
-        # peeks after DROP, no further XPC_LOOKUP. Kill on BB mach entry.
+        # boot352–354: BB keeps mach-peeking after DROP but mach BP is
+        # kernel (pc-gate skips kill). Write deadbeef into the saved
+        # userspace PC (same frame _uframes reads) so return→EXC.
         if ('backboard' in (pn0 or '').lower()
                 and _mm2.get('drop_3240_n')
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')):
-            pc = r('pc') & 0xffffffffffffffff
-            if pc < 0xffff000000000000:
-                _mm2['bb_kill_for_hid'] = 1
-                P('BB_KILL_FOR_HID via MACH msgid=%d pc=%#x' % (msgid, pc))
-                try:
-                    gdb.execute('set $pc = 0xdeadbeef', to_string=True)
-                except Exception as ek:
-                    P('BB_KILL_FOR_HID_MACH_ERR=%r' % ek)
-                return False
+            try:
+                th = r('TPIDR_EL1')
+                ss = m64(th + 0x110) if th else 0
+                upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
+                upc = m64(upc_addr) if upc_addr else 0
+                if upc and upc < 0xffff000000000000:
+                    _mm2['bb_kill_for_hid'] = 1
+                    gdb.execute(
+                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                        to_string=True)
+                    P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
+                        msgid, upc, ss))
+                else:
+                    P('BB_KILL_FOR_HID_MACH_SKIP upc=%#x ss=%#x' % (
+                        upc or 0, ss or 0))
+            except Exception as ek:
+                P('BB_KILL_FOR_HID_MACH_ERR=%r' % ek)
+            return False
         # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
         # (no flood — boot260 uframes pre-SURFACE stalled RB).
         _sb_recv_keep = (
