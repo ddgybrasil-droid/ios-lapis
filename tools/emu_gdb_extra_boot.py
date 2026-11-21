@@ -185,7 +185,10 @@ class _RetSite(gdb.Breakpoint):
                             # boot316/317: GMD before SURFACE → SPIN stuck /
                             # SIGBUS, 0 HID (boot311 order was SURFACE→SAS→
                             # HID→GMD). Kill pre-SURFACE GMD to respawn later.
-                            if (not _mm2.get('surface_ok')
+                            # boot334: boot333 PRE_SURFACE kill → SAS ok but
+                            # 0 HID; boot332 (GMD after SURFACE, no kill) →
+                            # HID+W00T+GETSIZE. Disable PRE_SURFACE kill.
+                            if False and (not _mm2.get('surface_ok')
                                     and not _mm2.get('bb_kill_pre_surf')):
                                 _mm2['bb_kill_pre_surf'] = 1
                                 try:
