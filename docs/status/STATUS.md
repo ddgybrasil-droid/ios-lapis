@@ -1749,5 +1749,5 @@ Image.pth74.
 
 ## Chunk 291 (boot342: BB_KILL_FOR_SAS only pre-SURFACE)
 
-| boot342 | Image.pth272 | Gate `BB_KILL_FOR_SAS` on `not surface_ok`; keep other levers; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: don't kill HID BB after SURFACE (boot332 path). | out/logs/boot342 |
+| boot342 | Image.pth272 | Gate `BB_KILL_FOR_SAS` on `not surface_ok`; keep other levers; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early SAS kill + SURFACE + DROP; BB alive post-SURFACE; **0 HID/IOMFB** (~34m). Kill early. | out/logs/boot342 |
 
