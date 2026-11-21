@@ -1388,8 +1388,11 @@ def _ufn(n):
                 # boot314: deferring kill → BB hit GMD→analytics→EXC far=0x4
                 # before SURFACE; SAS lookup ran with no live BB.
                 # boot315: restore early pre-GMD kill (boot311 SAS+HID order).
+                # boot342: boot341 fired BB_KILL_FOR_SAS *after* SURFACE
+                # (sb_alive late) → killed HID BB. Only allow pre-SURFACE.
                 if (pn == 'backboardd'
                         and _mm2.get('sb_alive')
+                        and not _mm2.get('surface_ok')
                         and not _mm2.get('bb_gmd_ok')
                         and not _mm2.get('bb_kill_for_sas')):
                     pc = r('pc') & 0xffffffffffffffff

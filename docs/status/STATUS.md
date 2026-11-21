@@ -1745,5 +1745,9 @@ Image.pth74.
 
 ## Chunk 290 (boot341: keep bb_kill_pre_surf across BB exit)
 
-| boot341 | Image.pth271 | Do not clear `bb_kill_pre_surf` in BB_EXIT_CLEAR; keep BB_KILL_FOR_HID + DROP; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: one PRE_SURFACE kill → SURFACE → HID/SAS path. | out/logs/boot341 |
+| boot341 | Image.pth271 | Keep `bb_kill_pre_surf` across BB exit; DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE (no PRE_SURFACE kill); DROP; then `BB_KILL_FOR_SAS` **post-SURFACE** → 0 HID. Kill ~32m. | out/logs/boot341 |
+
+## Chunk 291 (boot342: BB_KILL_FOR_SAS only pre-SURFACE)
+
+| boot342 | Image.pth272 | Gate `BB_KILL_FOR_SAS` on `not surface_ok`; keep other levers; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: don't kill HID BB after SURFACE (boot332 path). | out/logs/boot342 |
 
