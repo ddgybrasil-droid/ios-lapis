@@ -1717,5 +1717,9 @@ Image.pth74.
 
 ## Chunk 283 (boot334: disable PRE_SURFACE GMD kill)
 
-| boot334 | Image.pth264 | Disable `BB_KILL_PRE_SURFACE_GMD`; keep DROP+ZERO+GETSIZE dump; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: keep early GMD alive → HID like boot332, plus SAS when race wins. | out/logs/boot334 |
+| boot334 | Image.pth264 | Disable `BB_KILL_PRE_SURFACE_GMD`; keep DROP+ZERO+GETSIZE dump; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: no PRE_SURFACE kill; SAS null → retry → `SB_KILL_SAS_RELOOKUP_3240` → **kernel PC-align PANIC** (deadbeef on MACHMSG2_RET). Kill ~24m. | out/logs/boot334 |
+
+## Chunk 284 (boot335: disable SB kill on 3240 RET)
+
+| boot335 | Image.pth265 | Disable `SB_KILL_SAS_RELOOKUP_3240` (panic); keep PRE_SURFACE kill off + DROP (boot332 path); short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: survive to HID→W00T without SB/kernel panic. | out/logs/boot335 |
 

@@ -316,10 +316,11 @@ class _RetSite(gdb.Breakpoint):
                         extra += ' reply=[%s]' % words
                 except Exception as er:
                     extra += ' reply_err=%r' % er
-            # boot330: SB stuck in 3240 mach loop (no XPC) after BB retry
-            # (boot329: SB_KILL_SAS_ARMED but XPC kill never fired). Kill on
-            # userspace MACHMSG2_RET so SB restarts and re-looks up SAS.
-            if (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
+            # boot330: SB stuck in 3240 mach loop — tried kill on MACHMSG2_RET.
+            # boot334: set $pc=0xdeadbeef here → kernel PC-alignment PANIC
+            # (lr still kernel). Disabled; rely on DROP + no PRE_SURFACE kill
+            # (boot332 HID path).
+            if False and (t.startswith('MACHMSG2_RET') and 'msgid=3240' in t
                     and 'SpringBoard' in t
                     and _mm2.get('sb_kill_sas_armed')
                     and not _mm2.get('sb_kill_sas_relookup')
