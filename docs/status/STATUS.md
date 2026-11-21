@@ -1889,5 +1889,9 @@ Image.pth74.
 
 ## Chunk 326 (boot377: late HID kill after held 3240×100)
 
-| boot377 | Image.pth273 | Keep 3240-until-HID; BB_KILL_FOR_HID at drop_n≥100; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot377 |
+| boot377 | Image.pth273 | Keep 3240-until-HID; BB_KILL_FOR_HID at drop_n≥100; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | SURFACE → 3240 held; few 3240s so drop_n never hit 100; **0 HID**, no kill. Kill@~22m. | out/logs/boot377 |
+
+## Chunk 327 (boot378: HID kill after 80 BB idle peeks)
+
+| boot378 | Image.pth273 | Kill BB after 80 post-SURFACE idle peeks (0/3228/11602) without HID; keep 3240-until-HID; post-GETSIZE real SPIN; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot378 |
 

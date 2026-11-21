@@ -1432,11 +1432,10 @@ def _ufn(n):
                 # (348/350/351). Allow after SURFACE regardless of sas.
                 # boot372: defer until drop_n>=40 — boot371 DROP@+500 killed BB
                 # before natural HID (boot370 HID@+550, no kill → GETSIZE).
-                # boot374: disable — boot373 DROP flooded to 40 before HID
-                # (boot372 natural HID worked with no kill).
-                # boot377: re-enable at drop_n>=100 with 3240-held-until-HID.
+                # boot378: XPC path same idle gate as MACH_UPC (boot377
+                # drop_n never reached 100).
                 if (pn == 'backboardd'
-                        and _mm2.get('drop_3240_n', 0) >= 100
+                        and _mm2.get('bb_idle_post_surf', 0) >= 80
                         and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
                         and not _mm2.get('bb_kill_for_hid')):
@@ -1672,10 +1671,9 @@ def on_external_method():
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
         # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
-        # boot372: same defer as MACH_UPC — drop_n>=40 before arming.
-        # boot377: re-enable at drop_n>=100 with 3240-held-until-HID.
+        # boot378: idle-peek gate (same as MACH_UPC).
         if ('backboard' in pn0.lower()
-                and _mm2.get('drop_3240_n', 0) >= 100
+                and _mm2.get('bb_idle_post_surf', 0) >= 80
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')
@@ -2182,35 +2180,35 @@ def on_mach_msg2():
         # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
         # boot363: SAS_NULL MACH_UPC retry disabled (boot359–362 no HID).
         # boot372: defer kill — early DROP raced ahead of natural HID.
-        # boot374: disabled — DROP flood hit 40 before HID (boot373).
-        # boot377: with 3240 held until HID (boot376), drop_n counts held
-        # traps; if still no HID after 100, one idle-peek kill (boot376:
-        # HIDPROP ok but never iohideventsystem.available).
-        _hid_kill_mach = (
-            _mm2.get('drop_3240_n', 0) >= 100
-            and _mm2.get('surface_ok')
-            and not _mm2.get('hid_evt_seen')
-            and not _mm2.get('bb_kill_for_hid'))
+        # boot378: boot377 drop_n≥100 never fired (few 3240s with hold).
+        # Count BB idle peeks post-SURFACE instead.
         if ('backboard' in (pn0 or '').lower()
                 and msgid in (0, 3228, 11602)
-                and _hid_kill_mach):
-            try:
-                th = r('TPIDR_EL1')
-                ss = m64(th + 0x110) if th else 0
-                upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
-                upc = m64(upc_addr) if upc_addr else 0
-                if upc and upc < 0xffff000000000000:
-                    _mm2['bb_kill_for_hid'] = 1
-                    gdb.execute(
-                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
-                        to_string=True)
-                    P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
-                        msgid, upc, ss))
-                else:
-                    P('BB_KILL_MACH_SKIP upc=%#x ss=%#x' % (upc or 0, ss or 0))
-            except Exception as ek:
-                P('BB_KILL_MACH_ERR=%r' % ek)
-            return False
+                and _mm2.get('surface_ok')
+                and _mm2.get('bb_post_surf_mach')
+                and not _mm2.get('hid_evt_seen')):
+            _mm2['bb_idle_post_surf'] = _mm2.get('bb_idle_post_surf', 0) + 1
+            if (_mm2['bb_idle_post_surf'] >= 80
+                    and not _mm2.get('bb_kill_for_hid')):
+                try:
+                    th = r('TPIDR_EL1')
+                    ss = m64(th + 0x110) if th else 0
+                    upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
+                    upc = m64(upc_addr) if upc_addr else 0
+                    if upc and upc < 0xffff000000000000:
+                        _mm2['bb_kill_for_hid'] = 1
+                        gdb.execute(
+                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                            to_string=True)
+                        P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x '
+                          'idle=%d ss=%#x' % (
+                              msgid, upc, _mm2['bb_idle_post_surf'], ss))
+                    else:
+                        P('BB_KILL_MACH_SKIP upc=%#x ss=%#x' % (
+                            upc or 0, ss or 0))
+                except Exception as ek:
+                    P('BB_KILL_MACH_ERR=%r' % ek)
+                return False
         # boot259/261: after SURFACE+6001012 keep a few pure-recv SB samples
         # (no flood — boot260 uframes pre-SURFACE stalled RB).
         _sb_recv_keep = (
