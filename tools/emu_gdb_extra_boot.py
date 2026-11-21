@@ -1403,7 +1403,9 @@ def _ufn(n):
                             P('BB_KILL_FOR_SAS_ERR=%r' % ek)
                         return False
                 # boot328: second BB kill after SURFACE if SAS still null.
-                if (pn == 'backboardd'
+                # boot337: boot336 retry killed BB after HID → respawn spun
+                # with 0 IOMFB. Disable; keep early BB_KILL_FOR_SAS + DROP.
+                if False and (pn == 'backboardd'
                         and _mm2.get('bb_kill_sas_retry_armed')
                         and not _mm2.get('bb_kill_sas_retry')
                         and not _mm2.get('sas_ok')):

@@ -1725,5 +1725,9 @@ Image.pth74.
 
 ## Chunk 285 (boot336: restore PRE_SURFACE kill; no SB RET kill)
 
-| boot336 | Image.pth266 | Restore `BB_KILL_PRE_SURFACE_GMD`; keep SB 3240 RET kill disabled + DROP; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: SURFACE again; DROP→HID like boot331/332 without panic. | out/logs/boot336 |
+| boot336 | Image.pth266 | Restore PRE_SURFACE kill; SB RET kill off + DROP; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE+**HID**; then `BB_KILL_SAS_RETRY` → BB respawn SPIN, **0 IOMFB**. Kill ~31m. | out/logs/boot336 |
+
+## Chunk 286 (boot337: disable BB_KILL_SAS_RETRY)
+
+| boot337 | Image.pth267 | Disable post-SURFACE SAS-null BB retry kill; keep PRE_SURFACE kill + DROP + no SB RET kill; short poll | qemu11 43G lva=off | **ГИПОТЕЗА**: keep HID BB alive → IOMFB/W00T like boot332. | out/logs/boot337 |
 
