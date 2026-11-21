@@ -1841,5 +1841,9 @@ Image.pth74.
 
 ## Chunk 314 (boot365: retry W00T_REAL after vnode_put)
 
-| boot365 | Image.pth273 | Same boot364 (W00T_REAL + no SPIN_TIMEOUT after HID); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot365 |
+| boot365 | Image.pth273 | Same boot364 (W00T_REAL + no SPIN_TIMEOUT after HID); short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SURFACE before GMD (no PRE_SURFACE) → HID → DROP → BB_KILL_FOR_HID → respawn; **0 SAS_PORT / 0 GETSIZE / 0 second HID**. Kill ~29m. W00T_REAL untested. | out/logs/boot365 |
+
+## Chunk 315 (boot366: retry boot363 path for W00T_REAL)
+
+| boot366 | Image.pth273 | Same W00T_REAL + anti-starve + no SPIN_TIMEOUT after HID; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot366 |
 
