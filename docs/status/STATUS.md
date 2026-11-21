@@ -1751,3 +1751,11 @@ Image.pth74.
 
 | boot342 | Image.pth272 | Gate `BB_KILL_FOR_SAS` on `not surface_ok`; keep other levers; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early SAS kill + SURFACE + DROP; BB alive post-SURFACE; **0 HID/IOMFB** (~34m). Kill early. | out/logs/boot342 |
 
+## Chunk 292 (boot343: retry → boot332 path again)
+
+| boot343 | Image.pth273 | Same as boot342; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: DROP→**HID**→GETSIZE 2420×1668→**W00T_REAL×4**→**SPIN_REAL**→XPC388_FAKE. Wall: **0 IOMFB sels past 8**. Kill ~22m. | out/logs/boot343 |
+
+## Chunk 293 (boot344: post-W00T SPIN_TIMEOUT hybrid)
+
+| boot344 | Image.pth273 | After 2× POST_W00T_SPIN_REAL, TIMED_OUT further SPINs (boot320 unlock + boot332 W00T_REAL); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot344 |
+

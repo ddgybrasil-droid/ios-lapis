@@ -2231,20 +2231,27 @@ def on_mach_msg2():
             # boot321: real W00T_RET x0=0 to FB, but SPIN_TIMEOUT still fired
             # on post-W00T notify-waits → W00T retry storm + 3240 wall.
             # boot322: only TIMED_OUT pre-W00T; after first W00T let SPINs real.
-            if (_mm2.get('w00t_n', 0) >= 1):
-                if _mm2.get('spin_post_w00t_n', 0) < 8:
-                    _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
-                    P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
-                        _mm2['spin_post_w00t_n'], remote, local))
+            # boot344: boot332/343 W00T_REAL+SPIN_REAL wall = 0 sels past
+            # GETSIZE; boot320 SPIN_TIMEOUT unlocked sel progress. Hybrid:
+            # first 2 post-W00T SPINs real (let FB notify land), then TIMEOUT
+            # again so BB can leave the wait and call further IOMFB sels.
+            if (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('spin_post_w00t_n', 0) < 2):
+                _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
+                P('POST_W00T_SPIN_REAL n=%d remote=%#x local=%#x' % (
+                    _mm2['spin_post_w00t_n'], remote, local))
             elif (_mm2.get('surface_ok')
-                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
+                    and (_mm2.get('sas_ok') or _mm2.get('post_iomfb')
+                         or _mm2.get('w00t_n', 0) >= 1)
                     and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
                 try:
                     gdb.execute('set $x0 = 0x10000004', to_string=True)
                     gdb.execute('set $pc = $x30', to_string=True)
-                    P('POST_SAS_SPIN_TIMEOUT n=%d remote=%#x sas=%s hid=%s' % (
-                        _mm2['spin_timeout_n'], remote,
+                    tag = ('POST_W00T_SPIN_TIMEOUT' if _mm2.get('w00t_n', 0) >= 1
+                           else 'POST_SAS_SPIN_TIMEOUT')
+                    P('%s n=%d remote=%#x sas=%s hid=%s' % (
+                        tag, _mm2['spin_timeout_n'], remote,
                         bool(_mm2.get('sas_ok')),
                         bool(_mm2.get('hid_evt_seen'))))
                 except Exception as ef:
