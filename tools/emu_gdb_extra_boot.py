@@ -1415,17 +1415,11 @@ def _ufn(n):
                 # userspace BB kill so HID path can republish.
                 # boot351: gated on sas_ok → miss when SAS_NULL + DROP + 0 HID
                 # (348/350/351). Allow after SURFACE regardless of sas.
-                # boot362: after SAS_RETRY, BB_EXIT clears bb_post_surf_mach →
-                # instant 3240 DROP → HID kill murders the fresh BB before
-                # SB relookup (boot361). Wait until SB relookup done (or no
-                # SAS-retry this boot).
                 if (pn == 'backboardd'
                         and _mm2.get('drop_3240_n')
                         and _mm2.get('surface_ok')
                         and not _mm2.get('hid_evt_seen')
-                        and not _mm2.get('bb_kill_for_hid')
-                        and (not _mm2.get('bb_kill_sas_retry')
-                             or _mm2.get('sb_kill_sas_relookup'))):
+                        and not _mm2.get('bb_kill_for_hid')):
                     pc = r('pc') & 0xffffffffffffffff
                     if pc < 0xffff000000000000:
                         _mm2['bb_kill_for_hid'] = 1
@@ -1437,11 +1431,11 @@ def _ufn(n):
                             P('BB_KILL_FOR_HID_ERR=%r' % ek)
                         return False
                 # boot328: second BB kill after SURFACE if SAS still null.
-                # boot337: disabled — killed after HID → 0 IOMFB. boot359:
-                # boot358 SURFACE-before-GMD → SAS_NULL → HID-kill late →
-                # still 0 HID. Re-arm retry only pre-HID so SAS can republish
-                # (boot357 HID path had SAS_PORT_REAL).
-                if (pn == 'backboardd'
+                # boot337: disabled — killed after HID → 0 IOMFB.
+                # boot359–362: SAS_NULL retry+SB relookup never reached HID;
+                # boot357 BEST had natural SAS_PORT_REAL. boot363: disable
+                # again; keep anti-starve 3240 + no SPIN_TIMEOUT after HID.
+                if False and (pn == 'backboardd'
                         and _mm2.get('bb_kill_sas_retry_armed')
                         and not _mm2.get('bb_kill_sas_retry')
                         and not _mm2.get('sas_ok')
@@ -1658,15 +1652,12 @@ def on_external_method():
         pn = cur_pname()
         pn0 = (pn[0] if pn else '') or ''
         # boot353/354: kill BB on RetBP of IOEXTMETHOD (entry is kernel).
-        # boot362: defer while SAS-retry awaits SB relookup.
         if ('backboard' in pn0.lower()
                 and _mm2.get('drop_3240_n')
                 and _mm2.get('surface_ok')
                 and not _mm2.get('hid_evt_seen')
                 and not _mm2.get('bb_kill_for_hid')
-                and not _mm2.get('bb_hid_kill_retbp')
-                and (not _mm2.get('bb_kill_sas_retry')
-                     or _mm2.get('sb_kill_sas_relookup'))):
+                and not _mm2.get('bb_hid_kill_retbp')):
             try:
                 lr = r('x30') & 0xffffffffffffffff
                 if lr < 0xffff000000000000:
@@ -1992,36 +1983,12 @@ def on_mach_msg2():
         # boot357: PRE_SURFACE×2 leaves BB late (SOURCE_ATTACH only); SB 3240
         # dump/zero before DROP still starves BB → 0 mach / 0 HID (boot356).
         # Drop SB 3240 immediately after SURFACE until BB posts any mach.
-        # boot361: boot360 armed SB_KILL but SB stuck in 3240 (no XPC) —
-        # MACH_UPC kill on 3240 when armed (kernel $pc panic in boot334).
+        # boot363: SB MACH_UPC SAS relookup disabled with SAS_RETRY.
         if 'backboard' in (pn0 or '').lower() and _mm2.get('surface_ok'):
             if not _mm2.get('bb_post_surf_mach'):
                 _mm2['bb_post_surf_mach'] = 1
                 _mm2['n'] = 0
                 P('BB_POST_SURF_MACH msgid=%d reopen' % msgid)
-        if (msgid == 3240
-                and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
-                and _mm2.get('sb_kill_sas_armed')
-                and not _mm2.get('sb_kill_sas_relookup')
-                and not _mm2.get('sas_ok')):
-            try:
-                th = r('TPIDR_EL1')
-                ss = m64(th + 0x110) if th else 0
-                upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
-                upc = m64(upc_addr) if upc_addr else 0
-                if upc and upc < 0xffff000000000000:
-                    _mm2['sb_kill_sas_relookup'] = 1
-                    _mm2['sb_kill_sas_armed'] = 0
-                    gdb.execute(
-                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
-                        to_string=True)
-                    P('SB_KILL_SAS_RELOOKUP via MACH_UPC upc=%#x' % upc)
-                else:
-                    P('SB_KILL_SAS_MACH_SKIP upc=%#x ss=%#x' % (
-                        upc or 0, ss or 0))
-            except Exception as ek:
-                P('SB_KILL_SAS_MACH_ERR=%r' % ek)
-            return False
         if (msgid == 3240
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
                 and not _mm2.get('sb_kill_sas_armed')
@@ -2189,44 +2156,27 @@ def on_mach_msg2():
         # boot352–355: BB peeks after DROP; mach BP is kernel — patch saved
         # userspace PC so return→EXC. boot355 killed on SAS W00T (0x77303074)
         # mid-progress → respawn w/o HID. Only idle peeks (0/3228/11602).
-        # boot359: also MACH_UPC when SAS_NULL_RETRY armed (XPC may not run).
-        _sas_retry_mach = (
-            _mm2.get('bb_kill_sas_retry_armed')
-            and not _mm2.get('bb_kill_sas_retry')
-            and not _mm2.get('sas_ok')
-            and not _mm2.get('hid_evt_seen'))
-        # boot362: same gate as XPC HID kill — don't murder BB mid SAS-retry.
+        # boot363: SAS_NULL MACH_UPC retry disabled (boot359–362 no HID).
         _hid_kill_mach = (
             _mm2.get('drop_3240_n')
             and _mm2.get('surface_ok')
             and not _mm2.get('hid_evt_seen')
-            and not _mm2.get('bb_kill_for_hid')
-            and (not _mm2.get('bb_kill_sas_retry')
-                 or _mm2.get('sb_kill_sas_relookup')))
+            and not _mm2.get('bb_kill_for_hid'))
         if ('backboard' in (pn0 or '').lower()
                 and msgid in (0, 3228, 11602)
-                and (_sas_retry_mach or _hid_kill_mach)):
+                and _hid_kill_mach):
             try:
                 th = r('TPIDR_EL1')
                 ss = m64(th + 0x110) if th else 0
                 upc_addr = (ss + 8 + 0xe8 + 8 * 3) if ss else 0
                 upc = m64(upc_addr) if upc_addr else 0
                 if upc and upc < 0xffff000000000000:
-                    if _sas_retry_mach:
-                        _mm2['bb_kill_sas_retry'] = 1
-                        _mm2['bb_kill_sas_retry_armed'] = 0
-                        gdb.execute(
-                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
-                            to_string=True)
-                        P('BB_KILL_SAS_RETRY via MACH_UPC msgid=%d upc=%#x' % (
-                            msgid, upc))
-                    else:
-                        _mm2['bb_kill_for_hid'] = 1
-                        gdb.execute(
-                            'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
-                            to_string=True)
-                        P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
-                            msgid, upc, ss))
+                    _mm2['bb_kill_for_hid'] = 1
+                    gdb.execute(
+                        'set {unsigned long long}%#x = 0xdeadbeef' % upc_addr,
+                        to_string=True)
+                    P('BB_KILL_FOR_HID via MACH_UPC msgid=%d upc=%#x ss=%#x' % (
+                        msgid, upc, ss))
                 else:
                     P('BB_KILL_MACH_SKIP upc=%#x ss=%#x' % (upc or 0, ss or 0))
             except Exception as ek:

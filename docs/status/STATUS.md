@@ -1829,5 +1829,9 @@ Image.pth74.
 
 ## Chunk 311 (boot362: defer HID kill until after SB SAS relookup)
 
-| boot362 | Image.pth273 | BB_KILL_FOR_HID only after SB relookup if SAS_RETRY ran; keep SB MACH_UPC + anti-starve; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot362 |
+| boot362 | Image.pth273 | BB_KILL_FOR_HID only after SB relookup if SAS_RETRY ran; keep SB MACH_UPC + anti-starve; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: SAS_RETRY + SB MACH_UPC relookup worked; SB respawn; **0 SAS/HID** ~6m. Kill ~29m. | out/logs/boot362 |
+
+## Chunk 312 (boot363: back to boot357 recipe — no SAS_NULL kill chain)
+
+| boot363 | Image.pth273 | Disable SAS_NULL BB/SB kill; keep anti-starve 3240 + no SPIN_TIMEOUT after HID + no post_surf on early SAS; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot363 |
 
