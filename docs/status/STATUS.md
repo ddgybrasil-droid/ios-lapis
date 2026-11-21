@@ -1805,5 +1805,9 @@ Image.pth74.
 
 ## Chunk 305 (boot356: MACH_UPC kill only on idle peeks)
 
-| boot356 | Image.pth273 | MACH_UPC HID kill only msgid 0/3228/11602 (not W00T); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot356 |
+| boot356 | Image.pth273 | MACH_UPC HID kill only msgid 0/3228/11602 (not W00T); W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×2 → RB SURFACE + SAS_PORT_REAL + DROP; **BB silent after spawn#3** (SOURCE_ATTACH only, 0 mach) → HID kill never armed. Kill ~32m. | out/logs/boot356 |
+
+## Chunk 306 (boot357: drop SB 3240 until BB posts mach)
+
+| boot357 | Image.pth273 | After SURFACE, drop SB 3240 until BB any mach (anti-starve); keep idle MACH_UPC HID kill; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot357 |
 
