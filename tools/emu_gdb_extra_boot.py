@@ -2338,6 +2338,11 @@ def on_mach_msg2():
                     P('POST_W00T_SPIN_FAKE_OK_ERR=%r' % ef)
             elif (_mm2.get('surface_ok')
                     and (_mm2.get('sas_ok') or _mm2.get('post_iomfb'))
+                    # boot358: boot357 hit HID+GETSIZE+W00T_FAKE but 17×
+                    # SPIN_TIMEOUT pre-W00T with hid=True — may abort notify
+                    # path that should unlock sels past GETSIZE. Skip TIMEOUT
+                    # once HID is up; keep post-W00T FAKE_OK / pre-HID TIMEOUT.
+                    and not _mm2.get('hid_evt_seen')
                     and _mm2.get('spin_timeout_n', 0) < 24):
                 _mm2['spin_timeout_n'] = _mm2.get('spin_timeout_n', 0) + 1
                 try:

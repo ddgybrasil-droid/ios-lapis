@@ -1809,5 +1809,9 @@ Image.pth74.
 
 ## Chunk 306 (boot357: drop SB 3240 until BB posts mach)
 
-| boot357 | Image.pth273 | After SURFACE, drop SB 3240 until BB any mach (anti-starve); keep idle MACH_UPC HID kill; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot357 |
+| boot357 | Image.pth273 | After SURFACE, drop SB 3240 until BB any mach (anti-starve); keep idle MACH_UPC HID kill; W00T_FAKE+SPIN_FAKE_OK; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО BEST++++**: PRE_SURFACE×1 → BB_POST_SURF_MACH → SAS_PORT_REAL → **HID** → GETSIZE → W00T_FAKE + SPIN_FAKE_OK + XPC388_FAKE; **17× SPIN_TIMEOUT pre-W00T (hid=True)**; wall **0 sels past GETSIZE**. Kill ~24m. | out/logs/boot357 |
+
+## Chunk 307 (boot358: no SPIN_TIMEOUT after HID)
+
+| boot358 | Image.pth273 | Skip SPIN_TIMEOUT once hid_evt_seen (keep post-W00T FAKE_OK); keep BB_POST_SURF_MACH 3240 drop; W00T_FAKE; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot358 |
 
