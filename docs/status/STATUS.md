@@ -1773,5 +1773,9 @@ Image.pth74.
 
 ## Chunk 297 (boot348: post-W00T SPIN_FAKE_OK)
 
-| boot348 | Image.pth273 | After 2× SPIN_REAL, soft-success x0=0 (not TIMED_OUT) on further SPINs; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot348 |
+| boot348 | Image.pth273 | After 2× SPIN_REAL, soft-success x0=0 (not TIMED_OUT) on further SPINs; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: PRE_SURFACE×1 + RB SURFACE + SAS_NULL; **0 HID** ~5m post-SURFACE. Kill ~23m. FAKE_OK untested. | out/logs/boot348 |
+
+## Chunk 298 (boot349: retry SPIN_FAKE_OK)
+
+| boot349 | Image.pth273 | Same boot348; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **RUNNING** | out/logs/boot349 |
 
