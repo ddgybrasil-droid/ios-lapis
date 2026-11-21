@@ -1881,5 +1881,9 @@ Image.pth74.
 
 ## Chunk 324 (boot375: retry no-HID-kill + post-GETSIZE real SPIN)
 
-| boot375 | Image.pth273 | Same boot374 levers (no HID kill; post-GETSIZE real SPIN; W00T_RET); short poll / kill-at-wall | qemu11 43G lva=off | **RUNNING** | out/logs/boot375 |
+| boot375 | Image.pth273 | Same boot374 levers (no HID kill; post-GETSIZE real SPIN; W00T_RET); short poll / kill-at-wall | qemu11 43G lva=off | SURFACE → early SB 3240 MIG → DROP before HID → **0 HID** (BB alive). boot372 had HID before any 3240 MIG. Kill@~26m. | out/logs/boot375 |
+
+## Chunk 325 (boot376: drop SB 3240 until HID)
+
+| boot376 | Image.pth273 | Hold SB 3240 DROP until hid_evt_seen (boot372 path); no HID kill; post-GETSIZE real SPIN; W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot376 |
 

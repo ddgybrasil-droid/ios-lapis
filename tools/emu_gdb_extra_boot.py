@@ -2005,6 +2005,8 @@ def on_mach_msg2():
         # dump/zero before DROP still starves BB → 0 mach / 0 HID (boot356).
         # Drop SB 3240 immediately after SURFACE until BB posts any mach.
         # boot363: SB MACH_UPC SAS relookup disabled with SAS_RETRY.
+        # boot376: keep dropping 3240 until HID — boot372 HID@+490 before any
+        # 3240 MIG; boot375 early MIG→DROP@+580, 0 HID (no kill).
         if 'backboard' in (pn0 or '').lower() and _mm2.get('surface_ok'):
             if not _mm2.get('bb_post_surf_mach'):
                 _mm2['bb_post_surf_mach'] = 1
@@ -2014,15 +2016,15 @@ def on_mach_msg2():
                 and ('SpringBoard' in pn0 or pn0 == 'SpringBoard')
                 and not _mm2.get('sb_kill_sas_armed')
                 and (_mm2.get('surface_ok')
-                     and not _mm2.get('bb_post_surf_mach')
                      and not _mm2.get('hid_evt_seen')
                      or _mm2.get('dump_3240', 0) >= 6
                      or _mm2.get('zero_3240_2e', 0) >= 4)):
             _mm2['drop_3240_n'] = _mm2.get('drop_3240_n', 0) + 1
             if _mm2['drop_3240_n'] <= 2:
-                P('SB_3240_DROP n=%d sas=%s bb_mach=%s' % (
+                P('SB_3240_DROP n=%d sas=%s bb_mach=%s hid=%s' % (
                     _mm2['drop_3240_n'], bool(_mm2.get('sas_ok')),
-                    bool(_mm2.get('bb_post_surf_mach'))))
+                    bool(_mm2.get('bb_post_surf_mach')),
+                    bool(_mm2.get('hid_evt_seen'))))
             if _mm2['drop_3240_n'] == 1:
                 _mm2['n'] = 0
                 _mm2['post_surf_mach'] = 1
