@@ -1877,5 +1877,9 @@ Image.pth74.
 
 ## Chunk 323 (boot374: disable HID kill entirely)
 
-| boot374 | Image.pth273 | No BB_KILL_FOR_HID (boot372 natural HID; boot373 DROP@40 still raced); keep post-GETSIZE real SPIN + W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot374 |
+| boot374 | Image.pth273 | No BB_KILL_FOR_HID (boot372 natural HID; boot373 DROP@40 still raced); keep post-GETSIZE real SPIN + W00T_RET; short poll | qemu11 43G lva=off | PRE_SURFACE×1 → BB respawn nearly silent (1×11602) → SURFACE → SAS_PORT_REAL → DROP bb_mach=False → ReportCrash backboardd; **0 HID**. Kill@~23m. Flaky vs boot372. | out/logs/boot374 |
+
+## Chunk 324 (boot375: retry no-HID-kill + post-GETSIZE real SPIN)
+
+| boot375 | Image.pth273 | Same boot374 levers (no HID kill; post-GETSIZE real SPIN; W00T_RET); short poll / kill-at-wall | qemu11 43G lva=off | **RUNNING** | out/logs/boot375 |
 
