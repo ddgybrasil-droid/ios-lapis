@@ -1893,5 +1893,15 @@ Image.pth74.
 
 ## Chunk 327 (boot378: HID kill after 80 BB idle peeks)
 
-| boot378 | Image.pth273 | Kill BB after 80 post-SURFACE idle peeks (0/3228/11602) without HID; keep 3240-until-HID; post-GETSIZE real SPIN; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot378 |
+| boot378 | Image.pth273 | Kill BB after 80 post-SURFACE idle peeks (0/3228/11602) without HID; keep 3240-until-HID; post-GETSIZE real SPIN; short poll | qemu11 43G lva=off | **STOPPED** (user halt; merge conflict with base resolved) | out/logs/boot378 |
 
+
+## Remaining (stop @ boot378)
+
+Best path so far: **boot372** — PRE_SURFACE→SURFACE→natural HID→GETSIZE→W00T_REAL; wall = **0 IOMFB sels past GETSIZE**.
+
+Still open:
+1. Past-GETSIZE: next IOMFB sel / swap / layer after GETSIZE (SPIN_FAKE_OK vs real; W00T peer x0).
+2. Stable HID: `iohideventsystem.available` is flaky (3240 race / idle BB); boot378 idle-peek kill untested.
+3. CA/SpringBoard UI once past GETSIZE wall.
+4. Merge base was `cursor/lsd-persona-wall-c975` — conflict resolved keeping PR #43 HEAD levers.
