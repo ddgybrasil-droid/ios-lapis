@@ -1873,5 +1873,9 @@ Image.pth74.
 
 ## Chunk 322 (boot373: post-GETSIZE real SPIN + W00T_RET via MACHMSG2_RET)
 
-| boot373 | Image.pth273 | After HID+GETSIZE let SPINs complete real (no FAKE_OK); log W00T x0 on MACHMSG2_RET; keep HID-kill defer; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot373 |
+| boot373 | Image.pth273 | After HID+GETSIZE let SPINs complete real (no FAKE_OK); log W00T x0 on MACHMSG2_RET; keep HID-kill defer; short poll | qemu11 43G lva=off | FB_SAS_REAL → SURFACE → DROP flooded to n≥40 before HID → **BB_KILL_FOR_HID** again. Kill@~21m. post-GETSIZE SPIN lever untested. | out/logs/boot373 |
+
+## Chunk 323 (boot374: disable HID kill entirely)
+
+| boot374 | Image.pth273 | No BB_KILL_FOR_HID (boot372 natural HID; boot373 DROP@40 still raced); keep post-GETSIZE real SPIN + W00T_RET; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot374 |
 
