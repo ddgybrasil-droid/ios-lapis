@@ -1765,5 +1765,9 @@ Image.pth74.
 
 ## Chunk 295 (boot346: PRE_SURFACE kill cap=2)
 
-| boot346 | Image.pth273 | Allow up to 2× BB_KILL_PRE_SURFACE while !surface_ok (boot340 retry + boot341 keep-counter); keep post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot346 |
+| boot346 | Image.pth273 | Allow up to 2× BB_KILL_PRE_SURFACE while !surface_ok; keep post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **xpcproxy** SURFACE_CONNECT set surface_ok → no PRE_SURFACE kill, BB sel=17, **0 HID/GMD**. Kill ~24m. | out/logs/boot346 |
+
+## Chunk 296 (boot347: only RB SURFACE counts)
+
+| boot347 | Image.pth273 | Ignore non-runningboardd sel32 for surface_ok; PRE_SURFACE cap=2; post-W00T SPIN hybrid; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot347 |
 

@@ -1686,14 +1686,21 @@ def on_external_method():
                 if sout_p:
                     tag += ' soutp=%#x' % sout_p
                 # boot310: always allow SURFACE (boot302 HID path).
-                _mm2['rb_sel32'] = 1
-                _mm2['surface_ok'] = 1
-                if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
-                    tag += ' PRE_BB_GMD'
-                if not _mm2.get('post_surf_mach'):
-                    _mm2['post_surf_mach'] = 1
-                    _mm2['n'] = 0
-                    P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
+                # boot346: xpcproxy sel32 marked surface_ok early → skipped
+                # PRE_SURFACE kill + no HID (best boots use runningboardd).
+                # Only RB SURFACE counts as the real win.
+                if 'runningboard' in (pn0 or '').lower():
+                    _mm2['rb_sel32'] = 1
+                    _mm2['surface_ok'] = 1
+                    if not (_mm2.get('bb_gmd_ok') or _mm2.get('post_iomfb')):
+                        tag += ' PRE_BB_GMD'
+                    if not _mm2.get('post_surf_mach'):
+                        _mm2['post_surf_mach'] = 1
+                        _mm2['n'] = 0
+                        P('MACHMSG2_WINDOW post-SURFACE reopen-at-sel32')
+                else:
+                    tag += ' SURFACE_IGNORE_NON_RB proc=%s' % (pn0 or '?')
+                    P('SURFACE_IGNORE_NON_RB proc=%s sel=32' % (pn0 or '?'))
             # boot224/226: cave Open post-path UCAL / GetDisplaySize
             if sel == 5 and ('backboard' in pn0.lower() or 'IOMFB' in pn0):
                 tag += ' IOMFB_UCAL'
