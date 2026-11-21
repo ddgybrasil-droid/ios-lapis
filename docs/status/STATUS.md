@@ -1777,5 +1777,9 @@ Image.pth74.
 
 ## Chunk 298 (boot349: retry SPIN_FAKE_OK)
 
-| boot349 | Image.pth273 | Same boot348; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **RUNNING** | out/logs/boot349 |
+| boot349 | Image.pth273 | Same boot348; short poll kill if no HID ~5m post-SURFACE | qemu11 43G lva=off | **ПРОВЕРЕНО / BEST++++**: RB SURFACE→HID→GETSIZE→W00T_REAL×4→SPIN_REAL×2→**SPIN_FAKE_OK×24**→XPC388. No BB EXC. Wall: **0 sels past 8** (success≠unlock). Kill ~23m. | out/logs/boot349 |
+
+## Chunk 299 (boot350: W00T_FAKE + SPIN_FAKE_OK)
+
+| boot350 | Image.pth273 | W00T_FAKE (skip dead FB send) + SPIN_FAKE_OK; RB-only SURFACE; PRE_SURFACE cap=2; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot350 |
 

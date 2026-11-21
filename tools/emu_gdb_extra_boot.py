@@ -2142,23 +2142,22 @@ def on_mach_msg2():
                     except Exception as e:
                         P('W00T_U err=%r' % e)
             # boot179: early W00T_FAKE → respawn. boot318: W00T→FB port then
-            # SPIN. boot320: W00T_FAKE after HID+GMD fired + IOMFB deferred
-            # wake gfx, but SB stuck on msgid=3240 and no further IOMFB sels —
-            # FAKE skipped real send to FB (remote=0x5087). boot321: let W00T
-            # complete for real; RetBP logs return.
+            # SPIN. boot320: W00T_FAKE after HID+GMD. boot321–349: W00T_REAL
+            # + SPIN TIMEOUT/FAKE_OK → still 0 sels past GETSIZE (boot349 even
+            # with SAS_PORT_REAL). boot350: FAKE W00T again (skip send to
+            # likely-dead FB peer) while keeping SPIN_FAKE_OK + RB SURFACE.
             if (_mm2.get('hid_evt_seen') and _mm2.get('bb_gmd_ok')
                     and _mm2.get('surface_ok')
                     and 'backboard' in pn0.lower()
                     and _mm2.get('w00t_ret_n', 0) < 4):
                 _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
                 try:
-                    RetBP(r('x30'),
-                          'POST_SAS_W00T_RET n=%d remote=%#x msgid=%#x' % (
-                              _mm2['w00t_ret_n'], remote, msgid))
-                    P('POST_SAS_W00T_REAL n=%d remote=%#x msgid=%#x' % (
+                    gdb.execute('set $x0 = 0', to_string=True)
+                    gdb.execute('set $pc = $x30', to_string=True)
+                    P('POST_SAS_W00T_FAKE n=%d remote=%#x msgid=%#x' % (
                         _mm2['w00t_ret_n'], remote, msgid))
                 except Exception as ew:
-                    P('POST_SAS_W00T_REAL_ERR=%r' % ew)
+                    P('POST_SAS_W00T_FAKE_ERR=%r' % ew)
             return False
         if msgid in (0x40000388, 0x40000384):
             if _mm2.get('post_iomfb') and 'backboard' in pn0.lower():
