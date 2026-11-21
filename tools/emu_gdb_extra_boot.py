@@ -60,8 +60,23 @@ class _RetSite(gdb.Breakpoint):
                     extra += ' GETSIZE_OUT w=%d h=%d raw=%s' % (
                         w, h, ' '.join('%08x' % int.from_bytes(
                             raw[i:i+4], 'little') for i in range(0, 16, 4)))
+                    # boot373: mark post-HID GETSIZE so SPIN policy can change.
+                    if (_mm2.get('hid_evt_seen') and 'backboard' in t
+                            and w > 0 and h > 0):
+                        _mm2['getsize_ok'] = 1
+                        extra += ' GETSIZE_OK'
                 except Exception as eg:
                     extra += ' GETSIZE_OUT_err=%r' % eg
+            # boot373: W00T_RET via MACHMSG2_RET (RetBP2 on PAC'd lr missed
+            # in boot371/372). Stash set at W00T_REAL entry.
+            if (t.startswith('MACHMSG2_RET') and 'msgid=%d' % 0x77303074 in t
+                    and 'backboard' in t and _mm2.get('w00t_pending')):
+                try:
+                    n = _mm2.pop('w00t_pending', 0)
+                    extra += ' POST_SAS_W00T_RET n=%d x0=%#x' % (
+                        n, r('x0') & 0xffffffffffffffff)
+                except Exception as ew:
+                    extra += ' POST_SAS_W00T_RET_ERR=%r' % ew
             # boot309: RB_REMATCH_KILL via mach_msg2 set pc=0xbad0dead in
             # KERNEL → PANIC (same class as boot300). boot310: always allow
             # SURFACE (boot302/306 HID path); no NotReady / no RB rematch kill.
@@ -2244,23 +2259,13 @@ def on_mach_msg2():
                     and 'backboard' in pn0.lower()
                     and _mm2.get('w00t_ret_n', 0) < 4):
                 _mm2['w00t_ret_n'] = _mm2.get('w00t_ret_n', 0) + 1
+                _mm2['w00t_pending'] = _mm2['w00t_ret_n']
                 P('POST_SAS_W00T_REAL n=%d remote=%#x msgid=%#x' % (
                     _mm2['w00t_ret_n'], remote, msgid))
-                # boot371: dump real W00T return — boot370 hit GETSIZE wall
-                # with W00T_REAL but never logged x0 (peer may be dead).
+                # boot373: do_ret MACHMSG2_RET logs x0 (RetBP2 PAC miss).
                 try:
-                    lr = r('x30') & 0xffffffffffffffff
-                    nret = _mm2['w00t_ret_n']
-
-                    def _w00t_ret(n=nret, rem=remote, mid=msgid):
-                        try:
-                            P('POST_SAS_W00T_RET n=%d remote=%#x msgid=%#x x0=%#x' % (
-                                n, rem, mid, r('x0') & 0xffffffffffffffff))
-                        except Exception as er:
-                            P('POST_SAS_W00T_RET_ERR=%r' % er)
-                        return False
-                    if lr and lr < 0xffff000000000000:
-                        RetBP2(lr, _w00t_ret)
+                    RetBP(r('x30'), 'MACHMSG2_RET proc=%s msgid=%d remote=%#x' % (
+                        pn0, msgid, remote))
                 except Exception as ew:
                     P('POST_SAS_W00T_RETBP_ERR=%r' % ew)
             return False
@@ -2354,6 +2359,8 @@ def on_mach_msg2():
             # (earlier SPIN_FAKE without HID→EXC; now gated on W00T+surface.)
             # boot369: restore boot366 SPIN_FAKE_OK (boot367–368 never hit
             # HID; 0 RB SURFACE). Keep no SPIN_TIMEOUT after HID + W00T_REAL.
+            # boot373: after HID+GETSIZE, FAKE_OK may skip swap/notify wake —
+            # let SPINs complete real (boot372: GETSIZE then 0 further sels).
             if (_mm2.get('w00t_n', 0) >= 1
                     and _mm2.get('spin_post_w00t_n', 0) < 2):
                 _mm2['spin_post_w00t_n'] = _mm2.get('spin_post_w00t_n', 0) + 1
@@ -2361,6 +2368,15 @@ def on_mach_msg2():
                     _mm2['spin_post_w00t_n'], remote, local))
             elif (_mm2.get('w00t_n', 0) >= 1
                     and _mm2.get('surface_ok')
+                    and _mm2.get('getsize_ok')
+                    and _mm2.get('spin_post_getsize_n', 0) < 24):
+                _mm2['spin_post_getsize_n'] = _mm2.get(
+                    'spin_post_getsize_n', 0) + 1
+                P('POST_GETSIZE_SPIN_REAL n=%d remote=%#x local=%#x' % (
+                    _mm2['spin_post_getsize_n'], remote, local))
+            elif (_mm2.get('w00t_n', 0) >= 1
+                    and _mm2.get('surface_ok')
+                    and not _mm2.get('getsize_ok')
                     and _mm2.get('spin_fake_ok_n', 0) < 24):
                 _mm2['spin_fake_ok_n'] = _mm2.get('spin_fake_ok_n', 0) + 1
                 try:

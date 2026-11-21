@@ -1869,5 +1869,9 @@ Image.pth74.
 
 ## Chunk 321 (boot372: defer HID kill for natural HID)
 
-| boot372 | Image.pth273 | HID kill only after drop_3240_n≥40 (boot371 early kill blocked natural HID); keep W00T_RET dump; short poll / kill-at-wall | qemu11 43G lva=off | **RUNNING** | out/logs/boot372 |
+| boot372 | Image.pth273 | HID kill only after drop_3240_n≥40 (boot371 early kill blocked natural HID); keep W00T_RET dump; short poll / kill-at-wall | qemu11 43G lva=off | **ПРОВЕРЕНО**: defer worked — PRE_SURFACE×1 → SURFACE → **HID** (no kill) → GETSIZE → W00T_REAL×4 + SPIN_FAKE_OK×24; RetBP2 W00T_RET missed (PAC); wall **0 sels past GETSIZE**. Kill@~19m. | out/logs/boot372 |
+
+## Chunk 322 (boot373: post-GETSIZE real SPIN + W00T_RET via MACHMSG2_RET)
+
+| boot373 | Image.pth273 | After HID+GETSIZE let SPINs complete real (no FAKE_OK); log W00T x0 on MACHMSG2_RET; keep HID-kill defer; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot373 |
 
