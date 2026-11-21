@@ -1837,5 +1837,9 @@ Image.pth74.
 
 ## Chunk 313 (boot364: W00T_REAL without pre-HID SPIN_TIMEOUT)
 
-| boot364 | Image.pth273 | W00T_REAL (no FAKE) + no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot364 |
+| boot364 | Image.pth273 | W00T_REAL (no FAKE) + no SPIN_TIMEOUT after HID + anti-starve 3240; short poll | qemu11 43G lva=off | **ПРОВЕРЕНО**: early **vnode_put iocount** PANIC ~8m (pre-SURFACE). | out/logs/boot364 |
+
+## Chunk 314 (boot365: retry W00T_REAL after vnode_put)
+
+| boot365 | Image.pth273 | Same boot364 (W00T_REAL + no SPIN_TIMEOUT after HID); short poll | qemu11 43G lva=off | **RUNNING** | out/logs/boot365 |
 
